@@ -1,0 +1,14 @@
+{
+  "name": "uedi-capstone",
+  "private": true,
+  "description": "UEDI loan and retirement plan system (MongoDB, Express, React, Node)",
+  "scripts": {
+    "install:all": "npm install && npm --prefix server install && npm --prefix client install",
+    "dev": "concurrently -n api,web -c green,cyan \"npm --prefix server run dev\" \"npm --prefix client run dev\"",
+    "build": "npm --prefix client run build",
+    "test": "npm --prefix server test"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.5"
+  }
+}
