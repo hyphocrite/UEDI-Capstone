@@ -7,3 +7,9 @@ dist/
 .DS_Store
 .vscode/*
 !.vscode/extensions.json
+__pycache__/
+.venv/
+venv/
+.pytest_cache/
+ml-service/models/*
+!ml-service/models/.gitkeep
