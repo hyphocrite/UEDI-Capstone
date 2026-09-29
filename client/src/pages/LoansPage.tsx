@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
-import { AlertTriangle, HandCoins, Search, Wallet, TrendingUp } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { AlertTriangle, FilePlus2, HandCoins, Search, Wallet, TrendingUp } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import StatCard from '../components/StatCard'
 import StatusBadge from '../components/StatusBadge'
@@ -29,7 +30,11 @@ export default function LoansPage() {
 
   return (
     <>
-      <PageHeader title="Loans" subtitle="Loan releases, payments and balances for every member." />
+      <PageHeader
+        title="Loans"
+        subtitle="Loan releases, payments and balances for every member."
+        actions={<Link to="/loans/apply" className="btn-primary"><FilePlus2 className="h-4 w-4" /> New application</Link>}
+      />
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard icon={HandCoins} label="Open loans" value={String(open.length)} />

@@ -4,18 +4,7 @@ import PageHeader from '../components/PageHeader'
 import { interestRates as defaults } from '../data/mock'
 import type { InterestRate } from '../data/mock'
 import { formatPeso } from '../lib/format'
-
-const STORAGE_KEY = 'uedi.interestRates'
-
-function loadRates(): InterestRate[] {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved) return JSON.parse(saved) as InterestRate[]
-  } catch {
-    /* ignore unreadable storage */
-  }
-  return defaults
-}
+import { loadRates, RATES_STORAGE_KEY } from '../lib/interestRates'
 
 type Field = 'annualRate' | 'maxTermMonths' | 'serviceFee' | 'penaltyRate'
 
@@ -33,7 +22,7 @@ export default function SettingsPage() {
 
   const save = () => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(rates))
+      localStorage.setItem(RATES_STORAGE_KEY, JSON.stringify(rates))
     } catch {
       /* storage may be blocked */
     }
