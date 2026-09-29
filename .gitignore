@@ -7,3 +7,7 @@ dist/
 .DS_Store
 .vscode/*
 !.vscode/extensions.json
+
+# Real UEDI loan data stays out of git; only the sample file is tracked
+ml-service/data/*
+!ml-service/data/sample_loans.csv
