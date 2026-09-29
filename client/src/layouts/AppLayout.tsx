@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { BarChart3, HandCoins, LogOut, Menu, PiggyBank, Settings, Users, X } from 'lucide-react'
+import { BarChart3, FilePlus2, HandCoins, LogOut, Menu, PiggyBank, Settings, Users, X } from 'lucide-react'
 import BrandLogo from '../components/BrandLogo'
 import { useAuth } from '../context/AuthContext'
 
 const nav = [
   { to: '/members', label: 'Members', icon: Users },
-  { to: '/loans', label: 'Loans', icon: HandCoins },
+  { to: '/loans', label: 'Loans', icon: HandCoins, end: true },
+  { to: '/loans/apply', label: 'Loan Application', icon: FilePlus2 },
   { to: '/retirement-plans', label: 'Retirement Plans', icon: PiggyBank },
   { to: '/reports', label: 'Reports', icon: BarChart3 },
   { to: '/settings', label: 'Settings', icon: Settings },
@@ -38,8 +39,8 @@ export default function AppLayout() {
           </NavLink>
 
           <nav className="hidden items-center gap-1 lg:flex" aria-label="Main">
-            {nav.map(({ to, label, icon: Icon }) => (
-              <NavLink key={to} to={to} className={linkClass}>
+            {nav.map(({ to, label, icon: Icon, end }) => (
+              <NavLink key={to} to={to} end={end} className={linkClass}>
                 <Icon className="h-4 w-4" />
                 {label}
               </NavLink>
@@ -69,8 +70,8 @@ export default function AppLayout() {
         {open && (
           <div className="border-t border-white/10 px-4 pb-4 lg:hidden">
             <nav className="mt-3 flex flex-col gap-1" aria-label="Mobile">
-              {nav.map(({ to, label, icon: Icon }) => (
-                <NavLink key={to} to={to} className={linkClass} onClick={() => setOpen(false)}>
+              {nav.map(({ to, label, icon: Icon, end }) => (
+                <NavLink key={to} to={to} end={end} className={linkClass} onClick={() => setOpen(false)}>
                   <Icon className="h-4 w-4" />
                   {label}
                 </NavLink>

@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import ProtectedRoute from './components/ProtectedRoute'
 import AppLayout from './layouts/AppLayout'
@@ -11,6 +12,9 @@ import SettingsPage from './pages/SettingsPage'
 import ReportsPage from './pages/ReportsPage'
 import NotFoundPage from './pages/NotFoundPage'
 
+// Loaded on demand: it carries the OCR and PDF libraries.
+const LoanApplicationPage = lazy(() => import('./pages/LoanApplicationPage'))
+
 export default function App() {
   return (
     <Routes>
@@ -23,6 +27,11 @@ export default function App() {
           <Route path="/dashboard" element={<Navigate to="/members" replace />} />
           <Route path="/members" element={<MembersPage />} />
           <Route path="/loans" element={<LoansPage />} />
+          <Route path="/loans/apply" element={
+              <Suspense fallback={<p className="text-sm text-brand-600">Loading…</p>}>
+                <LoanApplicationPage />
+              </Suspense>
+            } />
           <Route path="/retirement-plans" element={<RetirementPlansPage />} />
           <Route path="/reports" element={<ReportsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
