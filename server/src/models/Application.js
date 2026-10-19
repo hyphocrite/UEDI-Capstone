@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { STEPS, currentStepOf } = require("../services/approvals");
 
 // Fields follow UEDI's Mutual Assistance Application Form.
 const LOAN_TYPES = ["long_term", "emergency"];
@@ -14,6 +15,20 @@ const documentSchema = new mongoose.Schema(
     verdict: { type: String, enum: ["verified", "review", "mismatch", "unreadable"] },
     sha256: { type: String, maxlength: 64 },
     notes: [{ type: String, maxlength: 300 }],
+  },
+  { _id: false },
+);
+
+// One signed step of the approval chain.
+const approvalSchema = new mongoose.Schema(
+  {
+    step: { type: String, enum: STEPS, required: true },
+    decision: { type: String, enum: ["approved", "denied"], required: true },
+    note: { type: String, maxlength: 1000 },
+    signedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    signedByName: String,
+    signedAt: { type: Date, required: true },
+    followedSuggestion: Boolean,
   },
   { _id: false },
 );
@@ -97,6 +112,14 @@ const applicationSchema = new mongoose.Schema(
     status: { type: String, enum: STATUSES, default: "pending", index: true },
     assessment: assessmentSchema,
     assessmentError: String,
+    // Signatures in order. currentStep is the step waiting to be signed, or "none" once decided.
+    // It is unset on applications saved before the chain existed; currentStepOf() treats those as "bookkeeper".
+    approvals: [approvalSchema],
+    currentStep: { type: String, enum: [...STEPS, "none"], index: true },
+    // The loan created when the President approves.
+    loanId: { type: mongoose.Schema.Types.ObjectId, ref: "Loan" },
+    loanNo: String,
+    // Single-officer decision from before the approval chain. Kept so old decisions still display.
     decision: {
       decision: { type: String, enum: ["approved", "denied"] },
       note: { type: String, maxlength: 1000 },
@@ -110,6 +133,14 @@ const applicationSchema = new mongoose.Schema(
   },
   { timestamps: true },
 );
+
+applicationSchema.set("toJSON", {
+  transform(_doc, ret) {
+    ret.currentStep = currentStepOf(ret);
+    ret.approvals = ret.approvals || [];
+    return ret;
+  },
+});
 
 module.exports = mongoose.model("Application", applicationSchema);
 module.exports.LOAN_TYPES = LOAN_TYPES;

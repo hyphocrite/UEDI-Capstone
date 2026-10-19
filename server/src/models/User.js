@@ -1,6 +1,8 @@
 const mongoose = require("mongoose");
 
-const ROLES = ["admin", "loan_officer", "staff"];
+// loan_officer takes in applications; the four signer roles sign the approval chain
+// (see services/approvals.js); admin manages users but does not sign.
+const ROLES = ["admin", "loan_officer", "bookkeeper", "treasurer", "crecom_chair", "president", "staff"];
 
 const userSchema = new mongoose.Schema(
   {

@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Percent, RotateCcw, Save } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
+import UsersSection from '../components/settings/UsersSection'
+import { useAuth } from '../context/AuthContext'
 import { interestRates as defaults } from '../data/mock'
 import type { InterestRate } from '../data/mock'
 import { formatPeso } from '../lib/format'
@@ -9,6 +11,7 @@ import { loadRates, RATES_STORAGE_KEY } from '../lib/interestRates'
 type Field = 'annualRate' | 'maxTermMonths' | 'serviceFee' | 'penaltyRate'
 
 export default function SettingsPage() {
+  const { session } = useAuth()
   const [rates, setRates] = useState<InterestRate[]>(loadRates)
   const [saved, setSaved] = useState(false)
   const [sample, setSample] = useState(50000)
@@ -38,7 +41,7 @@ export default function SettingsPage() {
     <>
       <PageHeader
         title="Settings"
-        subtitle="Interest rates and fees used for each loan product."
+        subtitle="Interest rates and fees used for each loan product, and who can sign loans."
         actions={
           <>
             <button className="btn-ghost" onClick={reset}><RotateCcw className="h-4 w-4" /> Reset</button>
@@ -100,6 +103,8 @@ export default function SettingsPage() {
           onChange={(e) => setSample(Math.max(0, Number(e.target.value) || 0))} />
         <p className="text-xs text-brand-500">Uses add-on interest over the maximum term. UEDI's exact formula can replace this.</p>
       </div>
+
+      {session?.role === 'admin' && <UsersSection />}
     </>
   )
 }

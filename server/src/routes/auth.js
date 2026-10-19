@@ -1,12 +1,15 @@
 const express = require("express");
+const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 const { z } = require("zod");
 const User = require("../models/User");
+const { ROLES } = require("../models/User");
 const {
   COOKIE_NAME,
   cookieOptions,
   signSession,
   requireAuth,
+  requireRole,
 } = require("../middleware/auth");
 
 const router = express.Router();
@@ -94,6 +97,33 @@ router.get("/users", requireAuth, async (_req, res, next) => {
   try {
     const users = await User.find().sort({ createdAt: -1 }).limit(200);
     res.json({ users: users.map((u) => ({ ...u.toSession(), createdAt: u.createdAt })) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+const roleSchema = z.object({ role: z.enum(ROLES, { message: "Choose a valid role." }) });
+
+// Admins assign roles. An admin can't change their own role, and UEDI always keeps one admin.
+router.patch("/users/:id/role", requireRole("admin"), async (req, res, next) => {
+  try {
+    const parsed = roleSchema.safeParse(req.body || {});
+    if (!parsed.success) return res.status(400).json({ error: firstIssue(parsed) });
+    const { role } = parsed.data;
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ error: "User not found." });
+    if (req.user._id.equals(req.params.id)) {
+      return res.status(400).json({ error: "You can't change your own role. Ask another administrator." });
+    }
+
+    const before = await User.findByIdAndUpdate(req.params.id, { $set: { role } });
+    if (!before) return res.status(404).json({ error: "User not found." });
+    // Checked after the change so two admins demoting each other at once can't both succeed.
+    if (before.role === "admin" && role !== "admin" && (await User.countDocuments({ role: "admin" })) === 0) {
+      await User.updateOne({ _id: before._id }, { $set: { role: "admin" } });
+      return res.status(409).json({ error: "UEDI needs at least one administrator. Make someone else an administrator first." });
+    }
+    const user = await User.findById(before._id);
+    res.json({ user: { ...user.toSession(), createdAt: user.createdAt } });
   } catch (err) {
     next(err);
   }

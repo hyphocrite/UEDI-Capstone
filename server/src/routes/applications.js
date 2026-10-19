@@ -3,7 +3,9 @@ const { z } = require("zod");
 const Application = require("../models/Application");
 const { EMPLOYMENT_STATUSES, LOAN_TYPES, PAYMENT_FREQUENCIES } = require("../models/Application");
 const ml = require("../services/mlClient");
-const { requireAuth, requireRole } = require("../middleware/auth");
+const loans = require("../services/loans");
+const { STEPS, STEP_LABELS, currentStepOf, nextStep, followsSuggestion } = require("../services/approvals");
+const { requireAuth } = require("../middleware/auth");
 
 const router = express.Router();
 router.use(requireAuth);
@@ -11,6 +13,14 @@ router.use(requireAuth);
 const money = z.coerce.number().min(0).max(100_000_000);
 
 const optionalDate = z.preprocess((v) => (v === "" || v == null ? undefined : v), z.coerce.date().optional());
+
+// "To be filled up by the Bookkeeper": set on the form, and checked or corrected when the Bookkeeper signs.
+const bookkeeperSchema = z.object({
+  longTermBalance: money.default(0),
+  longTermDueDate: optionalDate,
+  shortTermBalance: money.default(0),
+  shortTermDueDate: optionalDate,
+});
 
 // The body mirrors UEDI's Mutual Assistance Application Form.
 const createSchema = z
@@ -38,14 +48,7 @@ const createSchema = z
       paymentFrequency: z.enum(PAYMENT_FREQUENCIES).default("monthly"),
       purpose: z.string().trim().max(300).optional(),
     }),
-    bookkeeper: z
-      .object({
-        longTermBalance: money.default(0),
-        longTermDueDate: optionalDate,
-        shortTermBalance: money.default(0),
-        shortTermDueDate: optionalDate,
-      })
-      .default({ longTermBalance: 0, shortTermBalance: 0 }),
+    bookkeeper: bookkeeperSchema.default({ longTermBalance: 0, shortTermBalance: 0 }),
     agreement: z.object({
       payrollDeduction: z.literal(true, { message: "The applicant must authorize payroll deduction." }),
       autoRestructure: z.literal(true, { message: "The applicant must agree to automatic restructuring." }),
@@ -76,9 +79,10 @@ function fullNameOf(a) {
   return `${a.firstName}${mi} ${a.lastName}`;
 }
 
-const decisionSchema = z.object({
-  decision: z.enum(["approved", "denied"]),
+const approvalSchema = z.object({
+  decision: z.enum(["approved", "denied"], { message: "Choose approve or deny." }),
   note: z.string().trim().max(1000).optional(),
+  bookkeeper: bookkeeperSchema.optional(),
 });
 
 async function nextApplicationNo() {
@@ -111,6 +115,8 @@ router.post("/", async (req, res, next) => {
           ...parsed.data,
           applicant: { ...parsed.data.applicant, fullName: fullNameOf(parsed.data.applicant) },
           applicationNo: await nextApplicationNo(),
+          currentStep: STEPS[0],
+          approvals: [],
           submittedBy: req.user._id,
           submittedByName: req.user.fullName,
         });
@@ -128,7 +134,15 @@ router.post("/", async (req, res, next) => {
 router.get("/", async (req, res, next) => {
   try {
     const status = ["pending", "approved", "denied"].includes(req.query.status) ? req.query.status : undefined;
-    const apps = await Application.find(status ? { status } : {}).sort({ createdAt: -1 }).limit(200);
+    let filter = status ? { status } : {};
+    if (req.query.awaiting === "me") {
+      // Pending applications at the caller's step that they have not already signed.
+      const role = req.user.role;
+      if (!STEPS.includes(role)) return res.json({ applications: [] });
+      const atStep = role === STEPS[0] ? { $or: [{ currentStep: role }, { currentStep: { $exists: false } }, { currentStep: null }] } : { currentStep: role };
+      filter = { status: "pending", ...atStep, "approvals.signedBy": { $ne: req.user._id } };
+    }
+    const apps = await Application.find(filter).sort({ createdAt: -1 }).limit(200);
     res.json({ applications: apps });
   } catch (err) {
     next(err);
@@ -165,34 +179,81 @@ router.post("/:id/assess", async (req, res, next) => {
   }
 });
 
-router.post("/:id/decision", requireRole("admin", "loan_officer"), async (req, res, next) => {
+const sameBooks = (a = {}, b = {}) =>
+  ["longTermBalance", "shortTermBalance"].every((k) => (a[k] || 0) === (b[k] || 0)) &&
+  ["longTermDueDate", "shortTermDueDate"].every((k) => String(a[k] ?? "") === String(b[k] ?? ""));
+
+// Signs the current step of the approval chain: Bookkeeper, Treasurer, CreCom Chairman, President.
+router.post("/:id/approvals", async (req, res, next) => {
   try {
-    const parsed = decisionSchema.safeParse(req.body || {});
-    if (!parsed.success) return res.status(400).json({ error: "Choose approve or deny." });
-    const { decision, note } = parsed.data;
+    const parsed = approvalSchema.safeParse(req.body || {});
+    if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0].message });
+    const { decision, bookkeeper } = parsed.data;
+    const note = parsed.data.note || undefined;
 
     const app = await Application.findById(req.params.id).catch(() => null);
     if (!app) return res.status(404).json({ error: "Application not found." });
     if (app.status !== "pending") return res.status(409).json({ error: `This application was already ${app.status}.` });
 
-    const suggestion = app.assessment?.ensemble?.suggestion;
-    const followed =
-      suggestion === "review" || !suggestion ? null : (suggestion === "approve") === (decision === "approved");
+    const step = currentStepOf(app);
+    if (req.user.role !== step) {
+      return res.status(403).json({ error: `It is the ${STEP_LABELS[step]}'s turn to sign this application.` });
+    }
+    // Separation of duties: one person signs at most one step, even if their role changed since.
+    const signedBefore = app.approvals.find((a) => a.signedBy?.equals(req.user._id));
+    if (signedBefore) {
+      return res.status(403).json({
+        error: `You already signed this application as ${STEP_LABELS[signedBefore.step]}. Another ${STEP_LABELS[step]} must sign this step.`,
+      });
+    }
+    if (bookkeeper && step !== "bookkeeper") {
+      return res.status(400).json({ error: "Only the Bookkeeper can change the balances." });
+    }
+    if (decision === "denied" && !note) {
+      return res.status(400).json({ error: "Add a note explaining why the application is denied." });
+    }
+    const followed = followsSuggestion(app.assessment?.ensemble?.suggestion, decision);
     if (followed === false && !note) {
       return res.status(400).json({ error: "Add a note explaining why you are going against the suggestion." });
     }
 
-    app.status = decision;
-    app.decision = {
+    const next = decision === "approved" ? nextStep(step) : null;
+    const set = { currentStep: next ?? "none" };
+    if (decision === "denied") set.status = "denied";
+    else if (!next) set.status = "approved";
+    const booksChanged = bookkeeper && !sameBooks(bookkeeper, app.bookkeeper?.toObject?.() ?? app.bookkeeper);
+    if (bookkeeper) set.bookkeeper = bookkeeper;
+
+    const signature = {
+      step,
       decision,
       note,
+      signedBy: req.user._id,
+      signedByName: req.user.fullName,
+      signedAt: new Date(),
       followedSuggestion: followed ?? undefined,
-      decidedBy: req.user._id,
-      decidedByName: req.user.fullName,
-      decidedAt: new Date(),
     };
-    await app.save();
-    res.json({ application: app });
+    // Only succeeds if nobody else signed in the meantime.
+    const updated = await Application.findOneAndUpdate(
+      {
+        _id: app._id,
+        status: "pending",
+        "approvals.signedBy": { $ne: req.user._id },
+        $expr: { $eq: [{ $size: { $ifNull: ["$approvals", []] } }, app.approvals.length] },
+      },
+      { $set: set, $push: { approvals: signature } },
+      { returnDocument: "after", runValidators: true },
+    );
+    if (!updated) return res.status(409).json({ error: "Someone else just signed this application. Reload to see the latest." });
+
+    // Corrected balances change the debt the models see, so score again for the next signers.
+    if (booksChanged && updated.status === "pending") await runAssessment(updated);
+    if (updated.status === "approved") {
+      const loan = await loans.createFromApplication(updated);
+      updated.loanId = loan._id;
+      updated.loanNo = loan.loanNo;
+    }
+    res.json({ application: updated });
   } catch (err) {
     next(err);
   }

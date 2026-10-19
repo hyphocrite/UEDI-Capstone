@@ -73,7 +73,7 @@ const application = (late = 0) => ({
   documents: [{ fileName: "id.jpg", type: "valid_id", verdict: "verified" }, { fileName: "slip.jpg", type: "payslip", verdict: "mismatch" }],
 });
 
-test("submit, score, list and decide on applications", { skip: !uri && "TEST_MONGODB_URI not set" }, async () => {
+test("submit, score and list applications", { skip: !uri && "TEST_MONGODB_URI not set" }, async () => {
   const anon = await call("/applications");
   assert.equal(anon.status, 401);
 
@@ -115,27 +115,22 @@ test("submit, score, list and decide on applications", { skip: !uri && "TEST_MON
   const pending = await call("/applications?status=pending", { cookie: staff });
   assert.equal(pending.json.applications.length, 2);
 
-  const staffDecides = await call(`/applications/${app._id}/decision`, { method: "POST", cookie: staff, body: { decision: "approved" } });
-  assert.equal(staffDecides.status, 403);
+  assert.equal(app.currentStep, "bookkeeper", "new applications wait for the Bookkeeper");
+  assert.deepEqual(app.approvals, []);
 
-  const noNote = await call(`/applications/${risky._id}/decision`, { method: "POST", cookie: admin, body: { decision: "approved" } });
-  assert.equal(noNote.status, 400, "going against the suggestion needs a note");
-
-  const approved = await call(`/applications/${app._id}/decision`, { method: "POST", cookie: admin, body: { decision: "approved" } });
-  assert.equal(approved.json.application.status, "approved");
-  assert.equal(approved.json.application.decision.followedSuggestion, true);
-  assert.equal(approved.json.application.decision.decidedByName, "Admin One");
-
-  const again = await call(`/applications/${app._id}/decision`, { method: "POST", cookie: admin, body: { decision: "denied" } });
-  assert.equal(again.status, 409);
-
-  const override = await call(`/applications/${risky._id}/decision`, { method: "POST", cookie: admin, body: { decision: "approved", note: "Co-maker is a long-time member." } });
-  assert.equal(override.json.application.decision.followedSuggestion, false);
+  // Signing is covered in approvals.test.js; here only check that staff and admins can't sign.
+  const staffSigns = await call(`/applications/${app._id}/approvals`, { method: "POST", cookie: staff, body: { decision: "approved" } });
+  assert.equal(staffSigns.status, 403);
+  assert.match(staffSigns.json.error, /Bookkeeper/);
+  const adminSigns = await call(`/applications/${app._id}/approvals`, { method: "POST", cookie: admin, body: { decision: "approved" } });
+  assert.equal(adminSigns.status, 403, "admins manage users but do not sign");
+  assert.equal((await call(`/applications/${app._id}/decision`, { method: "POST", cookie: admin, body: { decision: "approved" } })).status, 404, "old route is gone");
 
   const rescore = await call(`/applications/${app._id}/assess`, { method: "POST", cookie: staff });
   assert.equal(rescore.status, 200);
   assert.equal(predictCalls, 3);
 
-  assert.equal((await call("/applications?status=pending", { cookie: staff })).json.applications.length, 0);
+  assert.equal((await call("/applications?status=pending", { cookie: staff })).json.applications.length, 2);
+  assert.equal((await call("/applications?awaiting=me", { cookie: staff })).json.applications.length, 0, "staff never sign");
   assert.equal((await call("/applications/not-an-id", { cookie: staff })).status, 404);
 });
