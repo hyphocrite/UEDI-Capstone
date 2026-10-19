@@ -3,6 +3,9 @@ import type { Worker } from 'tesseract.js'
 // The legacy build supports older browsers still common on office PCs.
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs'
 import pdfWorkerUrl from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?url'
+import { OCR_SETTINGS } from './ocrSettings'
+import type { PreprocessMode } from './ocrSettings'
+import { preprocess, scaleFor } from './preprocess'
 
 pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl
 
@@ -41,6 +44,15 @@ function getWorker() {
     logger: (m) => {
       if (m.status === 'recognizing text') currentProgress?.(m.progress)
     },
+  }).then(async (worker) => {
+    await worker.setParameters({
+      // Tesseract's enum values are strings of the mode number.
+      tessedit_pageseg_mode: OCR_SETTINGS.pageSegMode as never,
+      // Keeps the gaps between a payslip's label and its amount on one line.
+      preserve_interword_spaces: '1',
+      user_defined_dpi: '300',
+    })
+    return worker
   })
   return workerPromise
 }
@@ -51,15 +63,46 @@ function runExclusive<T>(job: () => Promise<T>): Promise<T> {
   return next
 }
 
-async function ocrImage(image: File | HTMLCanvasElement, onProgress: Progress) {
+/** Draws the image at OCR size and applies the cleanup in `mode`. */
+function prepareCanvas(source: CanvasImageSource & { width: number; height: number }, mode: PreprocessMode) {
+  const scale = scaleFor(source.width, source.height, OCR_SETTINGS.targetLongSide)
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.round(source.width * scale)
+  canvas.height = Math.round(source.height * scale)
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })!
+  ctx.drawImage(source, 0, 0, canvas.width, canvas.height)
+  if (mode !== 'none') {
+    const img = ctx.getImageData(0, 0, canvas.width, canvas.height)
+    const out = preprocess({ data: img.data, width: img.width, height: img.height }, mode)
+    ctx.putImageData(new ImageData(out.data as Uint8ClampedArray<ArrayBuffer>, out.width, out.height), 0, 0)
+  }
+  return canvas
+}
+
+async function recognize(canvas: HTMLCanvasElement, onProgress: Progress) {
   const worker = await getWorker()
   currentProgress = onProgress
   try {
-    const { data } = await worker.recognize(image)
+    const { data } = await worker.recognize(canvas)
     return { text: data.text, confidence: data.confidence }
   } finally {
     currentProgress = null
   }
+}
+
+/**
+ * OCRs with the main cleanup; if Tesseract isn't confident, tries the fallback cleanup
+ * too and keeps whichever read is more confident.
+ */
+async function ocrImage(source: CanvasImageSource & { width: number; height: number }, onProgress: Progress) {
+  const { preprocess: mode, fallback, retryBelowConfidence } = OCR_SETTINGS
+  const first = await recognize(prepareCanvas(source, mode), (p) => onProgress(p * 0.5))
+  if (first.confidence >= retryBelowConfidence || fallback === mode) {
+    onProgress(1)
+    return first
+  }
+  const second = await recognize(prepareCanvas(source, fallback), (p) => onProgress(0.5 + p * 0.5))
+  return second.confidence > first.confidence ? second : first
 }
 
 async function extractFromPdf(file: File, onProgress: Progress): Promise<ExtractedText> {
@@ -95,6 +138,7 @@ async function extractFromPdf(file: File, onProgress: Progress): Promise<Extract
     canvas.height = viewport.height
     await page.render({ canvas, viewport }).promise
     const result = await ocrImage(canvas, (p) => onProgress((i - 1 + p) / pageCount))
+    canvas.width = canvas.height = 0
     ocrText += result.text + '\n'
     confidenceSum += result.confidence
   }
@@ -106,7 +150,13 @@ export function extractText(file: File, onProgress: Progress = () => {}): Promis
   return runExclusive(async () => {
     const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
     if (isPdf) return extractFromPdf(file, onProgress)
-    const result = await ocrImage(file, onProgress)
-    return { ...result, source: 'ocr' as const, pages: 1 }
+    // Honors the photo's EXIF rotation, so sideways phone photos read upright.
+    const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' })
+    try {
+      const result = await ocrImage(bitmap, onProgress)
+      return { ...result, source: 'ocr' as const, pages: 1 }
+    } finally {
+      bitmap.close()
+    }
   })
 }

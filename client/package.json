@@ -7,7 +7,10 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "tsx --test src/lib/ocr/*.test.ts",
+    "ocr:samples": "python scripts/ocr-eval/make_samples.py",
+    "ocr:eval": "tsx scripts/ocr-eval/run.ts"
   },
   "dependencies": {
     "lucide-react": "^1.48.0",
@@ -20,11 +23,15 @@
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^24.13.3",
+    "@types/pngjs": "^6.0.5",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^6.1.1",
+    "jpeg-js": "^0.4.4",
     "oxlint": "^1.81.0",
+    "pngjs": "^7.0.0",
     "tailwindcss": "^4.3.3",
+    "tsx": "^4.23.15",
     "typescript": "~6.0.2",
     "vite": "^8.3.0"
   }

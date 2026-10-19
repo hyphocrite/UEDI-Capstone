@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { AlertTriangle, CheckCircle2, ChevronDown, FileText, Loader2, Trash2, XCircle } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, ChevronDown, FileText, Info, Loader2, Trash2, XCircle } from 'lucide-react'
 import { DOCUMENT_TYPES, documentType } from '../../lib/ocr/documentTypes'
 import type { DocumentTypeId } from '../../lib/ocr/documentTypes'
 import type { DocumentAnalysis, DocumentVerdict } from '../../lib/ocr/analyzeDocument'
@@ -30,6 +30,7 @@ const checkIcon = {
   pass: <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />,
   warn: <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />,
   fail: <XCircle className="h-4 w-4 shrink-0 text-red-600" />,
+  info: <Info className="h-4 w-4 shrink-0 text-brand-400" />,
 }
 
 type Props = {
@@ -64,7 +65,7 @@ export default function DocumentCard({ doc, analysis, onTypeChange, onRemove }: 
                 {doc.extracted && doc.extracted.pages > 1 && ` · ${doc.extracted.pages} pages`}
               </p>
             </div>
-            <button onClick={onRemove} className="rounded p-1 text-brand-400 hover:bg-red-50 hover:text-red-600" aria-label={`Remove ${doc.file.name}`}>
+            <button type="button" onClick={onRemove} className="rounded p-1 text-brand-400 hover:bg-red-50 hover:text-red-600" aria-label={`Remove ${doc.file.name}`}>
               <Trash2 className="h-4 w-4" />
             </button>
           </div>
@@ -140,6 +141,7 @@ export default function DocumentCard({ doc, analysis, onTypeChange, onRemove }: 
       {doc.extracted && (
         <div className="border-t border-brand-50">
           <button
+            type="button"
             onClick={() => setShowText((s) => !s)}
             className="flex w-full items-center justify-between px-4 py-2 text-xs font-semibold text-brand-600 hover:bg-brand-50"
             aria-expanded={showText}
@@ -167,13 +169,15 @@ export default function DocumentCard({ doc, analysis, onTypeChange, onRemove }: 
 function ExtractedFields({ analysis }: { analysis: DocumentAnalysis }) {
   const f = analysis.fields
   const type = documentType(analysis.typeId)
+  const money = (n: number | null) => (n === null ? null : formatPeso(n))
+  const pays = type.checks.includes('salary') || type.checks.includes('netPay')
   const rows: [string, string | null][] = [
     ['Name found', f.name],
-    ['Date of birth', type.checks.includes('dateOfBirth') ? f.dateOfBirth : null],
-    ['Income', type.checks.includes('income') && f.income !== null ? formatPeso(f.income) : null],
-    ['Amount', type.checks.includes('amount') && f.amount !== null ? formatPeso(f.amount) : null],
+    ['Basic salary', pays ? money(f.basicSalary) : null],
+    ['Gross pay', pays ? money(f.grossPay) : null],
+    ['Net pay', pays && f.netPay !== null ? `${formatPeso(f.netPay)}${f.semiMonthly ? ' per quincena' : ''}` : null],
     ['Document date', type.checks.includes('recent') ? f.documentDate : null],
-    ['ID number', type.checks.includes('idNumber') ? f.idNumber : null],
+    ['Expiry date', type.checks.includes('notExpired') ? f.expiryDate : null],
   ]
   const shown = rows.filter(([, v]) => v)
   if (shown.length === 0) return null

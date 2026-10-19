@@ -9,15 +9,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import app as service  # noqa: E402
 
 GOOD = {
-    "age": 42, "employmentType": "wage", "monthlyIncome": 40000, "existingMonthlyDebt": 1000,
-    "loanAmount": 50000, "termMonths": 24, "annualRate": 12, "yearsAsMember": 12,
-    "priorLoans": 5, "priorLatePayments": 0, "hasCoMaker": True, "hasRetirementPlan": True,
-    "documentsFlagged": 0,
+    "loanType": "long_term", "loanAmount": 40000, "termMonths": 24, "monthlyRate": 1.0,
+    "monthlySalary": 55000, "netTakeHomePay": 42000, "longTermBalance": 0, "shortTermBalance": 0,
+    "yearsAsMember": 20, "priorLoans": 8, "priorLatePayments": 0, "age": 45,
+    "employmentStatus": "permanent", "documentsFlagged": 0,
 }
 RISKY = {
-    **GOOD, "employmentType": "informal", "monthlyIncome": 12000, "existingMonthlyDebt": 4000,
-    "loanAmount": 150000, "yearsAsMember": 0, "priorLoans": 4, "priorLatePayments": 3,
-    "hasCoMaker": False, "hasRetirementPlan": False, "documentsFlagged": 2,
+    **GOOD, "loanAmount": 150000, "termMonths": 36, "monthlySalary": 16000, "netTakeHomePay": 6000,
+    "longTermBalance": 40000, "shortTermBalance": 8000, "yearsAsMember": 1, "priorLoans": 4,
+    "priorLatePayments": 3, "employmentStatus": "job_order", "documentsFlagged": 2,
 }
 
 
@@ -48,11 +48,20 @@ def test_risky_applicant_scores_higher(client):
 
 
 def test_rejects_bad_input(client):
-    assert client.post("/predict", json={**GOOD, "monthlyIncome": -5}).status_code == 422
+    assert client.post("/predict", json={**GOOD, "monthlySalary": -5}).status_code == 422
     assert client.post("/predict", json={**GOOD, "priorLatePayments": 9}).status_code == 422
+    assert client.post("/predict", json={**GOOD, "netTakeHomePay": 90000}).status_code == 422
+    assert client.post("/predict", json={**GOOD, "loanType": "regular"}).status_code == 422
+
+
+def test_only_form_fields_are_required(client):
+    minimal = {k: GOOD[k] for k in ["loanType", "loanAmount", "termMonths", "monthlyRate", "monthlySalary", "netTakeHomePay"]}
+    assert client.post("/predict", json=minimal).status_code == 200
 
 
 def test_model_metrics(client):
     m = client.get("/model").json()
     assert set(m["models"]) == {"xgboost", "random_forest", "logistic_regression", "ensemble"}
-    assert m["validation"].startswith("5-fold")
+    assert "fold stratified" in m["validation"]
+    assert m["thresholds"]["approve"] < m["thresholds"]["deny"]
+    assert "deduction_ratio" in m["features"]

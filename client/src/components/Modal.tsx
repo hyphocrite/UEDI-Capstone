@@ -16,7 +16,7 @@ export default function Modal({ title, open, onClose, children }: Props) {
       <div className="card w-full max-w-lg p-6" onClick={(e) => e.stopPropagation()}>
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-bold text-brand-800">{title}</h2>
-          <button className="rounded p-1 text-brand-600 hover:bg-brand-50" onClick={onClose} aria-label="Close">
+          <button type="button" className="rounded p-1 text-brand-600 hover:bg-brand-50" onClick={onClose} aria-label="Close">
             <X className="h-5 w-5" />
           </button>
         </div>

@@ -1,7 +1,10 @@
 """Stacked credit-risk model: XGBoost, Random Forest and Logistic Regression each score
 the applicant, and a Logistic Regression meta-model combines their three scores.
 
-Every score is the probability that the loan will default. Explanations use SHAP:
+The base models are class-weighted, because defaults are rare, so their raw scores run
+high. The meta-model is not weighted, so the ensemble's output is a calibrated estimate
+of the chance of default. Each base model's displayed score is calibrated the same way
+(Platt scaling on its out-of-fold scores), so all four numbers share one scale. Explanations use SHAP:
 XGBoost's built-in TreeSHAP, shap.TreeExplainer for the Random Forest, and exact
 coefficient x value contributions for Logistic Regression.
 """
@@ -20,7 +23,7 @@ from sklearn.model_selection import StratifiedKFold
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
-from .features import FEATURE_LABELS, FEATURES, build_features
+from .features import ALL_FEATURES, FEATURE_LABELS, build_features
 
 BASE_MODELS = {
     "xgboost": "XGBoost",
@@ -31,10 +34,13 @@ BASE_MODELS = {
 
 @dataclass
 class Thresholds:
-    """Default probability below `approve` suggests approval, at or above `deny` suggests denial."""
+    """Chance of default below `approve` suggests approval, at or above `deny` suggests denial.
 
-    approve: float = 0.20
-    deny: float = 0.50
+    train.py picks these from past loans unless --approve/--deny are given.
+    """
+
+    approve: float = 0.05
+    deny: float = 0.25
 
     def suggest(self, p: float) -> str:
         if p < self.approve:
@@ -82,12 +88,12 @@ def make_base_models(pos_weight: float) -> list[tuple[str, object]]:
     ]
 
 
-def make_stack(pos_weight: float) -> StackingClassifier:
+def make_stack(pos_weight: float, folds: int = 5) -> StackingClassifier:
     return StackingClassifier(
         estimators=make_base_models(pos_weight),
-        final_estimator=LogisticRegression(class_weight="balanced"),
+        final_estimator=LogisticRegression(max_iter=1000),
         stack_method="predict_proba",
-        cv=StratifiedKFold(n_splits=5, shuffle=True, random_state=42),
+        cv=StratifiedKFold(n_splits=folds, shuffle=True, random_state=42),
         n_jobs=1,
     )
 
@@ -97,6 +103,10 @@ class LoanRiskModel:
     stack: StackingClassifier
     thresholds: Thresholds = field(default_factory=Thresholds)
     metrics: dict = field(default_factory=dict)
+    # The features this model was trained on (depends on which columns the training CSV had).
+    features: list[str] = field(default_factory=lambda: list(ALL_FEATURES))
+    # Per base model: maps its class-weighted score to a calibrated chance of default.
+    calibrators: dict = field(default_factory=dict)
     _rf_explainer: object = field(default=None, repr=False)
 
     @property
@@ -111,8 +121,12 @@ class LoanRiskModel:
         values = values[1] if isinstance(values, list) else values[..., 1]
         return np.asarray(values)
 
+    def _calibrated(self, key: str, p: float) -> float:
+        cal = self.calibrators.get(key)
+        return float(cal.predict_proba([[to_logit(p)]])[0, 1]) if cal is not None else p
+
     def explain(self, raw: pd.DataFrame, top: int = 5) -> list[dict]:
-        X = build_features(raw)
+        X = build_features(raw, self.features)
         bases = self.bases
         probs = {
             "xgboost": bases["xgboost"].predict_proba(X)[:, 1],
@@ -135,14 +149,14 @@ class LoanRiskModel:
         for i in range(len(X)):
             models = []
             for key, name in BASE_MODELS.items():
-                p = float(probs[key][i])
+                p = self._calibrated(key, float(probs[key][i]))
                 models.append(
                     {
                         "key": key,
                         "name": name,
                         "defaultProbability": round(p, 4),
                         "suggestion": self.thresholds.suggest(p),
-                        "topFactors": _top_factors(contribs[key][i], X.iloc[i], top),
+                        "topFactors": _top_factors(contribs[key][i], X.iloc[i], self.features, top),
                         "cvMetrics": self.metrics.get("models", {}).get(key),
                     }
                 )
@@ -164,11 +178,21 @@ class LoanRiskModel:
         return results
 
 
-def _top_factors(values: np.ndarray, row: pd.Series, top: int) -> list[dict]:
+def to_logit(p):
+    p = np.clip(np.asarray(p, dtype=float), 1e-6, 1 - 1e-6)
+    return np.log(p / (1 - p))
+
+
+def fit_calibrator(raw_scores: np.ndarray, y: np.ndarray) -> LogisticRegression:
+    """Platt scaling: learns how a class-weighted score maps to the real default rate."""
+    return LogisticRegression().fit(to_logit(raw_scores).reshape(-1, 1), y)
+
+
+def _top_factors(values: np.ndarray, row: pd.Series, features: list[str], top: int) -> list[dict]:
     order = np.argsort(-np.abs(values))[:top]
     out = []
     for j in order:
-        name = FEATURES[j]
+        name = features[j]
         v = float(values[j])
         if abs(v) < 1e-9:
             continue

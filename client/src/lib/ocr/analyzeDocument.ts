@@ -1,27 +1,25 @@
 import { documentType, detectDocumentType } from './documentTypes'
 import type { CheckId, DocumentTypeId } from './documentTypes'
-import {
-  extractDateOfBirth,
-  extractEmployer,
-  extractExpiryDate,
-  extractIdNumber,
-  extractIncome,
-  extractLatestDate,
-  extractName,
-  extractPaidAmount,
-  namesMatch,
-  textContainsName,
-} from './extractors'
+import { extractExpiryDate, extractIdNumber, extractLatestDate, extractName, extractPayslip } from './extractors'
+import { formatDeclaredName, matchAddress, matchEmployer, matchName, withinTolerance } from './matching'
+import type { Tolerance } from './matching'
+import { OCR_SETTINGS } from './ocrSettings'
 
+/** What the applicant wrote on the Mutual Assistance form. */
 export type Applicant = {
-  fullName: string
-  dateOfBirth: string
-  monthlyIncome: number
+  lastName: string
+  firstName: string
+  middleInitial?: string
+  residenceAddress: string
+  employer: string
+  monthlySalary: number
+  netTakeHomePay: number
 }
 
-export type CheckStatus = 'pass' | 'warn' | 'fail'
+/** 'info' is shown to the officer but never changes the verdict. */
+export type CheckStatus = 'pass' | 'warn' | 'fail' | 'info'
 
-export type DocumentCheck = { id: CheckId; label: string; status: CheckStatus; detail: string }
+export type DocumentCheck = { id: CheckId | 'quality'; label: string; status: CheckStatus; detail: string }
 
 export type DocumentVerdict = 'verified' | 'review' | 'mismatch' | 'unreadable'
 
@@ -30,23 +28,37 @@ export type DocumentAnalysis = {
   detectedTypeId: DocumentTypeId
   fields: {
     name: string | null
-    dateOfBirth: string | null
-    income: number | null
-    amount: number | null
+    basicSalary: number | null
+    grossPay: number | null
+    netPay: number | null
+    semiMonthly: boolean
     documentDate: string | null
     expiryDate: string | null
-    employer: string | null
     idNumber: string | null
   }
   checks: DocumentCheck[]
   verdict: DocumentVerdict
 }
 
-/** Income tolerance from Chainscore: ±5% or ±₱500, whichever is larger. */
-export const incomeTolerance = (declared: number) => Math.max(500, declared * 0.05)
-
 const peso = (n: number) => `₱${n.toLocaleString('en-PH', { maximumFractionDigits: 2 })}`
 const daysBetween = (a: string, b: Date) => Math.floor((b.getTime() - new Date(a).getTime()) / 86_400_000)
+
+type AmountCheck = { status: CheckStatus; detail: string }
+
+/**
+ * Compares a declared monthly amount with what the document shows. Semi-monthly payslips
+ * show half a month, so the doubled amount counts too.
+ */
+function compareMonthly(found: number | null, declared: number, semiMonthly: boolean, what: string, t: Tolerance): AmountCheck {
+  if (found === null) return { status: 'warn', detail: `No ${what} found. Check it by eye.` }
+  if (!declared) return { status: 'warn', detail: `Document shows ${peso(found)}. Enter the ${what} to compare.` }
+  if (withinTolerance(found, declared, t)) return { status: 'pass', detail: `${peso(found)} matches the declared ${peso(declared)}.` }
+  if (semiMonthly && withinTolerance(found * 2, declared, t)) {
+    return { status: 'pass', detail: `${peso(found)} per quincena, ${peso(found * 2)} a month, matches the declared ${peso(declared)}.` }
+  }
+  const monthly = semiMonthly ? ` (${peso(found * 2)} a month)` : ''
+  return { status: 'fail', detail: `Document shows ${peso(found)}${monthly}; the form says ${peso(declared)}.` }
+}
 
 export function analyzeDocument(
   text: string,
@@ -57,128 +69,94 @@ export function analyzeDocument(
   const detected = detectDocumentType(text)
   const typeId = opts.typeId ?? detected.id
   const type = documentType(typeId)
+  const pay = extractPayslip(text)
 
-  const fields = {
+  const fields: DocumentAnalysis['fields'] = {
     name: extractName(text),
-    dateOfBirth: extractDateOfBirth(text),
-    income: extractIncome(text),
-    amount: extractPaidAmount(text),
+    basicSalary: pay.basic,
+    grossPay: pay.gross,
+    netPay: pay.net,
+    semiMonthly: pay.semiMonthly,
     documentDate: extractLatestDate(text, today),
     expiryDate: extractExpiryDate(text),
-    employer: extractEmployer(text),
     idNumber: extractIdNumber(text),
   }
 
-  const readable = text.replace(/\s/g, '').length >= 20
-  if (!readable) {
-    return {
-      typeId,
-      detectedTypeId: detected.id,
-      fields,
-      checks: [],
-      verdict: 'unreadable',
-    }
+  if (text.replace(/\s/g, '').length < 20) {
+    return { typeId, detectedTypeId: detected.id, fields, checks: [], verdict: 'unreadable' }
   }
 
   const checks: DocumentCheck[] = []
+  const add = (id: DocumentCheck['id'], label: string, r: { status: CheckStatus; detail: string }) =>
+    checks.push({ id, label, status: r.status, detail: r.detail })
+
   for (const id of type.checks) {
     switch (id) {
       case 'name': {
-        const declared = applicant.fullName.trim()
-        if (!declared) {
-          checks.push({ id, label: 'Name', status: 'warn', detail: 'Enter the applicant’s name to compare.' })
-        } else if (textContainsName(text, declared) || (fields.name && namesMatch(declared, fields.name))) {
-          checks.push({ id, label: 'Name', status: 'pass', detail: `Matches ${declared}.` })
-        } else {
-          checks.push({
-            id,
-            label: 'Name',
-            status: 'fail',
-            detail: fields.name ? `Document shows “${fields.name}”, not ${declared}.` : `Could not find ${declared} on the document.`,
-          })
-        }
+        const r = matchName(text, applicant)
+        // Handwriting on the signed form often doesn't OCR; that alone isn't a mismatch.
+        add(id, 'Name', typeId === 'application_form' && r.status === 'fail'
+          ? { status: 'warn', detail: `Couldn't read ${formatDeclaredName(applicant)} from the form. Check it by eye.` }
+          : r)
         break
       }
-      case 'dateOfBirth': {
-        if (!fields.dateOfBirth) {
-          checks.push({ id, label: 'Date of birth', status: 'warn', detail: 'No date of birth found. Check it by eye.' })
-        } else if (!applicant.dateOfBirth) {
-          checks.push({ id, label: 'Date of birth', status: 'warn', detail: `Document shows ${fields.dateOfBirth}. Enter the applicant’s birth date to compare.` })
-        } else if (fields.dateOfBirth === applicant.dateOfBirth) {
-          checks.push({ id, label: 'Date of birth', status: 'pass', detail: `Matches ${fields.dateOfBirth}.` })
-        } else {
-          checks.push({ id, label: 'Date of birth', status: 'fail', detail: `Document shows ${fields.dateOfBirth}, application says ${applicant.dateOfBirth}.` })
-        }
+      case 'address': {
+        const r = matchAddress(text, applicant.residenceAddress)
+        // IDs don't always print an address, so on an ID a miss is a note, not a failure.
+        add(id, 'Address', typeId === 'proof_of_address' || r.status === 'pass' ? r : { status: 'info', detail: 'Address not checked on this ID.' })
         break
       }
-      case 'income': {
-        const declared = applicant.monthlyIncome
-        if (fields.income === null) {
-          checks.push({ id, label: 'Income', status: 'warn', detail: 'No income amount found. Check it by eye.' })
-        } else if (!declared) {
-          checks.push({ id, label: 'Income', status: 'warn', detail: `Document shows ${peso(fields.income)}. Enter the declared income to compare.` })
-        } else if (Math.abs(fields.income - declared) <= incomeTolerance(declared)) {
-          checks.push({ id, label: 'Income', status: 'pass', detail: `${peso(fields.income)} is within 5% of the declared ${peso(declared)}.` })
-        } else {
-          checks.push({ id, label: 'Income', status: 'fail', detail: `Document shows ${peso(fields.income)}, declared income is ${peso(declared)}.` })
-        }
+      case 'employer':
+        add(id, 'Employer', matchEmployer(text, applicant.employer))
+        break
+      case 'salary': {
+        // The form's "Monthly Salary" is the basic salary; gross adds allowances like PERA.
+        const basic = compareMonthly(pay.basic, applicant.monthlySalary, false, 'basic salary', OCR_SETTINGS.salaryTolerance)
+        const gross = compareMonthly(pay.gross, applicant.monthlySalary, pay.semiMonthly, 'gross pay', OCR_SETTINGS.salaryTolerance)
+        const r = basic.status === 'pass' ? basic : gross.status === 'pass' ? { ...gross, detail: `Gross pay: ${gross.detail}` } : pay.basic !== null ? basic : gross
+        add(id, 'Monthly salary', typeId === 'certificate_of_employment' && pay.basic === null && pay.gross === null
+          ? { status: 'info', detail: 'No salary shown on this certificate.' }
+          : r)
         break
       }
-      case 'amount':
-        checks.push(
-          fields.amount === null
-            ? { id, label: 'Amount', status: 'warn', detail: 'No amount found. Check it by eye.' }
-            : { id, label: 'Amount', status: 'pass', detail: `${peso(fields.amount)} found.` },
-        )
+      case 'netPay':
+        add(id, 'Net take-home pay', compareMonthly(pay.net, applicant.netTakeHomePay, pay.semiMonthly, 'net pay', OCR_SETTINGS.netPayTolerance))
         break
       case 'recent': {
         const max = type.maxAgeDays ?? 90
         if (!fields.documentDate) {
-          checks.push({ id, label: 'Date', status: 'warn', detail: 'No date found. Check the document is recent.' })
+          add(id, 'Date', { status: 'warn', detail: 'No date found. Check the document is recent.' })
         } else {
           const age = daysBetween(fields.documentDate, today)
-          checks.push(
-            age <= max
-              ? { id, label: 'Date', status: 'pass', detail: `Dated ${fields.documentDate} (${age} days ago).` }
-              : { id, label: 'Date', status: 'fail', detail: `Dated ${fields.documentDate}, older than ${max} days.` },
-          )
+          add(id, 'Date', age <= max
+            ? { status: 'pass', detail: `Dated ${fields.documentDate} (${age} days ago).` }
+            : { status: 'fail', detail: `Dated ${fields.documentDate}, older than ${max} days.` })
         }
         break
       }
-      case 'notExpired': {
+      case 'notExpired':
         if (!fields.expiryDate) {
-          checks.push({ id, label: 'Expiry', status: 'warn', detail: 'No expiry date found. Check the ID is still valid.' })
+          // PhilSys national IDs have no expiry date.
+          add(id, 'Expiry', { status: 'info', detail: 'No expiry date found. Fine for a national ID; check other IDs by eye.' })
         } else {
-          const expired = fields.expiryDate < today.toISOString().slice(0, 10)
-          checks.push(
-            expired
-              ? { id, label: 'Expiry', status: 'fail', detail: `Expired on ${fields.expiryDate}.` }
-              : { id, label: 'Expiry', status: 'pass', detail: `Valid until ${fields.expiryDate}.` },
-          )
+          add(id, 'Expiry', fields.expiryDate < today.toISOString().slice(0, 10)
+            ? { status: 'fail', detail: `Expired on ${fields.expiryDate}.` }
+            : { status: 'pass', detail: `Valid until ${fields.expiryDate}.` })
         }
-        break
-      }
-      case 'employer':
-        checks.push(
-          fields.employer
-            ? { id, label: 'Employer', status: 'pass', detail: fields.employer }
-            : { id, label: 'Employer', status: 'warn', detail: 'No employer found. Check it by eye.' },
-        )
         break
       case 'idNumber':
-        checks.push(
-          fields.idNumber
-            ? { id, label: 'ID number', status: 'pass', detail: fields.idNumber }
-            : { id, label: 'ID number', status: 'warn', detail: 'No ID number found.' },
-        )
+        add(id, 'ID number', fields.idNumber ? { status: 'info', detail: fields.idNumber } : { status: 'info', detail: 'No ID number found.' })
+        break
+      case 'signature':
+        add(id, 'Signature', { status: 'warn', detail: 'Check by eye that the form is signed.' })
         break
     }
   }
 
   if (opts.confidence !== undefined && opts.confidence < 60) {
     checks.push({
-      id: 'name',
-      label: 'Scan quality',
+      id: 'quality',
+      label: 'Photo quality',
       status: 'warn',
       detail: `Low OCR confidence (${Math.round(opts.confidence)}%). Ask for a clearer photo if values look wrong.`,
     })

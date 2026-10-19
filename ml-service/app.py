@@ -32,18 +32,23 @@ def get_model() -> LoanRiskModel:
 
 
 class Applicant(BaseModel):
-    age: int = Field(ge=18, le=100)
-    employmentType: Literal["wage", "self", "informal", "other"]
-    monthlyIncome: float = Field(gt=0)
-    existingMonthlyDebt: float = Field(ge=0, default=0)
+    """One Mutual Assistance application, in the fields of UEDI's form."""
+
+    # From the applicant's part of the form
+    loanType: Literal["long_term", "emergency"]
     loanAmount: float = Field(gt=0)
     termMonths: int = Field(ge=1, le=120)
-    annualRate: float = Field(ge=0, le=100)
+    monthlyRate: float = Field(ge=0, le=10, description="% per month")
+    monthlySalary: float = Field(gt=0)
+    netTakeHomePay: float = Field(gt=0)
+    # From the bookkeeper's part and UEDI's records
+    longTermBalance: float = Field(ge=0, default=0)
+    shortTermBalance: float = Field(ge=0, default=0)
     yearsAsMember: float = Field(ge=0, default=0)
     priorLoans: int = Field(ge=0, default=0)
     priorLatePayments: int = Field(ge=0, default=0)
-    hasCoMaker: bool = False
-    hasRetirementPlan: bool = False
+    age: int | None = Field(default=None, ge=18, le=100)
+    employmentStatus: Literal["permanent", "temporary", "contractual", "job_order"] = "permanent"
     documentsFlagged: int = Field(ge=0, default=0)
 
 
@@ -57,10 +62,20 @@ def model_info():
     return get_model().metrics
 
 
+@app.post("/reload")
+def reload_model():
+    """Loads a freshly trained model without restarting the service."""
+    global _model
+    _model = None
+    return {"version": get_model().metrics.get("version")}
+
+
 @app.post("/predict")
 def predict(applicant: Applicant):
     if applicant.priorLatePayments > applicant.priorLoans:
         raise HTTPException(422, "priorLatePayments cannot exceed priorLoans.")
+    if applicant.netTakeHomePay > applicant.monthlySalary * 1.05:
+        raise HTTPException(422, "netTakeHomePay cannot be more than monthlySalary.")
     model = get_model()
-    row = pd.DataFrame([applicant.model_dump()])
+    row = pd.DataFrame([applicant.model_dump(exclude_none=True)])
     return model.explain(row)[0]
