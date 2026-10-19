@@ -55,6 +55,10 @@ Reuse them before writing new class lists.
   `loan_officer` and `staff`. Hide or disable approve/deny for `staff`, and say why in the UI.
 - Members, loans, plans and reports still read `client/src/data/mock.ts`. Real data is
   only auth and loan applications (`/api/applications`).
+- Loan forms follow UEDI's paper "Mutual Assistance Application Form": name as Last /
+  First / Middle Initial, loan type Long term or Emergency, rate in % **per month**,
+  quincenal or monthly deduction. Use `loanTypeLabel`, `employmentStatusLabel` and
+  `monthlyInstallment()` from `client/src/lib/applications.ts`.
 
 ## Writing style in the UI
 

@@ -57,6 +57,7 @@ npm --prefix server run seed
 ```
 npm --prefix client run lint
 npm --prefix client run build          # runs tsc -b, then vite build
+npm --prefix client test               # OCR matching unit tests
 TEST_MONGODB_URI=mongodb://127.0.0.1:27017/uedi_test npm --prefix server test
 cd ml-service && python -m pytest -q   # needs a trained model
 ```
