@@ -10,6 +10,7 @@ import LoansPage from './pages/LoansPage'
 import RetirementPlansPage from './pages/RetirementPlansPage'
 import SettingsPage from './pages/SettingsPage'
 import ReportsPage from './pages/ReportsPage'
+import PendingLoansPage from './pages/PendingLoansPage'
 import NotFoundPage from './pages/NotFoundPage'
 
 // Loaded on demand: it carries the OCR and PDF libraries.
@@ -32,6 +33,7 @@ export default function App() {
                 <LoanApplicationPage />
               </Suspense>
             } />
+          <Route path="/loans/pending" element={<PendingLoansPage />} />
           <Route path="/retirement-plans" element={<RetirementPlansPage />} />
           <Route path="/reports" element={<ReportsPage />} />
           <Route path="/settings" element={<SettingsPage />} />

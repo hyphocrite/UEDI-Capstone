@@ -1,5 +1,8 @@
-// Field extractors for OCR text. Name and income extraction are ported from Chainscore
-// (src/lib/ocrName.ts, src/lib/ocrIncome.ts); dates, employer and ID numbers are new.
+// Field extractors for OCR text. Name extraction is ported from Chainscore
+// (src/lib/ocrName.ts); dates, ID numbers and the payslip reader (basic salary, gross,
+// net pay, pay period) were written for UEDI. Matching against the form is in matching.ts.
+
+import { fixDigits } from './matching'
 
 const NAME_LABEL =
   /(?:full\s*name|name\s+of\s+(?:child|employee|payee|account\s*holder)|employee\s*name|given\s*names?|first\s*name|last\s*name|surname|middle\s*name|received\s+from|payee|account\s*name|pangalan|apelyido|\bnames?\b)\s*[:–-]?\s*/i
@@ -64,91 +67,102 @@ export function extractName(text: string): string | null {
   return best ? cleanName(best) : null
 }
 
-export function normalizeName(name: string) {
-  return name
-    .toUpperCase()
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/[^A-Z\s]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-}
-
-/** True when the names share enough words, in any order (handles "SURNAME, GIVEN" layouts). */
-export function namesMatch(declared: string, found: string): boolean {
-  const a = normalizeName(declared)
-  const b = normalizeName(found)
-  if (!a || !b) return false
-  if (a === b || a.includes(b) || b.includes(a)) return true
-  const ta = a.split(' ').filter((t) => t.length > 1)
-  const tb = b.split(' ').filter((t) => t.length > 1)
-  if (!ta.length || !tb.length) return false
-  const [short, long] = ta.length <= tb.length ? [ta, tb] : [tb, ta]
-  const hits = short.filter((t) => long.some((u) => u === t || u.startsWith(t) || t.startsWith(u)))
-  return hits.length >= Math.min(short.length, 2)
-}
-
-/** True when the declared name appears anywhere in the document text. */
-export function textContainsName(text: string, declared: string): boolean {
-  const hay = normalizeName(text)
-  const words = normalizeName(declared).split(' ').filter((w) => w.length > 1)
-  if (words.length === 0) return false
-  const found = words.filter((w) => new RegExp(`\\b${w}\\b`).test(hay))
-  return found.length >= Math.min(words.length, 2)
-}
-
 // ---- Amounts ---------------------------------------------------------------
 
-const AMOUNT = /(?:₱|PHP|Php|php|P)?\s*(\d{1,3}(?:[,\s]\d{3})+(?:\.\d{1,2})?|\d+\.\d{2}|\d{3,})/g
+const AMOUNT = /(?:₱|PHP|Php|php|P)?\s*(\d{1,3}(?:[, ]\d{3})+(?:\.\d{1,2})?(?![\d,])|\d+\.\d{2}(?!\d)|\d{3,}(?:\.\d{1,2})?(?!\d))/g
 
 function parseAmount(raw: string) {
-  const n = Number(raw.replace(/[^\d.]/g, ''))
+  let t = raw.replace(/[^\d.,]/g, '')
+  // "12.345,67" (rare) -> "12345.67"; otherwise commas are thousands separators.
+  if (/\.\d{3},\d{2}$/.test(t)) t = t.replace(/\./g, '').replace(',', '.')
+  t = t.replace(/,/g, '')
+  // Keep only the last dot as the decimal point ("12.345.00" from OCR -> "12345.00").
+  const parts = t.split('.')
+  if (parts.length > 2) t = parts.slice(0, -1).join('') + '.' + parts.at(-1)
+  const n = Number(t)
   return Number.isFinite(n) && n > 0 ? n : null
 }
 
-/** Best income figure (net pay, salary, monthly income) in the text. From Chainscore. */
-export function extractIncome(text: string): number | null {
-  const label = /(net\s*pay|netpay|take[-\s]*home|monthly\s*(?:income|salary|pay)|basic\s*(?:pay|salary)|salary|gross\s*pay|income|compensation)/i
-  let best: number | null = null
-  let bestScore = -1
-  for (const line of text.split(/\r?\n/)) {
-    for (const m of line.matchAll(AMOUNT)) {
-      const n = parseAmount(m[1])
-      if (n === null || n < 100 || (n >= 1900 && n <= 2100 && !/[.,]/.test(m[1]))) continue
-      let score = 1
-      if (label.test(line)) score += 10
-      if (/net\s*pay|take[-\s]*home/i.test(line)) score += 4
-      if (/monthly/i.test(line)) score += 2
-      if (/deduction|tax|sss|philhealth|pag-?ibig|loan/i.test(line)) score -= 6
-      if (score > bestScore) {
-        bestScore = score
-        best = n
-      }
-    }
-  }
-  return bestScore >= 5 ? best : null
+/** Fixes letters OCR put inside numbers ("1O,5OO.OO" -> "10,500.00") before reading amounts. */
+export function fixNumbers(line: string) {
+  return line.split(/(\s+)/).map((t) => (/\s/.test(t) ? t : fixDigits(t))).join('')
 }
 
-/** Amount paid on a receipt or deposit slip. */
-export function extractPaidAmount(text: string): number | null {
-  const label = /(amount\s*(?:paid|due|received)?|total|cash|deposit|payment|php|₱)/i
-  let best: number | null = null
-  let bestScore = -1
-  for (const line of text.split(/\r?\n/)) {
-    for (const m of line.matchAll(AMOUNT)) {
-      const n = parseAmount(m[1])
-      if (n === null || n < 1) continue
-      let score = 1
-      if (label.test(line)) score += 5
-      if (/total|amount\s*paid/i.test(line)) score += 3
-      if (/receipt\s*no|ref|account|tin|or\s*no/i.test(line)) score -= 8
-      if (score > bestScore) {
-        bestScore = score
-        best = n
-      }
+/** Peso amounts on a line, ignoring years, dates and small counts. */
+export function amountsIn(line: string): number[] {
+  const out: number[] = []
+  const clean = fixNumbers(line).replace(/\b\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4}\b/g, ' ')
+  for (const m of clean.matchAll(AMOUNT)) {
+    const n = parseAmount(m[1])
+    if (n === null || n < 100) continue
+    if (n >= 1900 && n <= 2100 && !/[.,]/.test(m[1])) continue
+    out.push(n)
+  }
+  return out
+}
+
+export type PayslipAmounts = {
+  basic: number | null
+  gross: number | null
+  net: number | null
+  /** True when the payslip covers half a month (quincena / semi-monthly payroll). */
+  semiMonthly: boolean
+}
+
+const NET_LABEL = /\bnet\b|take[\s-]*home/i
+const BASIC_LABEL = /basic\s*(?:monthly\s*)?(?:salary|pay)|monthly\s*(?:basic\s*)?(?:salary|rate|pay|compensation)|salary\s*rate|rate\s*per\s*month/i
+const GROSS_LABEL = /\bgross\b|total\s*(?:earnings|compensation|income)/i
+const NOT_PAY = /deduction|tax|gsis|sss|philhealth|pag-?ibig|hdmf|loan|premium|contribution|balance/i
+
+/**
+ * Reads basic salary, gross and net pay from a payslip. Handles values on the label's
+ * line, on the next line, and table layouts where a row of labels sits over a row of values.
+ */
+export function extractPayslip(text: string): PayslipAmounts {
+  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
+  const found: Record<'basic' | 'gross' | 'net', number | null> = { basic: null, gross: null, net: null }
+  const set = (k: keyof typeof found, v: number | undefined) => {
+    if (v !== undefined && found[k] === null) found[k] = v
+  }
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    const labels: (keyof typeof found)[] = []
+    // Order labels by where they appear, for the table layout below.
+    const hits = [
+      { k: 'basic' as const, at: line.search(BASIC_LABEL) },
+      { k: 'gross' as const, at: line.search(GROSS_LABEL) },
+      { k: 'net' as const, at: line.search(NET_LABEL) },
+    ].filter((h) => h.at >= 0).sort((a, b) => a.at - b.at)
+    for (const h of hits) labels.push(h.k)
+    if (!labels.length) continue
+
+    const here = amountsIn(line)
+    // Table header: cells separated by wide gaps, values in the same order on the next line.
+    const cells = line.split(/\s{2,}|\t/).filter(Boolean)
+    const below = amountsIn(lines[i + 1] ?? '')
+    if (cells.length >= 2 && here.length === 0 && below.length === cells.length) {
+      cells.forEach((cell, j) => {
+        if (NET_LABEL.test(cell)) set('net', below[j])
+        else if (BASIC_LABEL.test(cell)) set('basic', below[j])
+        else if (GROSS_LABEL.test(cell)) set('gross', below[j])
+      })
+      continue
+    }
+    if (labels.length === 1) {
+      const k = labels[0]
+      if (k !== 'net' && NOT_PAY.test(line)) continue
+      set(k, here[0] ?? amountsIn(lines[i + 1] ?? '')[0])
+    } else {
+      const values = here.length >= labels.length ? here : amountsIn(lines[i + 1] ?? '')
+      if (values.length >= labels.length) labels.forEach((k, j) => set(k, values[j]))
+      else if (here.length === 1) set(labels[labels.length - 1], here[0])
     }
   }
-  return bestScore >= 5 ? best : null
+
+  const semiMonthly =
+    /quincena|semi[-\s]?monthly|(?:1st|2nd|first|second)\s*half|\b(?:1|01|16)\s*[-–]\s*(?:15|28|29|30|31)\b/i.test(text)
+  return { ...found, semiMonthly }
 }
 
 // ---- Dates -----------------------------------------------------------------
@@ -168,6 +182,12 @@ const monthIndex = (word: string) => MONTHS.indexOf(word.slice(0, 3).toLowerCase
 export function findDates(line: string): string[] {
   const out: string[] = []
   const add = (iso: string | null) => iso && out.push(iso)
+  // Certificates: "Issued this 10th day of October, 2026"
+  for (const m of line.matchAll(/\b(\d{1,2})(?:st|nd|rd|th)?\s+day\s+of\s+([A-Za-z]{3,9}),?\s+(\d{4})\b/gi))
+    if (monthIndex(m[2]) > 0) add(toIso(+m[3], monthIndex(m[2]), +m[1]))
+  // Pay periods: "October 1-15, 2026" / "Oct. 16 - 31 2026" -> the end date
+  for (const m of line.matchAll(/\b([A-Za-z]{3,9})\.?\s+(\d{1,2})\s*[-–]\s*(\d{1,2}),?\s+(\d{4})\b/g))
+    if (monthIndex(m[1]) > 0) add(toIso(+m[4], monthIndex(m[1]), Math.min(+m[3], 31)) ?? toIso(+m[4], monthIndex(m[1]), 28))
   // January 5, 1990 / Jan. 05 1990
   for (const m of line.matchAll(/\b([A-Za-z]{3,9})\.?\s+(\d{1,2}),?\s+(\d{4})\b/g))
     if (monthIndex(m[1]) > 0) add(toIso(+m[3], monthIndex(m[1]), +m[2]))
@@ -180,17 +200,6 @@ export function findDates(line: string): string[] {
   for (const m of line.matchAll(/\b(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})\b/g))
     add(toIso(+m[3], +m[1], +m[2]) ?? toIso(+m[3], +m[2], +m[1]))
   return out
-}
-
-export function extractDateOfBirth(text: string): string | null {
-  const lines = text.split(/\r?\n/)
-  const label = /(date\s*of\s*birth|birth\s*date|birthday|\bdob\b|petsa\s*ng\s*kapanganakan|born\s*on)/i
-  for (let i = 0; i < lines.length; i++) {
-    if (!label.test(lines[i])) continue
-    const found = findDates(lines[i]).concat(findDates(lines[i + 1] ?? ''))
-    if (found.length) return found[0]
-  }
-  return null
 }
 
 export function extractExpiryDate(text: string): string | null {
@@ -208,16 +217,6 @@ export function extractLatestDate(text: string, today = new Date()): string | nu
   const limit = today.toISOString().slice(0, 10)
   const all = text.split(/\r?\n/).flatMap(findDates).filter((d) => d <= limit)
   return all.sort().at(-1) ?? null
-}
-
-export function extractEmployer(text: string): string | null {
-  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
-  for (let i = 0; i < lines.length; i++) {
-    const m = lines[i].match(/(?:employer|company|agency)\s*(?:name)?\s*[:-]\s*(.+)/i)
-    if (m && m[1].length > 2) return m[1].trim()
-  }
-  const corp = lines.find((l) => /\b(inc\.?|corp(?:oration)?\.?|co\.|company|enterprises?|school|university|hospital|government)\b/i.test(l) && l.length < 80)
-  return corp ?? null
 }
 
 export function extractIdNumber(text: string): string | null {

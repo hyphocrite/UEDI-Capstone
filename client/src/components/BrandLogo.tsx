@@ -1,6 +1,6 @@
-type Props = { light?: boolean; className?: string }
+type Props = { light?: boolean; compact?: boolean; className?: string }
 
-export default function BrandLogo({ light = false, className = '' }: Props) {
+export default function BrandLogo({ light = false, compact = false, className = '' }: Props) {
   return (
     <span className={`inline-flex items-center gap-2 ${className}`}>
       <svg viewBox="0 0 32 32" className="h-8 w-8 shrink-0" aria-hidden="true">
@@ -17,7 +17,7 @@ export default function BrandLogo({ light = false, className = '' }: Props) {
         <span className={`block text-base font-bold tracking-wide ${light ? 'text-white' : 'text-brand-800'}`}>
           UEDI
         </span>
-        <span className={`hidden text-[11px] sm:block ${light ? 'text-brand-200' : 'text-brand-500'}`}>
+        <span className={`hidden text-[11px] whitespace-nowrap sm:block ${compact ? 'xl:hidden ' : ''}${light ? 'text-brand-200' : 'text-brand-500'}`}>
           Loans and Retirement Plans
         </span>
       </span>

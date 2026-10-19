@@ -1,0 +1,45 @@
+{
+  "_help": "Copy to column_map.json. Left side: the column header in UEDI's file. Right side: the field it holds. Delete lines for columns UEDI doesn't have; only the six form fields and a way to tell defaults are required.",
+  "sheet": "Loans",
+  "columns": {
+    "Member ID": "memberId",
+    "Date Applied": "applicationDate",
+    "Type of Loan": "loanType",
+    "Amount": "loanAmount",
+    "Term (months)": "termMonths",
+    "Rate per Month": "monthlyRate",
+    "Monthly Salary": "monthlySalary",
+    "Net Take Home Pay": "netTakeHomePay",
+    "LT Balance": "longTermBalance",
+    "ST Balance": "shortTermBalance",
+    "Date of Membership": "memberSince",
+    "Birthday": "birthDate",
+    "Employment Status": "employmentStatus",
+    "Status": "outcome"
+  },
+  "termUnit": "months",
+  "rateUnit": "monthly",
+  "values": {
+    "loanType": {
+      "Long Term": "long_term",
+      "LT": "long_term",
+      "Emergency": "emergency",
+      "Short Term": "emergency",
+      "ST": "emergency"
+    },
+    "employmentStatus": {
+      "Permanent": "permanent",
+      "Temporary": "temporary",
+      "Contractual": "contractual",
+      "Contract of Service": "job_order",
+      "COS": "job_order",
+      "Job Order": "job_order",
+      "JO": "job_order"
+    }
+  },
+  "defaulted": {
+    "from": "outcome",
+    "badValues": ["Delinquent", "Past Due", "Written Off", "Unpaid after maturity"],
+    "goodValues": ["Fully Paid", "Paid", "Restructured", "Current"]
+  }
+}

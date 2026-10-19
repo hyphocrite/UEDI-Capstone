@@ -1,4 +1,3 @@
-import type { DocumentTypeId } from '../lib/ocr/documentTypes'
 
 // Sample data for the UI. These will be replaced by API calls once
 // UEDI's process for members, loans and plans is wired to MongoDB.
@@ -166,9 +165,3 @@ export function buildReport(period: ReportPeriod, today = new Date('2026-09-29')
 // ---- Loan applications -----------------------------------------------------
 
 /** Supporting documents each loan product requires. Adjust to UEDI's checklist. */
-export const requiredDocuments: Record<string, DocumentTypeId[]> = {
-  regular: ['valid_id', 'birth_certificate', 'payslip', 'certificate_of_employment'],
-  emergency: ['valid_id', 'payslip'],
-  salary: ['valid_id', 'payslip', 'certificate_of_employment'],
-  'plan-backed': ['valid_id', 'birth_certificate', 'payment_receipt'],
-}
