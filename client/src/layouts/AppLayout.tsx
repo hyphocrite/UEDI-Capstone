@@ -3,6 +3,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { BarChart3, ClipboardCheck, FilePlus2, HandCoins, LogOut, Menu, PiggyBank, Settings, Users, X } from 'lucide-react'
 import BrandLogo from '../components/BrandLogo'
 import { useAuth } from '../context/AuthContext'
+import { roleLabel } from '../lib/roles'
 
 const nav = [
   { to: '/members', label: 'Members', icon: Users },
@@ -13,8 +14,6 @@ const nav = [
   { to: '/reports', label: 'Reports', icon: BarChart3 },
   { to: '/settings', label: 'Settings', icon: Settings },
 ]
-
-const roleLabel = { admin: 'Administrator', loan_officer: 'Loan Officer', staff: 'Staff' }
 
 export default function AppLayout() {
   const { session, logout } = useAuth()
@@ -79,7 +78,10 @@ export default function AppLayout() {
               ))}
             </nav>
             <div className="mt-3 flex items-center justify-between border-t border-white/10 pt-3">
-              <p className="text-sm text-white">{session?.fullName}</p>
+              <div className="min-w-0 leading-tight">
+                <p className="truncate text-sm text-white">{session?.fullName}</p>
+                <p className="text-xs text-brand-200">{session ? roleLabel[session.role] : ''}</p>
+              </div>
               <button onClick={onLogout} className="btn px-3 text-brand-100 hover:bg-white/10">
                 <LogOut className="h-4 w-4" />
                 Log out

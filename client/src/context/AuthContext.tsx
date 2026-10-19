@@ -1,12 +1,13 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { api } from '../lib/api'
+import type { Role } from '../lib/roles'
 
 export type Session = {
   id: string
   fullName: string
   email: string
-  role: 'admin' | 'loan_officer' | 'staff'
+  role: Role
   branch: string | null
 }
 

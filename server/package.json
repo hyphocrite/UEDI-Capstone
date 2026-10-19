@@ -6,8 +6,9 @@
   "scripts": {
     "dev": "nodemon src/index.js",
     "start": "node src/index.js",
-    "test": "node --test --test-concurrency=1",
-    "seed": "node scripts/seed-applications.js"
+    "test": "node --test --test-concurrency=1 test/*.test.js",
+    "seed": "node scripts/seed-applications.js",
+    "seed:signers": "node scripts/seed-signers.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

@@ -7,6 +7,7 @@ import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import MembersPage from './pages/MembersPage'
 import LoansPage from './pages/LoansPage'
+import LoanDetailPage from './pages/LoanDetailPage'
 import RetirementPlansPage from './pages/RetirementPlansPage'
 import SettingsPage from './pages/SettingsPage'
 import ReportsPage from './pages/ReportsPage'
@@ -34,6 +35,7 @@ export default function App() {
               </Suspense>
             } />
           <Route path="/loans/pending" element={<PendingLoansPage />} />
+          <Route path="/loans/:id" element={<LoanDetailPage />} />
           <Route path="/retirement-plans" element={<RetirementPlansPage />} />
           <Route path="/reports" element={<ReportsPage />} />
           <Route path="/settings" element={<SettingsPage />} />

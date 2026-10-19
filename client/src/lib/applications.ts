@@ -1,4 +1,5 @@
 // Types for loan applications as the API returns them.
+import type { ApprovalStep } from './roles'
 
 export type Suggestion = 'approve' | 'review' | 'deny'
 
@@ -66,8 +67,16 @@ export type LoanApplication = {
   agreement: { payrollDeduction: boolean; autoRestructure: boolean; applicationDate: string }
   documents: { fileName: string; type?: string; verdict?: 'verified' | 'review' | 'mismatch' | 'unreadable'; notes?: string[] }[]
   status: 'pending' | 'approved' | 'denied'
+  /** Signatures so far, in order. */
+  approvals: Approval[]
+  /** The step waiting to be signed, or 'none' once decided. */
+  currentStep: ApprovalStep | 'none'
+  /** The loan created when the President approved. */
+  loanId?: string
+  loanNo?: string
   assessment?: Assessment
   assessmentError?: string
+  /** Single-officer decision from before the approval chain; shown for old applications only. */
   decision?: {
     decision: 'approved' | 'denied'
     note?: string
@@ -77,6 +86,17 @@ export type LoanApplication = {
   }
   submittedByName?: string
   createdAt: string
+}
+
+export type Approval = {
+  step: ApprovalStep
+  decision: 'approved' | 'denied'
+  note?: string
+  /** User id of the signer. */
+  signedBy?: string
+  signedByName?: string
+  signedAt: string
+  followedSuggestion?: boolean
 }
 
 export type ModelInfo = {
