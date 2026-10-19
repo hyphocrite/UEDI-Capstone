@@ -1,4 +1,4 @@
-import { documentType, detectDocumentType } from './documentTypes'
+import { ACCEPTED_AS, documentType, detectDocumentType } from './documentTypes'
 import type { CheckId, DocumentTypeId } from './documentTypes'
 import { extractExpiryDate, extractIdNumber, extractLatestDate, extractName, extractPayslip } from './extractors'
 import { formatDeclaredName, matchAddress, matchEmployer, matchName, withinTolerance } from './matching'
@@ -19,7 +19,7 @@ export type Applicant = {
 /** 'info' is shown to the officer but never changes the verdict. */
 export type CheckStatus = 'pass' | 'warn' | 'fail' | 'info'
 
-export type DocumentCheck = { id: CheckId | 'quality'; label: string; status: CheckStatus; detail: string }
+export type DocumentCheck = { id: CheckId | 'quality' | 'documentType'; label: string; status: CheckStatus; detail: string }
 
 export type DocumentVerdict = 'verified' | 'review' | 'mismatch' | 'unreadable'
 
@@ -151,6 +151,16 @@ export function analyzeDocument(
         add(id, 'Signature', { status: 'warn', detail: 'Check by eye that the form is signed.' })
         break
     }
+  }
+
+  // A file checked as one type that reads like another (a payslip in the ID slot) can't be verified.
+  if (opts.typeId && detected.id !== typeId && detected.id !== 'other' && !(ACCEPTED_AS[typeId] ?? []).includes(detected.id)) {
+    checks.push({
+      id: 'documentType',
+      label: 'Document type',
+      status: 'warn',
+      detail: `This looks like a ${documentType(detected.id).label.toLowerCase()}, not a ${type.label.toLowerCase()}.`,
+    })
   }
 
   if (opts.confidence !== undefined && opts.confidence < 60) {

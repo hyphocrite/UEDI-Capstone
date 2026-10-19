@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 import json
 import random
+from datetime import date, timedelta
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont
@@ -71,14 +72,20 @@ def payslip(p: dict, rng: random.Random, today) -> Image.Image:
     gsis, ph, hdmf = round(basic * 0.09 / 2, 2), round(basic * 0.025 / 2, 2), 100.0
     tax = round(max(ded - gsis - ph - hdmf, 0) * 0.4, 2)
     other = round(ded - gsis - ph - hdmf - tax, 2)
-    half = rng.choice([(1, 15), (16, 30)])
-    month = MONTHS[today["month"] - 1]
+    # The latest pay period that has already ended, so the payslip is never dated in the future.
+    if today["day"] >= 16:
+        half, month_no, year = (1, 15), today["month"], today["year"]
+    else:
+        month_no = today["month"] - 1 or 12
+        year = today["year"] - (1 if today["month"] == 1 else 0)
+        half = (16, 30)
+    month = MONTHS[month_no - 1]
     return page(
         [
             ("DAVAO DEL NORTE STATE COLLEGE", 34, True),
             ("New Visayas, Panabo City", 24, False),
             ("PAYSLIP", 30, True),
-            (f"Pay Period: {month} {half[0]}-{half[1]}, {today['year']}", 24, False),
+            (f"Pay Period: {month} {half[0]}-{half[1]}, {year}", 24, False),
             (f"Employee Name: {p['lastName'].upper()}, {p['firstName'].upper()} {p['middleInitial']}.", 24, False),
             (f"Employee No.: {rng.randint(2005, 2024)}-{rng.randint(1, 999):04d}", 24, False),
             (f"Basic Salary          {money(basic)}", 26, False),
@@ -184,8 +191,9 @@ def main():
     ap.add_argument("--out", default="ocr-samples/synthetic")
     ap.add_argument("--count", type=int, default=6, help="people; each gets one of every document type")
     ap.add_argument("--seed", type=int, default=7)
-    ap.add_argument("--date", default="2026-10-10", help="date printed on payslips and certificates")
-    ap.add_argument("--checked-on", default="2026-11-05", help="the day the documents are checked (labels.json 'today')")
+    checked = date.today()
+    ap.add_argument("--date", default=(checked - timedelta(days=9)).isoformat(), help="date printed on payslips and certificates")
+    ap.add_argument("--checked-on", default=checked.isoformat(), help="the day the documents are checked (labels.json 'today')")
     args = ap.parse_args()
 
     rng = random.Random(args.seed)

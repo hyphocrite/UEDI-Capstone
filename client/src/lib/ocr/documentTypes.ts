@@ -113,6 +113,12 @@ const DECISIVE: Partial<Record<DocumentTypeId, RegExp>> = {
 }
 
 /** Picks the type whose keywords match the text most. */
+/** Other types a slot accepts without a warning: a DNSC ID is a valid ID too. */
+export const ACCEPTED_AS: Partial<Record<DocumentTypeId, DocumentTypeId[]>> = {
+  valid_id: ['employee_id'],
+  employee_id: ['valid_id'],
+}
+
 export function detectDocumentType(text: string): { id: DocumentTypeId; score: number } {
   let best: { id: DocumentTypeId; score: number } = { id: 'other', score: 0 }
   for (const t of DOCUMENT_TYPES) {

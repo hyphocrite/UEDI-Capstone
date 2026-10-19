@@ -160,3 +160,10 @@ test('UEDI form mentioning salary and net pay is not mistaken for a payslip', ()
   const form = 'UNITED DNSC EMPLOYEES, INC.\nMUTUAL ASSISTANCE APPLICATION FORM\nMonthly Salary: 27,000.00 Net take home pay: 18,450.00\nPayroll Officer'
   assert.equal(detectDocumentType(form).id, 'application_form')
 })
+
+test('a payslip checked as an ID needs review, not verified', () => {
+  const r = analyzeDocument(PAYSLIP, ana, { today, typeId: 'valid_id' })
+  assert.equal(r.verdict, 'review')
+  assert.ok(r.checks.some((c) => c.id === 'documentType' && c.status === 'warn'))
+  assert.equal(analyzeDocument(NATIONAL_ID, ana, { today, typeId: 'employee_id' }).checks.some((c) => c.id === 'documentType'), false)
+})
