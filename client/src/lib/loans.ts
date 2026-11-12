@@ -19,7 +19,9 @@ export type Installment = {
 export type Loan = {
   _id: string
   loanNo: string
-  application: string
+  /** "ledger": a balance carried over from UDEI's spreadsheet, given a payroll deduction. No application. */
+  source?: 'application' | 'ledger'
+  application?: string
   applicationNo?: string
   borrowerName: string
   memberId?: string

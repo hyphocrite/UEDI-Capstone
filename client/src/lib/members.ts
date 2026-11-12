@@ -34,6 +34,8 @@ export type Member = {
   openLoans?: number
   loanBalance?: number
   plan?: { id: string; balance: number; monthlyContribution: number; status: PlanStatus } | null
+  /** The loan made from the carried-over balance once its payroll deduction was set up. */
+  ledgerLoan?: { id: string; loanNo: string } | null
 }
 
 export type MemberHistory = {

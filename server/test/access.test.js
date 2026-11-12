@@ -122,3 +122,40 @@ test("carried-over spreadsheet balances: staff see all, a member only their own"
   const own = await t.call("/loans/carried", { cookie: member.cookie });
   assert.deepEqual(own.json.carried.map((c) => c.memberId), ["C-2"]);
 });
+
+test("the Bookkeeper sets a payroll deduction on a carried-over balance; runs then include it", { skip }, async () => {
+  const Member = require("../src/models/Member");
+  await Member.create({
+    memberId: "D-1",
+    openingLoan: { asOf: new Date("2026-09-30"), balanceStartOfYear: 10_000_00, appliedThisYear: 0, payments: 0, interest: 0, balance: 10_000_00, loansThisYear: 0 },
+  });
+  const body = { perCutoff: 1_500_00, paymentFrequency: "quincenal", firstDueDate: "2026-10-15" };
+  const bk = staff.signer.bookkeeper.cookie;
+  const setUp = (cookie, b = body) => t.call("/members/D-1/payroll-deduction", { method: "POST", cookie, body: b });
+
+  assert.equal((await setUp(staff.officer.cookie)).status, 403, "loan officers can't");
+  assert.equal((await setUp(bk, { ...body, firstDueDate: "2026-10-14" })).status, 400, "not a cutoff");
+  assert.equal((await setUp(bk, { ...body, paymentFrequency: "monthly" })).status, 400, "monthly runs at month-end only");
+  assert.equal((await setUp(bk, { ...body, firstDueDate: "2026-09-15" })).status, 400, "before the ledger balance");
+
+  const r = await setUp(bk);
+  assert.equal(r.status, 201, r.json.error);
+  const loan = r.json.loan;
+  assert.equal(loan.loanNo, "LEDGER-D-1");
+  assert.equal(loan.source, "ledger");
+  assert.equal(loan.schedule.length, 7, "6 x 1,500 + 1,000");
+  assert.equal(loan.schedule[6].totalDue, 1_000_00);
+  assert.equal(loan.totalPayable, 10_000_00, "no interest added");
+  assert.equal(loan.schedule[0].dueDate.slice(0, 10), "2026-10-15");
+  assert.equal(loan.schedule[1].dueDate.slice(0, 10), "2026-10-31");
+  assert.equal((await setUp(bk)).status, 409, "only once");
+
+  const carried = (await t.call("/loans/carried", { cookie: bk })).json.carried;
+  assert.ok(!carried.some((c) => c.memberId === "D-1"), "no longer listed as carried over");
+  const row = (await t.call("/members", { cookie: bk })).json.members.find((m) => m.memberId === "D-1");
+  assert.equal(row.loanBalance, 10_000_00, "counted once");
+  assert.equal(row.ledgerLoan.loanNo, "LEDGER-D-1");
+
+  const run = (await t.call("/deductions", { method: "POST", cookie: bk, body: { cutoffDate: "2026-10-15" } })).json.run;
+  assert.equal(run.lines.find((l) => l.loanNo === "LEDGER-D-1")?.expected, 1_500_00);
+});
