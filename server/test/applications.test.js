@@ -5,8 +5,7 @@ const { test, before, after } = require("node:test");
 const assert = require("node:assert/strict");
 const http = require("node:http");
 const mongoose = require("mongoose");
-
-const uri = process.env.TEST_MONGODB_URI;
+const { uri, lastCode } = require("./helpers"); // sets the test env before the app loads
 let server;
 let fakeMl;
 let base;
@@ -61,6 +60,13 @@ async function call(path, { method = "GET", body, cookie } = {}) {
   return { status: res.status, json: await res.json(), setCookie: res.headers.get("set-cookie") };
 }
 
+/** Registers and verifies an account; returns its session cookie. */
+async function signUp(fullName, email) {
+  await call("/auth/register", { method: "POST", body: { fullName, email, password: "secret123" } });
+  const r = await call("/auth/verify-email", { method: "POST", body: { email, code: lastCode(email) } });
+  return r.setCookie.split(";")[0];
+}
+
 const application = (late = 0) => ({
   applicant: {
     lastName: "Santos", firstName: "Maria", middleInitial: "C", residenceAddress: "Purok 3, New Visayas, Panabo City",
@@ -77,8 +83,8 @@ test("submit, score and list applications", { skip: !uri && "TEST_MONGODB_URI no
   const anon = await call("/applications");
   assert.equal(anon.status, 401);
 
-  const admin = (await call("/auth/register", { method: "POST", body: { fullName: "Admin One", email: "admin@uedi.coop", password: "secret123" } })).setCookie.split(";")[0];
-  const staff = (await call("/auth/register", { method: "POST", body: { fullName: "Staff Two", email: "staff@uedi.coop", password: "secret123" } })).setCookie.split(";")[0];
+  const admin = await signUp("Admin One", "admin@uedi.coop");
+  const staff = await signUp("Staff Two", "staff@uedi.coop");
 
   const bad = await call("/applications", { method: "POST", cookie: staff, body: { ...application(), loan: { ...application().loan, amount: 0 } } });
   assert.equal(bad.status, 400);

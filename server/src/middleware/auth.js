@@ -24,8 +24,9 @@ async function loadUser(req, _res, next) {
   const token = req.cookies?.[COOKIE_NAME];
   if (!token) return next();
   try {
-    const payload = jwt.verify(token, env.jwtSecret);
-    req.user = await User.findById(payload.sub);
+    const payload = jwt.verify(token, env.jwtSecret, { algorithms: ["HS256"] });
+    const user = await User.findById(payload.sub);
+    req.user = user && user.emailVerified !== false ? user : null;
   } catch {
     req.user = null;
   }

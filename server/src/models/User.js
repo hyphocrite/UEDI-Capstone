@@ -19,6 +19,16 @@ const userSchema = new mongoose.Schema(
     role: { type: String, enum: ROLES, default: "staff" },
     branch: { type: String, trim: true, maxlength: 120 },
     lastLoginAt: { type: Date },
+    // false until the emailed code is entered. Accounts made before verification existed have no
+    // value and are treated as verified.
+    emailVerified: { type: Boolean },
+    emailVerification: {
+      type: new mongoose.Schema(
+        { codeHash: String, expiresAt: Date, attempts: { type: Number, default: 0 }, sentAt: Date },
+        { _id: false },
+      ),
+      select: false,
+    },
   },
   { timestamps: true },
 );

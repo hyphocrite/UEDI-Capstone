@@ -12,6 +12,14 @@ function createApp() {
   const app = express();
 
   app.disable("x-powered-by");
+  // API responses hold member and loan data: never sniffed, framed or cached.
+  app.use((_req, res, next) => {
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("X-Frame-Options", "DENY");
+    res.setHeader("Referrer-Policy", "no-referrer");
+    res.setHeader("Cache-Control", "no-store");
+    next();
+  });
   app.use(cors({ origin: env.clientOrigin, credentials: true }));
   app.use(express.json({ limit: "1mb" }));
   app.use(cookieParser());

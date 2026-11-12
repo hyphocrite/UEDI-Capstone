@@ -35,13 +35,13 @@ export default function RegisterPage() {
     setError('')
     setBusy(true)
     try {
-      await register({
+      const { email, emailSent } = await register({
         fullName: form.fullName.trim(),
         email: form.email.trim(),
         password: form.password,
         branch: form.branch,
       })
-      navigate('/members', { replace: true })
+      navigate('/verify-email', { replace: true, state: { email, emailSent } })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not create the account.')
     } finally {

@@ -5,6 +5,7 @@ import AppLayout from './layouts/AppLayout'
 import HomePage from './pages/HomePage'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
+import VerifyEmailPage from './pages/VerifyEmailPage'
 import MembersPage from './pages/MembersPage'
 import LoansPage from './pages/LoansPage'
 import LoanDetailPage from './pages/LoanDetailPage'
@@ -23,6 +24,7 @@ export default function App() {
       <Route path="/" element={<HomePage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/verify-email" element={<VerifyEmailPage />} />
 
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>

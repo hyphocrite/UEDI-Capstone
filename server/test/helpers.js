@@ -4,6 +4,8 @@ const http = require("node:http");
 const mongoose = require("mongoose");
 
 const uri = process.env.TEST_MONGODB_URI;
+process.env.AUTH_RATE_LIMIT = "off";
+process.env.QUIET_MAIL = "1";
 
 /** ML stand-in: more than one late payment means "deny", otherwise "approve". */
 function startFakeMl() {
@@ -50,9 +52,10 @@ async function setup() {
     return { status: res.status, json: await res.json(), setCookie: res.headers.get("set-cookie") };
   }
 
-  /** Registers an account and returns { cookie, id }. The first account becomes admin. */
+  /** Registers an account, enters the emailed code and returns { cookie, id }. The first account becomes admin. */
   async function register(fullName, email) {
-    const r = await call("/auth/register", { method: "POST", body: { fullName, email, password: "secret123" } });
+    await call("/auth/register", { method: "POST", body: { fullName, email, password: "secret123" } });
+    const r = await call("/auth/verify-email", { method: "POST", body: { email, code: lastCode(email) } });
     return { cookie: r.setCookie.split(";")[0], id: r.json.session.id };
   }
 
@@ -74,6 +77,13 @@ async function setup() {
   return { call, register, userWithRole, close };
 }
 
+/** The verification code most recently "emailed" to this address (mail isn't sent in tests). */
+function lastCode(email) {
+  const { outbox } = require("../src/services/mailer");
+  const mail = outbox.findLast((m) => m.to === email.toLowerCase());
+  return mail?.subject.match(/\d{6}/)[0];
+}
+
 const application = (late = 0, overrides = {}) => ({
   applicant: {
     lastName: "Santos", firstName: "Maria", middleInitial: "C", residenceAddress: "Purok 3, New Visayas, Panabo City",
@@ -86,4 +96,4 @@ const application = (late = 0, overrides = {}) => ({
   documents: [],
 });
 
-module.exports = { uri, setup, application };
+module.exports = { uri, lastCode, setup, application };
