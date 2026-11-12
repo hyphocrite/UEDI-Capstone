@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRight, Hourglass, ThumbsDown, ThumbsUp } from 'lucide-react'
+import BookkeeperBalances from './BookkeeperBalances'
 import { useAuth } from '../../context/AuthContext'
 import { api } from '../../lib/api'
 import type { LoanApplication } from '../../lib/applications'
@@ -85,7 +86,10 @@ function SignForm({ app, step, onChange }: { app: LoanApplication; step: Approva
     longTermDueDate: dateInput(books?.longTermDueDate),
     shortTermBalance: String(books?.shortTermBalance ?? 0),
     shortTermDueDate: dateInput(books?.shortTermDueDate),
+    monthlyPayment: String(books?.monthlyPayment ?? 0),
   })
+  // Ledger figures are refreshed by the server when the Bookkeeper signs; only typed ones can be corrected.
+  const editableBooks = step === 'bookkeeper' && books?.source !== 'ledger'
   const [busy, setBusy] = useState<'approved' | 'denied' | null>(null)
   const [error, setError] = useState('')
   const suggestion = app.assessment?.ensemble.suggestion
@@ -96,7 +100,8 @@ function SignForm({ app, step, onChange }: { app: LoanApplication; step: Approva
     if (against && !note.trim()) return setError('You are going against the ML suggestion. Add a note explaining why.')
     const long = Number(balances.longTermBalance)
     const short = Number(balances.shortTermBalance)
-    if (step === 'bookkeeper' && (!(long >= 0) || !(short >= 0))) return setError('Balances must be 0 or more.')
+    const perMonth = Number(balances.monthlyPayment)
+    if (editableBooks && (!(long >= 0) || !(short >= 0) || !(perMonth >= 0))) return setError('Balances must be 0 or more.')
     setBusy(decision)
     setError('')
     try {
@@ -105,15 +110,15 @@ function SignForm({ app, step, onChange }: { app: LoanApplication; step: Approva
         body: JSON.stringify({
           decision,
           note: note.trim() || undefined,
-          bookkeeper:
-            step === 'bookkeeper'
-              ? {
-                  longTermBalance: long,
-                  longTermDueDate: balances.longTermDueDate || undefined,
-                  shortTermBalance: short,
-                  shortTermDueDate: balances.shortTermDueDate || undefined,
-                }
-              : undefined,
+          bookkeeper: editableBooks
+            ? {
+                longTermBalance: long,
+                longTermDueDate: balances.longTermDueDate || undefined,
+                shortTermBalance: short,
+                shortTermDueDate: balances.shortTermDueDate || undefined,
+                monthlyPayment: perMonth,
+              }
+            : undefined,
         }),
       })
       onChange(application)
@@ -144,15 +149,23 @@ function SignForm({ app, step, onChange }: { app: LoanApplication; step: Approva
       <h3 className="mb-1 font-semibold text-brand-800">Your signature as {roleLabel[step]}</h3>
       <p className="mb-4 text-sm text-brand-600">Approving sends the application to the next signer. Denying ends it.</p>
 
-      {step === 'bookkeeper' && (
+      {step === 'bookkeeper' && !editableBooks && (
+        <div className="mb-4">
+          <BookkeeperBalances app={app} />
+          <p className="mt-2 text-xs text-brand-600">These come from the ledger. Signing refreshes them in case a payment came in since the application was filed.</p>
+        </div>
+      )}
+
+      {editableBooks && (
         <fieldset className="mb-4 rounded-lg bg-brand-50 p-3 sm:p-4">
           <legend className="px-1 text-sm font-semibold text-brand-800">Mutual Assistance balance to date</legend>
-          <p className="mb-3 text-xs text-brand-600">Check the balances the applicant's form shows and correct them if needed.</p>
+          <p className="mb-3 text-xs text-brand-600">No loans on record for this member. Check the typed balances against your books and correct them if needed.</p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {field('longTermBalance', 'Long term balance (₱)', 'number')}
             {field('longTermDueDate', 'Long term due date', 'date')}
             {field('shortTermBalance', 'Short term balance (₱)', 'number')}
             {field('shortTermDueDate', 'Short term due date', 'date')}
+            {field('monthlyPayment', 'Paid per month on these loans (₱)', 'number')}
           </div>
         </fieldset>
       )}

@@ -7,11 +7,21 @@ const { loadUser } = require("./middleware/auth");
 const authRoutes = require("./routes/auth");
 const applicationRoutes = require("./routes/applications");
 const loanRoutes = require("./routes/loans");
+const deductionRoutes = require("./routes/deductions");
+const memberRoutes = require("./routes/member");
 
 function createApp() {
   const app = express();
 
   app.disable("x-powered-by");
+  // API responses hold member and loan data: never sniffed, framed or cached.
+  app.use((_req, res, next) => {
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("X-Frame-Options", "DENY");
+    res.setHeader("Referrer-Policy", "no-referrer");
+    res.setHeader("Cache-Control", "no-store");
+    next();
+  });
   app.use(cors({ origin: env.clientOrigin, credentials: true }));
   app.use(express.json({ limit: "1mb" }));
   app.use(cookieParser());
@@ -24,6 +34,8 @@ function createApp() {
   app.use("/api/auth", authRoutes);
   app.use("/api/applications", applicationRoutes);
   app.use("/api/loans", loanRoutes);
+  app.use("/api/deductions", deductionRoutes);
+  app.use("/api/member", memberRoutes);
 
   app.use("/api", (_req, res) => res.status(404).json({ error: "Not found." }));
 

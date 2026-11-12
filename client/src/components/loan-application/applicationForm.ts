@@ -3,9 +3,17 @@ import { loans } from '../../data/mock'
 import type { Member } from '../../data/mock'
 import { monthlyInstallment } from '../../lib/applications'
 import type { EmploymentStatus, LoanType } from '../../lib/applications'
+import type { MemberBalances } from '../../lib/loans'
 import type { Applicant, DocumentAnalysis } from '../../lib/ocr/analyzeDocument'
 
 export type PeriodUnit = 'years' | 'months'
+
+/** Where the Bookkeeper section's figures come from, after looking up the member ID. */
+export type LedgerState =
+  | { status: 'none' } // no member ID, or no loans on record: typed by hand
+  | { status: 'loading'; memberId: string }
+  | { status: 'ledger'; balances: MemberBalances }
+  | { status: 'error'; message: string }
 export type PaymentFrequency = 'quincenal' | 'monthly'
 
 /** Inputs are kept as strings so fields can be empty while typing. */
@@ -39,6 +47,8 @@ export type Form = {
   longTermDueDate: string
   shortTermBalance: string
   shortTermDueDate: string
+  /** What the member already pays UEDI per month on open loans (pesos). */
+  monthlyPayment: string
 
   payrollDeduction: boolean
   autoRestructure: boolean
@@ -47,7 +57,7 @@ export type Form = {
 export const MAX_TERM_MONTHS = 120
 
 /** UEDI's usual rates, in % per month. */
-export const DEFAULT_RATE: Record<LoanType, string> = { long_term: '1.0', emergency: '1.5' }
+export const DEFAULT_RATE: Record<LoanType, string> = { long_term: '2.0', emergency: '3.0' }
 
 export const PAYROLL_DEDUCTION_TEXT =
   'I hereby authorize the Payroll Officer of my Employer, DNSC and/or the Treasurer of United DNSC Employees, Inc. to deduct the quincenal/monthly installment of my Mutual Assistance from my salary or from any form of benefits due to me.'
@@ -84,6 +94,7 @@ export const emptyForm = (): Form => ({
   longTermDueDate: '',
   shortTermBalance: '0',
   shortTermDueDate: '',
+  monthlyPayment: '0',
 
   payrollDeduction: false,
   autoRestructure: false,
@@ -114,10 +125,27 @@ export function affordabilityNote(f: Form): string | null {
   const inst = installmentOf(f)
   const net = num(f.netTakeHomePay)
   if (!inst || net <= 0) return null
-  const left = net - inst.monthly
-  if (inst.monthly > net / 2) return 'The monthly installment is more than half of the net take-home pay.'
-  if (left < 5000) return 'Less than ₱5,000 of the net take-home pay is left after the monthly installment.'
+  // Existing UEDI deductions count too: net pay minus what is already deducted minus the new installment.
+  const existing = num(f.monthlyPayment)
+  const total = existing + inst.monthly
+  const left = net - total
+  const what = existing > 0 ? 'The new installment plus existing UEDI deductions' : 'The monthly installment'
+  if (total > net / 2) return `${what} ${existing > 0 ? 'are' : 'is'} more than half of the net take-home pay.`
+  if (left < 5000) return `Less than ₱5,000 of the net take-home pay is left after ${existing > 0 ? 'existing deductions and ' : ''}the new installment.`
   return null
+}
+
+/** The Bookkeeper section's fields from the ledger (centavos to pesos). */
+export function booksFromLedger(b: MemberBalances): Partial<Form> {
+  const pesos = (c: number) => String(c / 100)
+  const day = (iso: string | null) => (iso ? iso.slice(0, 10) : '')
+  return {
+    longTermBalance: pesos(b.longTerm.balance),
+    longTermDueDate: day(b.longTerm.dueDate),
+    shortTermBalance: pesos(b.shortTerm.balance),
+    shortTermDueDate: day(b.shortTerm.dueDate),
+    monthlyPayment: pesos(b.monthlyPayment),
+  }
 }
 
 // Words that belong to the surname in Filipino and Spanish names: "Dela Cruz", "De los Santos".
@@ -231,6 +259,7 @@ export function buildPayload(f: Form, documents: DocumentPayload[]) {
       longTermDueDate: optional(f.longTermDueDate),
       shortTermBalance: num(f.shortTermBalance),
       shortTermDueDate: optional(f.shortTermDueDate),
+      monthlyPayment: num(f.monthlyPayment),
     },
     agreement: {
       payrollDeduction: f.payrollDeduction,

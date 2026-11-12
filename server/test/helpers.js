@@ -4,6 +4,8 @@ const http = require("node:http");
 const mongoose = require("mongoose");
 
 const uri = process.env.TEST_MONGODB_URI;
+process.env.AUTH_RATE_LIMIT = "off";
+process.env.QUIET_MAIL = "1";
 
 /** ML stand-in: more than one late payment means "deny", otherwise "approve". */
 function startFakeMl() {
@@ -41,18 +43,19 @@ async function setup() {
   const server = createApp().listen(0);
   const base = `http://127.0.0.1:${server.address().port}/api`;
 
-  async function call(path, { method = "GET", body, cookie } = {}) {
+  async function call(path, { method = "GET", body, cookie, headers = {} } = {}) {
     const res = await fetch(base + path, {
       method,
-      headers: { ...(body ? { "Content-Type": "application/json" } : {}), ...(cookie ? { Cookie: cookie } : {}) },
+      headers: { ...(body ? { "Content-Type": "application/json" } : {}), ...(cookie ? { Cookie: cookie } : {}), ...headers },
       body: body ? JSON.stringify(body) : undefined,
     });
     return { status: res.status, json: await res.json(), setCookie: res.headers.get("set-cookie") };
   }
 
-  /** Registers an account and returns { cookie, id }. The first account becomes admin. */
+  /** Registers an account, enters the emailed code and returns { cookie, id }. The first account becomes admin. */
   async function register(fullName, email) {
-    const r = await call("/auth/register", { method: "POST", body: { fullName, email, password: "secret123" } });
+    await call("/auth/register", { method: "POST", body: { fullName, email, password: "secret123" } });
+    const r = await call("/auth/verify-email", { method: "POST", body: { email, code: lastCode(email) } });
     return { cookie: r.setCookie.split(";")[0], id: r.json.session.id };
   }
 
@@ -71,19 +74,66 @@ async function setup() {
     fakeMl.close();
   }
 
-  return { call, register, userWithRole, close };
+  return { call, register, userWithRole, close, baseUrl: base };
+}
+
+/** The verification code most recently "emailed" to this address (mail isn't sent in tests). */
+function lastCode(email) {
+  const { outbox } = require("../src/services/mailer");
+  const mail = outbox.findLast((m) => m.to === email.toLowerCase());
+  return mail?.subject.match(/\d{6}/)[0];
 }
 
 const application = (late = 0, overrides = {}) => ({
   applicant: {
     lastName: "Santos", firstName: "Maria", middleInitial: "C", residenceAddress: "Purok 3, New Visayas, Panabo City",
     employer: "Davao del Norte State College", employmentStatus: "permanent", monthlySalary: 38000, netTakeHomePay: 24000,
-    dateOfBirth: "1984-03-12", yearsAsMember: 5, priorLoans: 3, priorLatePayments: late,
+    dateOfBirth: "1984-03-12", yearsAsMember: 5, priorLoans: 3, priorLatePayments: late, ...overrides.applicant,
   },
   loan: { loanType: "long_term", amount: 60000, termMonths: 24, monthlyRate: 1, paymentFrequency: "quincenal", ...overrides.loan },
-  bookkeeper: { longTermBalance: 12000, shortTermBalance: 0 },
+  bookkeeper: overrides.bookkeeper ?? { longTermBalance: 12000, shortTermBalance: 0 },
   agreement: { payrollDeduction: true, autoRestructure: true, applicationDate: "2026-10-19" },
   documents: [],
 });
 
-module.exports = { uri, setup, application };
+const SIGNER_ROLES = ["bookkeeper", "treasurer", "crecom_chair", "president"];
+
+/** Creates an admin, a loan officer and one user per signer role. */
+async function staffUp(t) {
+  const admin = await t.register("Admin One", "admin@uedi.test");
+  const officer = await t.userWithRole(admin.cookie, "loan_officer", "Lorna Officer");
+  const signer = {};
+  for (const role of SIGNER_ROLES) signer[role] = await t.userWithRole(admin.cookie, role);
+  return { admin, officer, signer };
+}
+
+/** Calendar date n days before today in Manila, as YYYY-MM-DD. */
+function daysAgo(n) {
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" });
+  return new Date(new Date(`${today}T00:00:00Z`).getTime() - n * 86_400_000).toISOString().slice(0, 10);
+}
+
+/** Submits an application and has all four signers approve it. Returns the approved application. */
+async function approve(t, staff, body) {
+  const app = (await t.call("/applications", { method: "POST", cookie: staff.officer.cookie, body })).json.application;
+  let res;
+  for (const role of SIGNER_ROLES) {
+    res = await t.call(`/applications/${app._id}/approvals`, { method: "POST", cookie: staff.signer[role].cookie, body: { decision: "approved" } });
+    if (res.status !== 200) throw new Error(`${role} could not sign: ${res.json.error}`);
+  }
+  return res.json.application;
+}
+
+/** Approves and releases a loan for a member. Returns the released loan as the API shows it. */
+async function releasedLoan(t, staff, { memberId, loan, releasedAt = daysAgo(40), offsetLoanIds }) {
+  const app = await approve(t, staff, application(0, { applicant: { memberId }, loan, bookkeeper: { longTermBalance: 0, shortTermBalance: 0 } }));
+  const r = await t.call(`/loans/${app.loanId}/release`, {
+    method: "POST",
+    cookie: staff.signer.treasurer.cookie,
+    body: { releasedAt, voucherNo: `CV-${app.loanNo}`, offsetLoanIds },
+  });
+  if (r.status !== 200) throw new Error(`release failed: ${r.json.error}`);
+  return r.json.loan;
+}
+
+module.exports = { uri, lastCode, setup, application, staffUp, daysAgo, approve, releasedLoan };

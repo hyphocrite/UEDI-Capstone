@@ -83,13 +83,18 @@ FEATURE_LABELS = {
 
 
 def monthly_installment(amount, term, monthly_rate):
-    """Add-on interest: the rate is charged on the full amount for every month of the term.
+    """Equal monthly payment with interest on the remaining balance (amortized).
 
-    This is how the form reads ("at the rate of __% per month"). If UEDI computes interest
-    on the diminishing balance instead, change this one function and retrain.
+    UEDI's ledger charges the monthly rate on what is still owed: 2,000 interest on a
+    100,000 balance, then 1,800 once it is down to 90,000. So this is the standard
+    amortization formula, not add-on interest.
     """
+    amount = np.asarray(amount, dtype=float)
     term = np.maximum(np.asarray(term, dtype=float), 1)
-    return np.asarray(amount, dtype=float) * (1 + np.asarray(monthly_rate, dtype=float) / 100 * term) / term
+    r = np.asarray(monthly_rate, dtype=float) / 100
+    with np.errstate(divide="ignore", invalid="ignore"):
+        amortized = amount * r / (1 - (1 + r) ** -term)
+    return np.where(r > 0, amortized, amount / term)
 
 
 def features_for_columns(columns) -> list[str]:

@@ -5,6 +5,7 @@ import type { Form, PaymentFrequency, PeriodUnit } from './applicationForm'
 import { loanTypeLabel } from '../../lib/applications'
 import type { LoanType } from '../../lib/applications'
 import { formatPeso } from '../../lib/format'
+import { formatCentavos, toCentavos } from '../../lib/loans'
 
 type Props = {
   form: Form
@@ -125,6 +126,12 @@ export default function AgreementSection({ form, update, onLoanTypeChange }: Pro
             </div>
           )}
         </dl>
+        {Number(form.monthlyPayment) > 0 && (
+          <p className="-mt-2 text-center text-xs text-brand-600">
+            Already deducted: <strong className="text-ink">{formatCentavos(toCentavos(form.monthlyPayment))} per month</strong> on existing UEDI loans
+            {inst && <>, so {formatCentavos(toCentavos(form.monthlyPayment) + Math.round(inst.monthly * 100))} per month in all</>}.
+          </p>
+        )}
 
         {note && (
           <p className="flex items-start gap-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">

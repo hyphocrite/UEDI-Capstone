@@ -49,7 +49,10 @@ ml-service/  Python FastAPI + scikit-learn/XGBoost (loan risk models)
    npm run ml
    ```
    Optional: `npm --prefix server run seed` adds five sample applications to Pending Loans.
-5. Open http://localhost:5173 and click **Create account**.
+5. Open http://localhost:5173 and click **Create account**. New accounts confirm their email with a
+   6-digit code. To send it by Gmail, set `GMAIL_USER` and `GMAIL_APP_PASSWORD` (a Google
+   [App Password](https://myaccount.google.com/apppasswords), which needs 2-Step Verification) in
+   `server/.env`. Without them, the code is printed in the server terminal instead.
 
 The client runs on port 5173 and forwards `/api` calls to the server on port 5000.
 
@@ -58,8 +61,10 @@ The client runs on port 5173 and forwards `/api` calls to the server on port 500
 | Method | Path | What it does |
 | --- | --- | --- |
 | GET | `/api/health` | Server and database status |
-| POST | `/api/auth/register` | Create an account `{ fullName, email, password, branch }` |
-| POST | `/api/auth/login` | Log in `{ email, password }` |
+| POST | `/api/auth/register` | Create an account `{ fullName, email, password, branch }` and email a verification code |
+| POST | `/api/auth/verify-email` | Enter the code `{ email, code }`; signs the account in |
+| POST | `/api/auth/resend-verification` | Email a new code `{ email }` (once a minute) |
+| POST | `/api/auth/login` | Log in `{ email, password }` (403 `EMAIL_NOT_VERIFIED` until the email is verified) |
 | POST | `/api/auth/logout` | Log out |
 | GET | `/api/auth/me` | Current session |
 | GET | `/api/auth/users` | List accounts (signed in only) |

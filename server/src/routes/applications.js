@@ -1,14 +1,35 @@
 const express = require("express");
+const mongoose = require("mongoose");
 const { z } = require("zod");
 const Application = require("../models/Application");
 const { EMPLOYMENT_STATUSES, LOAN_TYPES, PAYMENT_FREQUENCIES } = require("../models/Application");
 const ml = require("../services/mlClient");
 const loans = require("../services/loans");
 const { STEPS, STEP_LABELS, currentStepOf, nextStep, followsSuggestion } = require("../services/approvals");
-const { requireAuth } = require("../middleware/auth");
+const { requireStaff, requireLevel } = require("../middleware/auth");
+const { seesAllLoans } = require("../config/access");
 
 const router = express.Router();
-router.use(requireAuth);
+router.use(requireStaff);
+
+/** A member's own applications: filed for their member ID, or submitted from their account. */
+const ownApplications = (user) => ({
+  $or: [{ submittedBy: user._id }, ...(user.memberId ? [{ "applicant.memberId": user.memberId }] : [])],
+});
+
+/** What this user may see of an application: members don't get the internal ML scores. */
+function forViewer(user, app) {
+  if (seesAllLoans(user)) return app;
+  const { assessment, assessmentError, ...rest } = app.toObject();
+  return rest;
+}
+
+/** The application if this user may see it, else null. */
+async function findVisible(req) {
+  if (!mongoose.isValidObjectId(req.params.id)) return null;
+  const filter = { _id: req.params.id, ...(seesAllLoans(req.user) ? {} : ownApplications(req.user)) };
+  return Application.findOne(filter);
+}
 
 const money = z.coerce.number().min(0).max(100_000_000);
 
@@ -20,6 +41,8 @@ const bookkeeperSchema = z.object({
   longTermDueDate: optionalDate,
   shortTermBalance: money.default(0),
   shortTermDueDate: optionalDate,
+  // What the member already pays UEDI per month on these loans.
+  monthlyPayment: money.default(0),
 });
 
 // The body mirrors UEDI's Mutual Assistance Application Form.
@@ -103,29 +126,55 @@ async function runAssessment(app) {
   return app;
 }
 
+/**
+ * The Bookkeeper section: from the ledger when the member has loans on record, otherwise what was
+ * typed (UEDI's older loans aren't in the system yet).
+ */
+async function bookkeeperFor(memberId, typed) {
+  if (memberId) {
+    const b = await loans.balancesFor(memberId);
+    if (b.hasLoans) return loans.bookkeeperFromLedger(b);
+  }
+  return { ...typed, source: "manual", loans: [] };
+}
+
+/** Saves a new application from a parsed createSchema body and scores it. Also used by the member app. */
+async function createApplication(data, user) {
+  const bookkeeper = await bookkeeperFor(data.applicant.memberId, data.bookkeeper);
+  let app;
+  for (let attempt = 0; attempt < 3 && !app; attempt++) {
+    try {
+      app = await Application.create({
+        ...data,
+        applicant: { ...data.applicant, fullName: fullNameOf(data.applicant) },
+        bookkeeper,
+        applicationNo: await nextApplicationNo(),
+        currentStep: STEPS[0],
+        approvals: [],
+        submittedBy: user._id,
+        submittedByName: user.fullName,
+      });
+    } catch (err) {
+      if (err?.code !== 11000) throw err; // retry on a numbering clash
+    }
+  }
+  return runAssessment(app);
+}
+
 router.post("/", async (req, res, next) => {
   try {
     const parsed = createSchema.safeParse(req.body || {});
     if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0].message });
-
-    let app;
-    for (let attempt = 0; attempt < 3 && !app; attempt++) {
-      try {
-        app = await Application.create({
-          ...parsed.data,
-          applicant: { ...parsed.data.applicant, fullName: fullNameOf(parsed.data.applicant) },
-          applicationNo: await nextApplicationNo(),
-          currentStep: STEPS[0],
-          approvals: [],
-          submittedBy: req.user._id,
-          submittedByName: req.user.fullName,
-        });
-      } catch (err) {
-        if (err?.code !== 11000) throw err; // retry on a numbering clash
+    // Members apply only for themselves, and the Bookkeeper section is the Bookkeeper's to fill.
+    if (!seesAllLoans(req.user)) {
+      if (!req.user.memberId) {
+        return res.status(403).json({ error: "Your account isn't linked to a member record yet. Ask the UEDI office to link it." });
       }
+      parsed.data.applicant.memberId = req.user.memberId;
+      parsed.data.bookkeeper = { longTermBalance: 0, shortTermBalance: 0, monthlyPayment: 0 };
     }
-    await runAssessment(app);
-    res.status(201).json({ application: app });
+    const app = await createApplication(parsed.data, req.user);
+    res.status(201).json({ application: forViewer(req.user, app) });
   } catch (err) {
     next(err);
   }
@@ -142,14 +191,15 @@ router.get("/", async (req, res, next) => {
       const atStep = role === STEPS[0] ? { $or: [{ currentStep: role }, { currentStep: { $exists: false } }, { currentStep: null }] } : { currentStep: role };
       filter = { status: "pending", ...atStep, "approvals.signedBy": { $ne: req.user._id } };
     }
+    if (!seesAllLoans(req.user)) filter = { $and: [filter, ownApplications(req.user)] };
     const apps = await Application.find(filter).sort({ createdAt: -1 }).limit(200);
-    res.json({ applications: apps });
+    res.json({ applications: apps.map((a) => forViewer(req.user, a)) });
   } catch (err) {
     next(err);
   }
 });
 
-router.get("/model", async (_req, res) => {
+router.get("/model", requireLevel("loan_officer"), async (_req, res) => {
   try {
     res.json({ model: await ml.modelInfo() });
   } catch (err) {
@@ -157,17 +207,26 @@ router.get("/model", async (_req, res) => {
   }
 });
 
+// The 8-classifier benchmark behind the Credit Model page.
+router.get("/model/benchmark", requireLevel("admin"), async (_req, res) => {
+  try {
+    res.json(await ml.benchmark());
+  } catch (err) {
+    res.status(err.message.startsWith("No benchmark") ? 404 : 503).json({ error: err.message });
+  }
+});
+
 router.get("/:id", async (req, res, next) => {
   try {
-    const app = await Application.findById(req.params.id).catch(() => null);
+    const app = await findVisible(req);
     if (!app) return res.status(404).json({ error: "Application not found." });
-    res.json({ application: app });
+    res.json({ application: forViewer(req.user, app) });
   } catch (err) {
     next(err);
   }
 });
 
-router.post("/:id/assess", async (req, res, next) => {
+router.post("/:id/assess", requireLevel("loan_officer"), async (req, res, next) => {
   try {
     const app = await Application.findById(req.params.id).catch(() => null);
     if (!app) return res.status(404).json({ error: "Application not found." });
@@ -180,7 +239,7 @@ router.post("/:id/assess", async (req, res, next) => {
 });
 
 const sameBooks = (a = {}, b = {}) =>
-  ["longTermBalance", "shortTermBalance"].every((k) => (a[k] || 0) === (b[k] || 0)) &&
+  ["longTermBalance", "shortTermBalance", "monthlyPayment"].every((k) => (a[k] || 0) === (b[k] || 0)) &&
   ["longTermDueDate", "shortTermDueDate"].every((k) => String(a[k] ?? "") === String(b[k] ?? ""));
 
 // Signs the current step of the approval chain: Bookkeeper, Treasurer, CreCom Chairman, President.
@@ -209,6 +268,10 @@ router.post("/:id/approvals", async (req, res, next) => {
     if (bookkeeper && step !== "bookkeeper") {
       return res.status(400).json({ error: "Only the Bookkeeper can change the balances." });
     }
+    const fromLedger = step === "bookkeeper" && app.bookkeeper?.source === "ledger";
+    if (bookkeeper && fromLedger) {
+      return res.status(400).json({ error: "These balances come from the ledger and can't be edited. They are refreshed when you sign." });
+    }
     if (decision === "denied" && !note) {
       return res.status(400).json({ error: "Add a note explaining why the application is denied." });
     }
@@ -221,8 +284,13 @@ router.post("/:id/approvals", async (req, res, next) => {
     const set = { currentStep: next ?? "none" };
     if (decision === "denied") set.status = "denied";
     else if (!next) set.status = "approved";
-    const booksChanged = bookkeeper && !sameBooks(bookkeeper, app.bookkeeper?.toObject?.() ?? app.bookkeeper);
-    if (bookkeeper) set.bookkeeper = bookkeeper;
+    // Ledger balances are refreshed at the Bookkeeper's step (a payment may have come in since filing);
+    // typed balances take the Bookkeeper's corrections.
+    const books = fromLedger
+      ? loans.bookkeeperFromLedger(await loans.balancesFor(app.applicant.memberId))
+      : bookkeeper && { ...bookkeeper, source: "manual", loans: [] };
+    const booksChanged = books && !sameBooks(books, app.bookkeeper?.toObject?.() ?? app.bookkeeper);
+    if (books) set.bookkeeper = books;
 
     const signature = {
       step,
@@ -260,3 +328,5 @@ router.post("/:id/approvals", async (req, res, next) => {
 });
 
 module.exports = router;
+module.exports.createSchema = createSchema;
+module.exports.createApplication = createApplication;

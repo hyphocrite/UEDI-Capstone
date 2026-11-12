@@ -30,16 +30,19 @@ def generate(rows: int, seed: int = 42) -> pd.DataFrame:
 
     loan_type = rng.choice(["long_term", "emergency"], size=rows, p=[0.62, 0.38])
     long_term = loan_type == "long_term"
-    rate = np.where(long_term, 1.0, 1.5)
+    # UEDI's rates and terms: 2% a month for long term (over 6 months, up to 1 year) and
+    # 3% a month for short term (up to 6 months), charged on the remaining balance.
+    rate = np.where(long_term, 2.0, 3.0)
     term = np.where(
         long_term,
-        rng.choice([12, 18, 24, 36], size=rows, p=[0.3, 0.2, 0.35, 0.15]),
-        rng.choice([3, 6, 12], size=rows, p=[0.3, 0.5, 0.2]),
+        rng.choice([9, 12], size=rows, p=[0.25, 0.75]),
+        rng.choice([1, 3, 6], size=rows, p=[0.15, 0.35, 0.5]),
     )
     # Members mostly ask for what their net pay can carry; some stretch it.
     share_of_net = rng.beta(2.2, 5, size=rows)
-    amount = np.round(net * share_of_net * term / (1 + rate / 100 * term), -3)
-    amount = np.where(long_term, amount.clip(10000, 300000), amount.clip(3000, 50000))
+    r = rate / 100
+    amount = np.round(net * share_of_net * (1 - (1 + r) ** -term) / r, -3)
+    amount = np.where(long_term, amount.clip(10000, 200000), amount.clip(3000, 50000))
 
     years = rng.integers(0, 30, size=rows)
     prior = np.minimum(rng.poisson(years / 2.5), 20)
@@ -55,8 +58,10 @@ def generate(rows: int, seed: int = 42) -> pd.DataFrame:
 
     # How the synthetic "truth" is made: loans that eat most of net pay, leave little
     # take-home pay, or go to non-permanent staff on long terms go bad more often.
+    # The intercept sets the overall rate near UEDI's: 11 of the 45 members with a loan in
+    # the 2026 ledger were "On Amnesty" (24%).
     logit = (
-        -3.2
+        -1.9
         + 3.5 * np.clip(deduction_ratio - 0.3, -0.3, 1.2)
         + 1.4 * (left < 5000)
         + 3.0 * np.where(prior > 0, late / np.maximum(prior, 1), 0.1)

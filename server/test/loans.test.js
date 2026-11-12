@@ -62,10 +62,11 @@ test("approval creates a loan; the Treasurer releases it", { skip }, async () =>
   assert.equal(l.status, "active");
   assert.equal(l.release.voucherNo, "CV-2026-001");
   assert.equal(l.release.releasedByName, "Test treasurer");
-  assert.equal(l.release.netProceeds, 4_800_000, "principal minus the Bookkeeper's balances");
+  assert.equal(l.release.netProceeds, 6_000_000, "nothing offset, so the full principal");
+  assert.deepEqual(l.release.offsets, []);
   assert.equal(l.schedule.length, 48, "24 months, quincenal");
-  assert.equal(l.totalPayable, 7_440_000);
-  assert.equal(l.balance, 7_440_000);
+  assert.equal(l.totalPayable, 6_763_690, "₱60,000 at 1% a month on the remaining balance, 48 quincenas");
+  assert.equal(l.balance, 6_763_690);
   assert.ok(new Date(l.schedule[0].dueDate) - new Date(l.release.releasedAt) >= 10 * 86_400_000);
   assert.equal(l.pastDue, true, "installments fell due since the release 60 days ago");
 
@@ -82,16 +83,16 @@ test("payments: who may record them, allocation, overpayment, void and payoff", 
   assert.equal((await pay(loan, signer.bookkeeper, { amount: 100_000, paidAt: daysAgo(90) })).status, 400, "before release");
   const over = await pay(loan, signer.bookkeeper, { amount: loan.balance + 1, paidAt: daysAgo(1) });
   assert.equal(over.status, 400);
-  assert.match(over.json.error, /more than the remaining balance of ₱74,400\.00/);
+  assert.match(over.json.error, /more than the remaining balance of ₱67,636\.90/);
 
-  // Installment 1 is ₱1,250 principal + ₱300 interest.
+  // Installment 1 is ₱1,109.10 principal + ₱300 interest; installment 2 carries ₱294.45 interest.
   const first = await pay(loan, signer.bookkeeper, { amount: 200_000, paidAt: daysAgo(40), reference: "Payroll Sep" });
   assert.equal(first.status, 201);
   let s = first.json.loan.schedule;
-  assert.deepEqual([s[0].paid, s[1].interestPaid, s[1].principalPaid], [155_000, 30_000, 15_000], "oldest first, interest before principal");
+  assert.deepEqual([s[0].paid, s[1].interestPaid, s[1].principalPaid], [140_910, 29_445, 29_645], "oldest first, interest before principal");
   const second = await pay(loan, signer.treasurer, { amount: 100_000, paidAt: daysAgo(20), method: "cash", reference: "OR 1234" });
   assert.equal(second.json.loan.amountPaid, 300_000);
-  assert.equal(second.json.loan.balance, 7_140_000);
+  assert.equal(second.json.loan.balance, 6_463_690);
 
   const voidIt = (id, body, who = signer.bookkeeper) => t.call(`/loans/${loan._id}/payments/${id}/void`, { method: "POST", cookie: who.cookie, body });
   assert.equal((await voidIt(first.json.payment._id, {})).status, 400, "reason required");
@@ -130,7 +131,7 @@ test("monthly emergency loan schedule and 404s", { skip }, async () => {
   const r = await t.call(`/loans/${loan._id}/release`, { method: "POST", cookie: signer.treasurer.cookie, body: { releasedAt: daysAgo(5), voucherNo: "CV-2" } });
   const l = r.json.loan;
   assert.equal(l.schedule.length, 6);
-  assert.equal(l.totalPayable, 1_000_000 + 90_000);
+  assert.equal(l.totalPayable, 1_000_000 + 53_151, "interest on the remaining balance");
   for (const x of l.schedule) {
     const d = new Date(x.dueDate);
     assert.equal(new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate(), d.getUTCDate(), "month end");

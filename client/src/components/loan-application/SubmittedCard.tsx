@@ -5,10 +5,25 @@ import { loanTypeLabel } from '../../lib/applications'
 import type { LoanApplication } from '../../lib/applications'
 import { formatPeso } from '../../lib/format'
 
-type Props = { application: LoanApplication; onNew: () => void }
+type Props = { application: LoanApplication; onNew: () => void; staffView: boolean }
 
-export default function SubmittedCard({ application: app, onNew }: Props) {
+export default function SubmittedCard({ application: app, onNew, staffView }: Props) {
   const ensemble = app.assessment?.ensemble
+  if (!staffView) {
+    return (
+      <div className="card mx-auto max-w-xl p-6 text-center sm:p-8">
+        <CheckCircle2 className="mx-auto h-12 w-12 text-accent" />
+        <h1 className="mt-4 text-2xl font-bold break-words text-brand-800">Application {app.applicationNo} submitted</h1>
+        <p className="mt-2 text-brand-600">
+          You applied for {formatPeso(app.loan.amount)} ({loanTypeLabel[app.loan.loanType]}, {app.loan.termMonths} months).
+          The Bookkeeper, Treasurer, Credit Committee Chairman and President will review it in that order.
+        </p>
+        <div className="mt-6 flex flex-wrap justify-center gap-2">
+          <Link to="/loans" className="btn-primary">Back to My Loans</Link>
+        </div>
+      </div>
+    )
+  }
   return (
     <div className="card mx-auto max-w-xl p-6 text-center sm:p-8">
       <CheckCircle2 className="mx-auto h-12 w-12 text-accent" />

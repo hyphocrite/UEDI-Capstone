@@ -2,28 +2,44 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Banknote, Send } from 'lucide-react'
 import { api } from '../../lib/api'
-import { formatCentavos, paymentMethodLabel, toCentavos, todayInput } from '../../lib/loans'
-import type { Loan, Payment, PaymentMethod } from '../../lib/loans'
+import { loanTypeLabel } from '../../lib/applications'
+import { MANUAL_METHODS, formatCentavos, paymentMethodLabel, toCentavos, todayInput } from '../../lib/loans'
+import type { Loan, OtherActiveLoan, Payment, PaymentMethod } from '../../lib/loans'
 
 const errorText = (err: unknown, fallback: string) => (err instanceof Error ? err.message : fallback)
 
-/** Treasurer only, while the loan is For release. */
-export function ReleaseForm({ loan, onDone }: { loan: Loan; onDone: (loan: Loan) => void }) {
+/**
+ * Treasurer only, while the loan is For release. The borrower's other active loans can be paid off
+ * from the proceeds; loans of the same type (the usual renewal) start checked.
+ */
+export function ReleaseForm({ loan, otherLoans, onDone }: { loan: Loan; otherLoans: OtherActiveLoan[]; onDone: (loan: Loan) => void }) {
   const [releasedAt, setReleasedAt] = useState(todayInput)
   const [voucherNo, setVoucherNo] = useState('')
+  const [offset, setOffset] = useState(() => new Set(otherLoans.filter((o) => o.suggested).map((o) => o._id)))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const net = loan.principal - loan.existingBalances
+  const offsets = otherLoans.filter((o) => offset.has(o._id))
+  const totalOffsets = offsets.reduce((s, o) => s + o.balance, 0)
+  const net = loan.principal - totalOffsets
+
+  const toggle = (id: string, on: boolean) =>
+    setOffset((s) => {
+      const next = new Set(s)
+      if (on) next.add(id)
+      else next.delete(id)
+      return next
+    })
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
     if (!voucherNo.trim()) return setError('Enter the voucher number.')
+    if (net < 0) return setError('The old balances are more than this loan. Deduct fewer loans.')
     setBusy(true)
     setError('')
     try {
       const r = await api<{ loan: Loan }>(`/api/loans/${loan._id}/release`, {
         method: 'POST',
-        body: JSON.stringify({ releasedAt, voucherNo: voucherNo.trim() }),
+        body: JSON.stringify({ releasedAt, voucherNo: voucherNo.trim(), offsetLoanIds: offsets.map((o) => o._id) }),
       })
       onDone(r.loan)
     } catch (err) {
@@ -36,9 +52,28 @@ export function ReleaseForm({ loan, onDone }: { loan: Loan; onDone: (loan: Loan)
   return (
     <form onSubmit={submit} noValidate className="card min-w-0 p-4 sm:p-5">
       <h2 className="font-semibold text-brand-800">Release loan</h2>
-      <p className="mt-1 text-sm text-brand-600">
-        Net proceeds: <strong className={net < 0 ? 'text-red-700' : 'text-ink'}>{formatCentavos(net)}</strong> ({formatCentavos(loan.principal)} less{' '}
-        {formatCentavos(loan.existingBalances)} existing balances from the Bookkeeper). Releasing builds the repayment schedule.
+      {otherLoans.length > 0 && (
+        <fieldset className="mt-3 rounded-lg bg-brand-50 p-3">
+          <legend className="px-1 text-sm font-semibold text-brand-800">The borrower's other active loans</legend>
+          <ul className="space-y-2">
+            {otherLoans.map((o) => (
+              <li key={o._id}>
+                <label className="flex items-start gap-2 text-sm">
+                  <input type="checkbox" className="mt-1 shrink-0" checked={offset.has(o._id)} onChange={(e) => toggle(o._id, e.target.checked)} />
+                  <span className="min-w-0">
+                    Deduct from proceeds: <strong className="text-ink">{o.loanNo}</strong> ({loanTypeLabel[o.loanType]}), balance {formatCentavos(o.balance)}
+                  </span>
+                </label>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-xs text-brand-600">Each checked loan is paid off in full and closed when this loan is released.</p>
+        </fieldset>
+      )}
+      <p className="mt-3 text-sm text-brand-600">
+        Net proceeds: <strong className={net < 0 ? 'text-red-700' : 'text-ink'}>{formatCentavos(net)}</strong>
+        {totalOffsets > 0 && <> ({formatCentavos(loan.principal)} less {formatCentavos(totalOffsets)} deducted)</>}. Releasing builds the
+        repayment schedule.
       </p>
       <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="min-w-0">
@@ -52,7 +87,7 @@ export function ReleaseForm({ loan, onDone }: { loan: Loan; onDone: (loan: Loan)
       </div>
       {error && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{error}</p>}
       <div className="mt-4 flex justify-end">
-        <button type="submit" className="btn-accent" disabled={busy}><Send className="h-4 w-4" /> {busy ? 'Releasing…' : 'Release loan'}</button>
+        <button type="submit" className="btn-accent" disabled={busy || net < 0}><Send className="h-4 w-4" /> {busy ? 'Releasing…' : 'Release loan'}</button>
       </div>
     </form>
   )
@@ -110,7 +145,7 @@ export function PaymentForm({ loan, onDone }: { loan: Loan; onDone: (loan: Loan,
         <div className="min-w-0">
           <label className="label" htmlFor="method">Method</label>
           <select id="method" className="input" value={method} onChange={(e) => setMethod(e.target.value as PaymentMethod)}>
-            {(Object.keys(paymentMethodLabel) as PaymentMethod[]).map((m) => <option key={m} value={m}>{paymentMethodLabel[m]}</option>)}
+            {MANUAL_METHODS.map((m) => <option key={m} value={m}>{paymentMethodLabel[m]}</option>)}
           </select>
         </div>
         <div className="min-w-0">

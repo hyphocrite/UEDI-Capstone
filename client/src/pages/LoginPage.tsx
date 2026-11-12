@@ -4,12 +4,13 @@ import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { LogIn } from 'lucide-react'
 import AuthShell from '../components/AuthShell'
 import { useAuth } from '../context/AuthContext'
+import { ApiError } from '../lib/api'
 
 export default function LoginPage() {
   const { session, login } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  const from = (location.state as { from?: string } | null)?.from || '/members'
+  const from = (location.state as { from?: string } | null)?.from || '/dashboard'
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -26,6 +27,9 @@ export default function LoginPage() {
       await login(email, password)
       navigate(from, { replace: true })
     } catch (err) {
+      if (err instanceof ApiError && err.code === 'EMAIL_NOT_VERIFIED') {
+        return navigate('/verify-email', { state: { email: email.trim().toLowerCase(), fromLogin: true } })
+      }
       setError(err instanceof Error ? err.message : 'Login failed.')
     } finally {
       setBusy(false)

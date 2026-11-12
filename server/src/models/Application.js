@@ -97,11 +97,23 @@ const applicationSchema = new mongoose.Schema(
       purpose: { type: String, maxlength: 300 },
     },
     // The "To be filled up by the Bookkeeper" part of the form.
+    // Amounts in pesos, like the rest of the application. source "ledger": filled from the member's
+    // loans (services/loans.js balancesFor); "manual": typed, for members whose loans predate the system.
     bookkeeper: {
+      source: { type: String, enum: ["ledger", "manual"] },
+      asOf: Date,
       longTermBalance: { type: Number, default: 0, min: 0 },
       longTermDueDate: Date,
       shortTermBalance: { type: Number, default: 0, min: 0 },
       shortTermDueDate: Date,
+      // What the member already pays UEDI per month across their open loans.
+      monthlyPayment: { type: Number, default: 0, min: 0 },
+      loans: [
+        new mongoose.Schema(
+          { loanNo: String, loanType: { type: String, enum: LOAN_TYPES }, balance: Number, maturity: Date },
+          { _id: false },
+        ),
+      ],
     },
     agreement: {
       payrollDeduction: { type: Boolean, required: true },

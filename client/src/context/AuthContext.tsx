@@ -9,6 +9,8 @@ export type Session = {
   email: string
   role: Role
   branch: string | null
+  /** The member record this account is linked to; members see the loans filed under it. */
+  memberId: string | null
 }
 
 export type RegisterInput = {
@@ -18,12 +20,19 @@ export type RegisterInput = {
   branch?: string
 }
 
+export type RegisterResult = { email: string; emailSent: boolean }
+
 type AuthValue = {
   session: Session | null
   loading: boolean
   login: (email: string, password: string) => Promise<void>
-  register: (input: RegisterInput) => Promise<void>
+  /** Creates the account; it is signed in only after verifyEmail. */
+  register: (input: RegisterInput) => Promise<RegisterResult>
+  verifyEmail: (email: string, code: string) => Promise<void>
+  resendVerification: (email: string) => Promise<void>
   logout: () => Promise<void>
+  /** Replaces the session after the profile is edited. */
+  updateSession: (session: Session) => void
 }
 
 const AuthContext = createContext<AuthValue | null>(null)
@@ -48,11 +57,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const register = useCallback(async (input: RegisterInput) => {
-    const d = await api<{ session: Session }>('/api/auth/register', {
+    const d = await api<RegisterResult>('/api/auth/register', {
       method: 'POST',
       body: JSON.stringify(input),
     })
+    return { email: d.email, emailSent: d.emailSent }
+  }, [])
+
+  const verifyEmail = useCallback(async (email: string, code: string) => {
+    const d = await api<{ session: Session }>('/api/auth/verify-email', {
+      method: 'POST',
+      body: JSON.stringify({ email, code }),
+    })
     setSession(d.session)
+  }, [])
+
+  const resendVerification = useCallback(async (email: string) => {
+    await api('/api/auth/resend-verification', { method: 'POST', body: JSON.stringify({ email }) })
   }, [])
 
   const logout = useCallback(async () => {
@@ -61,8 +82,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const value = useMemo(
-    () => ({ session, loading, login, register, logout }),
-    [session, loading, login, register, logout],
+    () => ({ session, loading, login, register, verifyEmail, resendVerification, logout, updateSession: setSession }),
+    [session, loading, login, register, verifyEmail, resendVerification, logout],
   )
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { AlertTriangle, CheckCircle2, RefreshCw, XCircle } from 'lucide-react'
 import ApprovalPanel from './ApprovalPanel'
+import BookkeeperBalances from './BookkeeperBalances'
 import ApprovalTracker from './ApprovalTracker'
 import ModelCard from './ModelCard'
 import { api } from '../../lib/api'
@@ -23,8 +24,9 @@ export default function ApplicationDetail({ app, onChange }: { app: LoanApplicat
   const a = app.applicant
   const installment = monthlyInstallment(app.loan)
   const share = installment / a.netTakeHomePay
-  const left = a.netTakeHomePay - installment
   const books = app.bookkeeper ?? { longTermBalance: 0, shortTermBalance: 0 }
+  // Existing UEDI deductions come out of the same pay.
+  const left = a.netTakeHomePay - (books.monthlyPayment ?? 0) - installment
   const e = app.assessment?.ensemble
   const agree = app.assessment ? app.assessment.models.filter((m) => m.suggestion === e?.suggestion).length : 0
 
@@ -98,15 +100,16 @@ export default function ApplicationDetail({ app, onChange }: { app: LoanApplicat
           <Item label="Net take-home pay" value={formatPeso(a.netTakeHomePay)} warn={a.netTakeHomePay < a.monthlySalary * 0.4} />
           <Item label={`Installment (${app.loan.paymentFrequency === 'quincenal' ? 'per month, half each quincena' : 'per month'})`} value={formatPeso(Math.round(installment))} />
           <Item label="Share of net pay" value={`${Math.round(share * 100)}%`} warn={share > 0.5} />
-          <Item label="Net pay left after loan" value={formatPeso(Math.round(left))} warn={left < 5000} />
+          <Item label="Net pay left after this and existing loans" value={formatPeso(Math.round(left))} warn={left < 5000} />
           <Item label="Interest rate" value={`${app.loan.monthlyRate}% a month`} />
-          <Item label="UEDI balances (long / short term)" value={`${formatPeso(books.longTermBalance)} / ${formatPeso(books.shortTermBalance)}`} />
           <Item label="Employment" value={`${employmentStatusLabel[a.employmentStatus]}, ${a.employer}`} warn={a.employmentStatus !== 'permanent'} />
           <Item label="Years as member" value={String(a.yearsAsMember)} />
           <Item label="Past loans (paid late)" value={`${a.priorLoans} (${a.priorLatePayments})`} warn={a.priorLatePayments > 0} />
           <Item label="Residence" value={a.residenceAddress} />
           <Item label="Member ID" value={a.memberId || 'New applicant'} />
         </dl>
+        <h4 className="mt-5 mb-2 text-sm font-semibold text-brand-800">UEDI balances (Bookkeeper section)</h4>
+        <BookkeeperBalances app={app} />
       </section>
 
       <section className="card min-w-0 p-4 sm:p-5">

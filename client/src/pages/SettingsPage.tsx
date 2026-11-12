@@ -40,8 +40,10 @@ export default function SettingsPage() {
   return (
     <>
       <PageHeader
-        title="Settings"
-        subtitle="Interest rates and fees used for each loan product, and who can sign loans."
+        title="Loan Settings"
+        subtitle={session?.role === 'admin'
+          ? 'Interest rates and fees used for each loan product, and who can sign loans.'
+          : 'Interest rates and fees used for each loan product.'}
         actions={
           <>
             <button className="btn-ghost" onClick={reset}><RotateCcw className="h-4 w-4" /> Reset</button>

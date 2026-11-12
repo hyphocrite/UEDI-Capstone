@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "6a643a82-13ff-435f-8bb4-605fe19395a1"
+      }
+    },
+    "android": {
+      "package": "com.hyphocritesteam.uedicapstone"
+    }
+  }
+}

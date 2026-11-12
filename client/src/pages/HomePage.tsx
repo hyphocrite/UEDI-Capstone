@@ -38,7 +38,7 @@ export default function HomePage() {
           <BrandLogo light />
           <div className="flex items-center gap-2">
             {session ? (
-              <Link to="/members" className="btn-accent">
+              <Link to="/dashboard" className="btn-accent">
                 Open dashboard
               </Link>
             ) : (
@@ -69,7 +69,7 @@ export default function HomePage() {
               retirement plan payments and report to management.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <Link to={session ? '/members' : '/register'} className="btn-accent px-5 py-3 text-base">
+              <Link to={session ? '/dashboard' : '/register'} className="btn-accent px-5 py-3 text-base">
                 {session ? 'Go to dashboard' : 'Get started'}
                 <ArrowRight className="h-4 w-4" />
               </Link>

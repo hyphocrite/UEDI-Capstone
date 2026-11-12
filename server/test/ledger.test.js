@@ -6,7 +6,7 @@ const ledger = require("../src/services/ledger");
 const iso = (d) => d.toISOString().slice(0, 10);
 const sum = (xs, k) => xs.reduce((s, x) => s + x[k], 0);
 
-test("schedule adds up exactly to principal + add-on interest, for both frequencies", () => {
+test("schedule adds up exactly to principal + interest on the remaining balance, for both frequencies", () => {
   const cases = [
     { principal: 6_000_000, monthlyRate: 1, termMonths: 24, paymentFrequency: "quincenal" },
     { principal: 6_000_000, monthlyRate: 1, termMonths: 24, paymentFrequency: "monthly" },
@@ -14,10 +14,11 @@ test("schedule adds up exactly to principal + add-on interest, for both frequenc
     { principal: 1_234_567, monthlyRate: 1.5, termMonths: 7, paymentFrequency: "monthly" },
     { principal: 1_000_001, monthlyRate: 0.75, termMonths: 120, paymentFrequency: "quincenal" },
     { principal: 101, monthlyRate: 1, termMonths: 3, paymentFrequency: "quincenal" }, // ₱1.01 over 6 installments
+    { principal: 500_000, monthlyRate: 0, termMonths: 4, paymentFrequency: "monthly" },
   ];
   for (const c of cases) {
     const s = ledger.buildSchedule({ ...c, releasedAt: "2026-10-19" });
-    const interest = ledger.totalInterest(c.principal, c.monthlyRate, c.termMonths);
+    const interest = ledger.totalInterest(c.principal, c.monthlyRate, c.termMonths, c.paymentFrequency);
     assert.equal(s.length, c.termMonths * (c.paymentFrequency === "quincenal" ? 2 : 1));
     assert.equal(sum(s, "principalDue"), c.principal, "principal adds up");
     assert.equal(sum(s, "interestDue"), interest, "interest adds up");
@@ -28,11 +29,25 @@ test("schedule adds up exactly to principal + add-on interest, for both frequenc
       assert.equal(x.totalDue, x.principalDue + x.interestDue);
       assert.ok(x.principalDue >= 0 && x.interestDue >= 0);
     }
+    // Interest is the period rate on what is still owed.
+    const r = c.monthlyRate / 100 / (c.paymentFrequency === "quincenal" ? 2 : 1);
+    let owed = c.principal;
+    for (const x of s) {
+      assert.equal(x.interestDue, Math.round(owed * r));
+      owed -= x.principalDue;
+    }
+    assert.equal(owed, 0);
   }
-  // ₱60,000 at 1% a month for 24 months: ₱14,400 interest, ₱3,100 a month, ₱1,550 a quincena.
+  // ₱60,000 at 1% a month for 24 months: ₱2,824.41 a month, ₱600 interest in month 1, ₱7,785.80 in all.
+  const m = ledger.buildSchedule({ ...cases[1], releasedAt: "2026-10-19" });
+  assert.deepEqual([m[0].totalDue, m[0].interestDue, m[1].interestDue], [282_441, 60_000, 57_776]);
+  assert.equal(ledger.totalInterest(6_000_000, 1, 24, "monthly"), 778_580);
+  // ₱100,000 at 2% a month for 12 months, as UEDI's ledger charges it: ₱2,000 interest in month 1.
+  const uedi = ledger.buildSchedule({ principal: 10_000_000, monthlyRate: 2, termMonths: 12, paymentFrequency: "monthly", releasedAt: "2026-01-07" });
+  assert.deepEqual([uedi[0].interestDue, uedi[0].totalDue], [200_000, 945_596]);
+  // Quincenal: half the monthly rate per installment.
   const q = ledger.buildSchedule({ ...cases[0], releasedAt: "2026-10-19" });
-  assert.equal(ledger.totalInterest(6_000_000, 1, 24), 1_440_000);
-  assert.equal(q[0].totalDue, 155_000);
+  assert.deepEqual([q[0].totalDue, q[0].interestDue], [140_910, 30_000]);
 });
 
 test("due dates: 15th and month end (quincenal) or month end (monthly), first at least 10 days after release", () => {
@@ -47,11 +62,11 @@ test("due dates: 15th and month end (quincenal) or month end (monthly), first at
 
 test("payments go to the oldest installment first, interest before principal", () => {
   const s = ledger.buildSchedule({ principal: 6_000_000, monthlyRate: 1, termMonths: 24, paymentFrequency: "monthly", releasedAt: "2026-10-19" });
-  // Each installment: ₱2,500 principal + ₱600 interest.
+  // Installment 1: ₱2,224.41 principal + ₱600 interest. Installment 2 carries ₱577.76 interest.
   const a = ledger.allocate(s, [{ amount: 400_000 }]);
   assert.equal(a.unapplied, 0);
-  assert.deepEqual([a.schedule[0].interestPaid, a.schedule[0].principalPaid, a.schedule[0].paid], [60_000, 250_000, 310_000]);
-  assert.deepEqual([a.schedule[1].interestPaid, a.schedule[1].principalPaid, a.schedule[1].paid], [60_000, 30_000, 90_000], "interest first");
+  assert.deepEqual([a.schedule[0].interestPaid, a.schedule[0].principalPaid, a.schedule[0].paid], [60_000, 222_441, 282_441]);
+  assert.deepEqual([a.schedule[1].interestPaid, a.schedule[1].principalPaid, a.schedule[1].paid], [57_776, 59_783, 117_559], "interest first");
   assert.equal(a.schedule[2].paid, 0);
 
   const voided = ledger.allocate(s, [{ amount: 400_000, voided: true }, { amount: 50_000 }]);

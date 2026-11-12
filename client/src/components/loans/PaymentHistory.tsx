@@ -66,7 +66,10 @@ export default function PaymentHistory({ loan, payments, canVoid, onChange }: Pr
                 </p>
               )}
             </div>
-            {canVoid && !p.voided && (
+            {p.method === 'offset' && !p.voided && (
+              <p className="shrink-0 text-xs text-brand-500 sm:max-w-48 sm:text-right">Undone only by cancelling the new loan's release.</p>
+            )}
+            {canVoid && !p.voided && p.method !== 'offset' && (
               <button type="button" className="btn-ghost shrink-0 self-start px-3 text-red-700" onClick={() => setVoiding(p)}>
                 <Ban className="h-4 w-4" /> Void
               </button>
