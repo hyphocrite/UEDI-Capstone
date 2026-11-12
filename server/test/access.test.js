@@ -102,3 +102,23 @@ test("profile edits and password change", { skip }, async () => {
   const login = await t.call("/auth/login", { method: "POST", body: { email: "pat@uedi.test", password: "newpass123" } });
   assert.equal(login.status, 200);
 });
+
+test("carried-over spreadsheet balances: staff see all, a member only their own", { skip }, async () => {
+  const Member = require("../src/models/Member");
+  const opening = (balance) => ({ asOf: new Date("2026-09-30"), balanceStartOfYear: balance, appliedThisYear: 0, payments: 500_00, interest: 0, balance, loansThisYear: 0 });
+  await Member.create({ memberId: "C-1", openingLoan: opening(10_000_00) });
+  await Member.create({ memberId: "C-2", openingLoan: opening(25_000_00) });
+  await Member.create({ memberId: "C-3" });
+
+  const all = await t.call("/loans/carried", { cookie: staff.officer.cookie });
+  assert.equal(all.status, 200);
+  assert.deepEqual(all.json.carried.map((c) => c.memberId), ["C-1", "C-2"]);
+  assert.equal(all.json.carried[0].fullName, "Member No. C-1");
+  assert.equal(all.json.carried[1].balance, 25_000_00);
+
+  const member = await t.register("Carla Member", "carla.member@uedi.test");
+  assert.deepEqual((await t.call("/loans/carried", { cookie: member.cookie })).json.carried, [], "unlinked: nothing");
+  await link(staff.officer.cookie, member.id, "C-2");
+  const own = await t.call("/loans/carried", { cookie: member.cookie });
+  assert.deepEqual(own.json.carried.map((c) => c.memberId), ["C-2"]);
+});

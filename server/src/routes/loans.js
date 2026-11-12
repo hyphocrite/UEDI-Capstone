@@ -3,6 +3,7 @@ const mongoose = require("mongoose");
 const { z } = require("zod");
 const Loan = require("../models/Loan");
 const Payment = require("../models/Payment");
+const Member = require("../models/Member");
 const loans = require("../services/loans");
 const { requireStaff, requireRole } = require("../middleware/auth");
 const { seesAllLoans } = require("../config/access");
@@ -73,6 +74,24 @@ router.get(
     let list = found.map((l) => loans.present(l));
     if (status === "past_due") list = list.filter((l) => l.pastDue);
     res.json({ loans: list });
+  }),
+);
+
+// Balances carried over from UDEI's spreadsheet ledger (scripts/import-udei.js). The spreadsheet
+// only has yearly totals per member, not rates or schedules, so these are not Loan records.
+router.get(
+  "/carried",
+  handle(async (req, res) => {
+    const filter = { $or: [{ "openingLoan.balance": { $gt: 0 } }, { "openingLoan.payments": { $gt: 0 } }] };
+    if (!seesAllLoans(req.user)) {
+      if (!req.user.memberId) return res.json({ carried: [] });
+      filter.memberId = req.user.memberId;
+    }
+    const found = await Member.find(filter).select("memberId fullName remarks openingLoan").limit(5000);
+    const carried = found
+      .map((m) => ({ memberId: m.memberId, fullName: m.fullName, remarks: m.remarks || null, ...m.openingLoan.toObject() }))
+      .sort((a, b) => a.memberId.localeCompare(b.memberId, "en", { numeric: true }));
+    res.json({ carried });
   }),
 );
 

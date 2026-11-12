@@ -15,6 +15,20 @@ import type { Loan, LoanDisplayStatus } from '../lib/loans'
 
 const statuses: ('All' | LoanDisplayStatus | 'Missed deductions')[] = ['All', 'For release', 'Active', 'Past due', 'Fully paid', 'Missed deductions']
 
+/** A member's yearly loan totals from UDEI's spreadsheet ledger (GET /api/loans/carried). Amounts in centavos. */
+type Carried = {
+  memberId: string
+  fullName: string
+  remarks: string | null
+  asOf: string
+  balanceStartOfYear: number
+  appliedThisYear: number
+  payments: number
+  interest: number
+  balance: number
+  loansThisYear: number
+}
+
 export default function LoansPage() {
   const navigate = useNavigate()
   const { session } = useAuth()
@@ -24,6 +38,7 @@ export default function LoansPage() {
   const [error, setError] = useState('')
   const [status, setStatus] = useState<(typeof statuses)[number]>('All')
   const [query, setQuery] = useState('')
+  const [carried, setCarried] = useState<Carried[]>([])
 
   useEffect(() => {
     api<{ loans: Loan[] }>('/api/loans')
@@ -32,7 +47,17 @@ export default function LoansPage() {
         setLoans([])
         setError(err instanceof Error ? err.message : 'Could not load loans.')
       })
+    api<{ carried: Carried[] }>('/api/loans/carried')
+      .then((d) => setCarried(d.carried))
+      .catch(() => setCarried([]))
   }, [])
+
+  const carriedShown = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    return carried.filter((c) => !q || c.memberId.toLowerCase().includes(q) || c.fullName.toLowerCase().includes(q))
+  }, [carried, query])
+  const carriedTotal = carried.reduce((s, c) => s + c.balance, 0)
+  const carriedOpen = carried.filter((c) => c.balance > 0).length
 
   const all = useMemo(() => loans ?? [], [loans])
   const filtered = useMemo(() => {
@@ -66,8 +91,10 @@ export default function LoansPage() {
       )}
 
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard icon={HandCoins} label="Open loans" value={String(open.length)} hint={`${all.filter((l) => l.status === 'for_release').length} waiting for release`} />
-        <StatCard icon={Wallet} label="Outstanding balance" value={formatCentavos(outstanding)} />
+        <StatCard icon={HandCoins} label="Open loans" value={String(open.length + carriedOpen)}
+          hint={carriedOpen ? `${carriedOpen} carried over from the ledger` : `${all.filter((l) => l.status === 'for_release').length} waiting for release`} />
+        <StatCard icon={Wallet} label="Outstanding balance" value={formatCentavos(outstanding + carriedTotal)}
+          hint={carriedTotal ? `${formatCentavos(carriedTotal)} carried over` : undefined} />
         <StatCard icon={TrendingUp} label="Total released" value={formatCentavos(released)} />
         <StatCard icon={AlertTriangle} label="Past due" value={String(pastDue.length)} hint="Needs follow-up" />
       </div>
@@ -140,6 +167,55 @@ export default function LoansPage() {
           </table>
         </div>
       </div>
+
+      {carried.length > 0 && (
+        <div className="card mt-6 min-w-0">
+          <div className="border-b border-brand-100 p-4">
+            <h2 className="font-semibold text-ink">Carried over from the spreadsheet ledger</h2>
+            <p className="text-sm text-brand-600">
+              Yearly totals from UDEI's loan ledger as of {formatDay(carried[0].asOf)}. The ledger has no rates or schedules,
+              so these are shown as balances only.
+            </p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="table-head">
+                <tr>
+                  <th className="px-4 py-3">Member</th>
+                  <th className="px-4 py-3 text-right">Start of year</th>
+                  <th className="px-4 py-3 text-right">Borrowed this year</th>
+                  <th className="px-4 py-3 text-right">Payments</th>
+                  <th className="px-4 py-3 text-right">Interest</th>
+                  <th className="px-4 py-3 text-right">Balance</th>
+                  <th className="px-4 py-3">Remarks</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-brand-50">
+                {carriedShown.map((c) => (
+                  <tr key={c.memberId}>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <p className="font-semibold text-ink">{c.fullName}</p>
+                      {!c.fullName.startsWith('Member No.') && <p className="text-xs text-brand-500">{c.memberId}</p>}
+                    </td>
+                    <td className="px-4 py-3 text-right whitespace-nowrap">{formatCentavos(c.balanceStartOfYear)}</td>
+                    <td className="px-4 py-3 text-right whitespace-nowrap">
+                      {formatCentavos(c.appliedThisYear)}
+                      {c.loansThisYear > 0 && <p className="text-xs text-brand-500">{c.loansThisYear} {c.loansThisYear === 1 ? 'loan' : 'loans'}</p>}
+                    </td>
+                    <td className="px-4 py-3 text-right whitespace-nowrap">{formatCentavos(c.payments)}</td>
+                    <td className="px-4 py-3 text-right whitespace-nowrap">{formatCentavos(c.interest)}</td>
+                    <td className="px-4 py-3 text-right font-semibold whitespace-nowrap">{formatCentavos(c.balance)}</td>
+                    <td className="px-4 py-3 text-brand-600">{c.remarks || '—'}</td>
+                  </tr>
+                ))}
+                {carriedShown.length === 0 && (
+                  <tr><td colSpan={7} className="px-4 py-8 text-center text-brand-500">No carried-over balances match this search.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </>
   )
 }
