@@ -157,6 +157,15 @@ router.get("/model", async (_req, res) => {
   }
 });
 
+// The 8-classifier benchmark behind the Credit Model page.
+router.get("/model/benchmark", async (_req, res) => {
+  try {
+    res.json(await ml.benchmark());
+  } catch (err) {
+    res.status(err.message.startsWith("No benchmark") ? 404 : 503).json({ error: err.message });
+  }
+});
+
 router.get("/:id", async (req, res, next) => {
   try {
     const app = await Application.findById(req.params.id).catch(() => null);

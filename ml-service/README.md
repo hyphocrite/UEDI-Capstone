@@ -147,7 +147,31 @@ Features whose columns are missing from the training data are left out automatic
 each model's displayed score are then calibrated, so a 12% means about 12 in 100 similar past
 loans went bad. Each card lists the factors that moved that application's score most:
 TreeSHAP for XGBoost and Random Forest, and weight × value for Logistic Regression. Installments
-use add-on interest, the rate % per month times the term. If UEDI computes interest
-differently, change `monthly_installment()` in `uedi_ml/features.py` and retrain.
+charge the monthly rate on the remaining balance, as UEDI's ledger does (2% a month for long
+term, 3% for short term). The formula is `monthly_installment()` in `uedi_ml/features.py`.
 
 The loan officer always makes the final call, and going against the suggestion requires a note.
+
+## Benchmark for the research paper
+
+UEDI is a young association: its whole loan history is one year of ledgers, 45 borrowers
+and 11 accounts on amnesty. That is too few to train or compare models on. So the
+comparison of the 8 classifiers runs on two larger datasets, and UEDI's own records are
+used to set the sample data's rates, terms and bad-loan rate.
+
+```
+python benchmark.py --german                        # UCI German Credit, 1,000 real loans
+python benchmark.py --data data/sample_loans.csv    # 3,000 UEDI-shaped sample loans
+python benchmark.py --german --balance weights      # class weights instead of SMOTE
+```
+
+Each model gets 5-fold stratified cross-validation repeated 5 times, and each result is a mean
+and standard deviation over the 25 test folds. SMOTE runs inside each training fold only.
+Results are written to `models/benchmark_<dataset>_<balance>.json` and `.md`.
+
+For the paper's figures, run both `--balance weights` benchmarks, then `python plot_results.py`.
+It draws the AUC comparison and the confusion matrices into `models/figures/`.
+
+`data/public/german_credit.csv` is the South German Credit dataset (Grömping, 2019; UCI
+Machine Learning Repository, CC BY 4.0), a corrected coding of Hofmann's Statlog German
+Credit data, with English column names. `credit_risk` is 1 for good and 0 for bad loans.

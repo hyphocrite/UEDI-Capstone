@@ -37,7 +37,7 @@ Rebuild the Loan Application page (`client/src/pages/LoanApplicationPage.tsx`) s
    - Amount in pesos.
    - Purpose (optional).
    - Period: a number plus a years/months selector. Convert it to `termMonths`, up to 120.
-   - Rate in % per month, editable. Default to 1.0 for long term and 1.5 for emergency. Only change it on a loan-type switch if the user hasn't edited it.
+   - Rate in % per month, editable. Default to 2.0 for long term and 3.0 for emergency (UEDI's rates, charged on the remaining balance). Only change it on a loan-type switch if the user hasn't edited it.
    - Deduction: quincenal or monthly.
    - Show the installment from `monthlyInstallment()`: per month, and per quincena (half) when quincenal is chosen.
    - Show an amber note, without blocking submission, when the monthly installment is over half of the monthly net take-home pay, or when net pay left after it is under ₱5,000.

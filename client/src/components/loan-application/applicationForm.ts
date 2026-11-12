@@ -47,7 +47,7 @@ export type Form = {
 export const MAX_TERM_MONTHS = 120
 
 /** UEDI's usual rates, in % per month. */
-export const DEFAULT_RATE: Record<LoanType, string> = { long_term: '1.0', emergency: '1.5' }
+export const DEFAULT_RATE: Record<LoanType, string> = { long_term: '2.0', emergency: '3.0' }
 
 export const PAYROLL_DEDUCTION_TEXT =
   'I hereby authorize the Payroll Officer of my Employer, DNSC and/or the Treasurer of United DNSC Employees, Inc. to deduct the quincenal/monthly installment of my Mutual Assistance from my salary or from any form of benefits due to me.'

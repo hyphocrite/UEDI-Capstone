@@ -1,3 +1,4 @@
+import json
 import sys
 from pathlib import Path
 
@@ -65,3 +66,14 @@ def test_model_metrics(client):
     assert "fold stratified" in m["validation"]
     assert m["thresholds"]["approve"] < m["thresholds"]["deny"]
     assert "deduction_ratio" in m["features"]
+
+
+def test_benchmark(client, tmp_path, monkeypatch):
+    monkeypatch.setattr(service, "MODEL_PATH", tmp_path / "model.joblib")
+    assert client.get("/benchmark").status_code == 404
+    row = {"model": "XGBoost", "aucRoc": 0.78, "aucRocSd": 0.03}
+    (tmp_path / "benchmark_german_credit_weights.json").write_text(json.dumps({"rows": 1000, "bad": 300, "results": [row]}))
+    body = client.get("/benchmark").json()
+    assert [d["key"] for d in body["datasets"]] == ["german_credit"]
+    assert body["datasets"][0]["results"] == [row]
+    assert body["confusion"] is None

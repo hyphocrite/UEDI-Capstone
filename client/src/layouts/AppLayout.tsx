@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { BarChart3, ClipboardCheck, FilePlus2, HandCoins, LogOut, Menu, PiggyBank, Settings, Users, X } from 'lucide-react'
+import { BarChart3, BrainCircuit, ClipboardCheck, FilePlus2, HandCoins, LogOut, Menu, PiggyBank, Settings, Users, X } from 'lucide-react'
 import BrandLogo from '../components/BrandLogo'
 import { useAuth } from '../context/AuthContext'
 import { roleLabel } from '../lib/roles'
@@ -10,6 +10,7 @@ const nav = [
   { to: '/loans', label: 'Loans', icon: HandCoins, end: true },
   { to: '/loans/apply', label: 'Loan Application', icon: FilePlus2 },
   { to: '/loans/pending', label: 'Pending Loans', icon: ClipboardCheck },
+  { to: '/credit-model', label: 'Credit Model', icon: BrainCircuit },
   { to: '/retirement-plans', label: 'Retirement Plans', icon: PiggyBank },
   { to: '/reports', label: 'Reports', icon: BarChart3 },
   { to: '/settings', label: 'Settings', icon: Settings },

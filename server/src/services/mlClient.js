@@ -58,4 +58,8 @@ function modelInfo() {
   return call("/model");
 }
 
-module.exports = { assess, modelInfo, toFeatures, ageOn };
+function benchmark() {
+  return call("/benchmark");
+}
+
+module.exports = { assess, modelInfo, benchmark, toFeatures, ageOn };

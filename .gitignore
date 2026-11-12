@@ -17,5 +17,7 @@ ml-service/models/*
 ml-service/data/*
 !ml-service/data/sample_loans.csv
 !ml-service/data/uedi_loans_template.csv
+# Public benchmark data (South German Credit, CC BY 4.0)
+!ml-service/data/public/
 # Document photos for OCR testing: real IDs and payslips must never be committed
 client/ocr-samples/
