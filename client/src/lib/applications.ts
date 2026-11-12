@@ -79,6 +79,8 @@ export type LoanApplication = {
   /** fileId is set once the file itself was uploaded and can be opened in the viewer. */
   documents: { fileName: string; type?: string; verdict?: 'verified' | 'review' | 'mismatch' | 'unreadable'; notes?: string[]; fileId?: string; contentType?: string; size?: number }[]
   status: 'pending' | 'approved' | 'denied'
+  /** Members vouching for the loan; signing waits until all have accepted. */
+  coMakers?: { memberId: string; name?: string; status: 'pending' | 'accepted' | 'declined'; respondedAt?: string; note?: string }[]
   /** The models' reasons in plain words. Staff always; members only once denied (no inFavor). */
   explanation?: Explanation | null
   /** Signatures so far, in order. */

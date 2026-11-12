@@ -52,6 +52,10 @@ export type Form = {
 
   payrollDeduction: boolean
   autoRestructure: boolean
+
+  /** Member numbers of the co-makers ('' when not named). */
+  coMaker1: string
+  coMaker2: string
 }
 
 export const MAX_TERM_MONTHS = 120
@@ -100,6 +104,8 @@ export const emptyForm = (): Form => ({
 
   payrollDeduction: false,
   autoRestructure: false,
+  coMaker1: '',
+  coMaker2: '',
 })
 
 const num = (s: string) => {
@@ -257,6 +263,11 @@ export function validateForm(f: Form, settings: LoanSettings = FALLBACK_SETTINGS
   const maxTerm = Math.min(MAX_TERM_MONTHS, settings.products[f.loanType].maxTermMonths)
   if (term < 1 || term > maxTerm) return `${settings.products[f.loanType].label} loans run 1 to ${maxTerm} months.`
   if (f.monthlyRate.trim() === '' || !Number.isFinite(rate) || rate < 0 || rate > 10) return 'The interest rate could not be loaded. Reload the page.'
+  const coMakers = [f.coMaker1, f.coMaker2].map((c) => c.trim()).filter(Boolean)
+  if (coMakers.length < settings.coMakersRequired) {
+    return settings.coMakersRequired === 1 ? 'Name a co-maker: a UDEI member who vouches for this loan.' : `Name ${settings.coMakersRequired} co-makers.`
+  }
+  if (coMakers.length === 2 && coMakers[0] === coMakers[1]) return 'Name two different co-makers.'
   if (!f.payrollDeduction) return 'The applicant must authorize payroll deduction.'
   if (!f.autoRestructure) return 'The applicant must agree to automatic re-structuring.'
   return ''
@@ -310,6 +321,7 @@ export function buildPayload(f: Form, documents: DocumentPayload[]) {
       autoRestructure: f.autoRestructure,
       applicationDate: f.applicationDate,
     },
+    coMakers: [f.coMaker1, f.coMaker2].map((c) => c.trim()).filter(Boolean),
     documents,
   }
 }

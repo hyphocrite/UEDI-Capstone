@@ -16,6 +16,7 @@ import pandas as pd
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
+from uedi_ml.early_warning import FEATURE_NAMES as EW_FEATURES, EarlyWarningModel
 from uedi_ml.model import LoanRiskModel
 
 MODEL_PATH = Path(os.getenv("MODEL_PATH", Path(__file__).parent / "models" / "model.joblib"))
@@ -23,6 +24,8 @@ MODEL_PATH = Path(os.getenv("MODEL_PATH", Path(__file__).parent / "models" / "mo
 BENCHMARKS = {"german_credit": "German Credit (1,000 real loans)", "sample_loans": "UEDI-shaped sample loans"}
 
 _model: LoanRiskModel | None = None
+EW_PATH = MODEL_PATH.parent / "early_warning.joblib"
+_ew: EarlyWarningModel | None = None
 
 
 @asynccontextmanager
@@ -34,6 +37,11 @@ async def lifespan(_app: FastAPI):
         print("Model loaded and warmed up.")
     except Exception as err:  # noqa: BLE001 - a missing model must not stop the service from starting
         print(f"Model warm-up skipped: {err}")
+    try:
+        early_warning_score(EarlyWarningBatch(loans=[LoanSnapshot(id="warm-up")]))
+        print("Early-warning model loaded.")
+    except Exception as err:  # noqa: BLE001
+        print(f"Early-warning warm-up skipped: {err}")
     yield
 
 
@@ -72,7 +80,56 @@ class Applicant(BaseModel):
 
 @app.get("/health")
 def health():
-    return {"ok": True, "modelLoaded": _model is not None, "modelFile": MODEL_PATH.exists()}
+    return {"ok": True, "modelLoaded": _model is not None, "modelFile": MODEL_PATH.exists(), "earlyWarningFile": EW_PATH.exists()}
+
+
+def get_ew() -> EarlyWarningModel:
+    global _ew
+    if _ew is None:
+        if not EW_PATH.exists():
+            raise HTTPException(503, "No early-warning model yet. Run `python train_early_warning.py` first.")
+        _ew = joblib.load(EW_PATH)
+    return _ew
+
+
+class LoanSnapshot(BaseModel):
+    """What the server knows about one active loan and its borrower today. Unknowns are null."""
+
+    id: str
+    months_since_last_contribution: float | None = Field(default=None, ge=0, le=240)
+    contributions_missed_3m: float | None = Field(default=None, ge=0, le=3)
+    contribution_rate_12m: float | None = Field(default=None, ge=0, le=1)
+    has_plan: float | None = Field(default=None, ge=0, le=1)
+    payment_ratio_90d: float | None = Field(default=None, ge=0, le=10)
+    days_since_last_payment: float | None = Field(default=None, ge=0, le=3650)
+    missed_deductions_6m: float | None = Field(default=None, ge=0, le=24)
+    installment_to_net_pay: float | None = Field(default=None, ge=0, le=10)
+    balance_ratio: float | None = Field(default=None, ge=0, le=1.5)
+    loan_age_months: float | None = Field(default=None, ge=0, le=600)
+    prior_late_rate: float | None = Field(default=None, ge=0, le=1)
+    meeting_attendance_12m: float | None = Field(default=None, ge=0, le=1)
+    bills_late_rate_12m: float | None = Field(default=None, ge=0, le=1)
+    co_makers: float | None = Field(default=None, ge=0, le=5)
+    on_amnesty: float | None = Field(default=None, ge=0, le=1)
+
+
+class EarlyWarningBatch(BaseModel):
+    loans: list[LoanSnapshot] = Field(max_length=5000)
+
+
+@app.get("/early-warning/model")
+def early_warning_model():
+    return get_ew().metrics
+
+
+@app.post("/early-warning/score")
+def early_warning_score(batch: EarlyWarningBatch):
+    model = get_ew()
+    if not batch.loans:
+        return {"results": [], "version": model.metrics.get("version")}
+    rows = pd.DataFrame([{k: (v if v is not None else float("nan")) for k, v in s.model_dump(exclude={"id"}).items()} for s in batch.loans], columns=EW_FEATURES)
+    scored = model.score(rows)
+    return {"results": [{"id": s.id, **r} for s, r in zip(batch.loans, scored)], "version": model.metrics.get("version")}
 
 
 @app.get("/model")
@@ -98,8 +155,9 @@ def benchmark():
 @app.post("/reload")
 def reload_model():
     """Loads a freshly trained model without restarting the service."""
-    global _model
+    global _model, _ew
     _model = None
+    _ew = None
     return {"version": get_model().metrics.get("version")}
 
 

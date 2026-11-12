@@ -39,6 +39,14 @@ before(async () => {
   const { createApp } = require("../src/app");
   await mongoose.connect(uri);
   await mongoose.connection.dropDatabase();
+  // Default Loan Settings, but without co-makers (test/comakers.test.js covers those).
+  await require("../src/models/Setting").create({
+    key: "loan",
+    products: { long_term: { label: "Long term", monthlyRate: 2, maxTermMonths: 12 }, emergency: { label: "Emergency", monthlyRate: 3, maxTermMonths: 6 } },
+    minMonthlySalary: 10000,
+    branches: ["Main Office"],
+    coMakersRequired: 0,
+  });
   server = createApp().listen(0);
   base = `http://127.0.0.1:${server.address().port}/api`;
 });

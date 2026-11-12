@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { BarChart3, BrainCircuit, History, Link2, ClipboardCheck, FilePlus2, HandCoins, LogOut, Menu, PiggyBank, ReceiptText, Settings, UserRound, Users, X } from 'lucide-react'
+import { BarChart3, BrainCircuit, CalendarCheck, Handshake, History, Link2, Siren, ClipboardCheck, FilePlus2, HandCoins, LogOut, Menu, PiggyBank, ReceiptText, Settings, UserRound, Users, X } from 'lucide-react'
 import BrandLogo from '../components/BrandLogo'
 import SessionTimeout from '../components/SessionTimeout'
 import { useAuth } from '../context/AuthContext'
@@ -14,7 +14,10 @@ const nav: { to: string; label: string; icon: typeof Users; end?: boolean; min?:
   { to: '/member-accounts', label: 'Member Accounts', icon: Link2, min: 'loan_officer' },
   { to: '/loans', label: 'Loans', icon: HandCoins, end: true },
   { to: '/loans/apply', label: 'Apply for a Loan', icon: FilePlus2 },
+  { to: '/co-maker', label: 'Co-maker', icon: Handshake },
   { to: '/loans/pending', label: 'Pending Loans', icon: ClipboardCheck, min: 'loan_officer' },
+  { to: '/early-warning', label: 'Early Warning', icon: Siren, min: 'loan_officer' },
+  { to: '/attendance', label: 'Attendance', icon: CalendarCheck, min: 'loan_officer' },
   { to: '/retirement-plans', label: 'Retirement Plans', icon: PiggyBank, min: 'loan_officer' },
   { to: '/deductions', label: 'Payroll Deductions', icon: ReceiptText, roles: ['bookkeeper', 'treasurer', 'admin'] },
   { to: '/reports', label: 'Reports', icon: BarChart3, min: 'treasurer' },

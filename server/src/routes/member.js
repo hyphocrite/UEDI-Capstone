@@ -56,6 +56,8 @@ const applySchema = z.object({
   purpose: z.string().trim().max(300).optional(),
   payrollDeduction: z.literal(true, { message: "You must authorize payroll deduction." }),
   autoRestructure: z.literal(true, { message: "You must agree to automatic restructuring." }),
+  // Member numbers of the co-makers (how many are needed is a Loan Setting).
+  coMakers: z.array(z.string().trim().max(32)).max(2).default([]),
 });
 
 const codeSchema = z.object({
@@ -228,11 +230,13 @@ router.post("/applications", async (req, res, next) => {
         purpose: f.purpose,
       },
       agreement: { payrollDeduction: true, autoRestructure: true, applicationDate: new Date() },
+      coMakers: f.coMakers,
     });
     if (!full.success) return res.status(400).json({ error: firstIssue(full) });
     const app = await createApplication(full.data, req.user);
     res.status(201).json({ application: memberView(app) });
   } catch (err) {
+    if (err?.name === "CoMakerError" || err?.constructor?.name === "CoMakerError") return res.status(400).json({ error: err.message });
     next(err);
   }
 });

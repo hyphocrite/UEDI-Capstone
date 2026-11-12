@@ -77,4 +77,13 @@ function benchmark() {
   return call("/benchmark");
 }
 
-module.exports = { assess, modelInfo, benchmark, toFeatures, ageOn };
+/** Early-warning chances for active-loan snapshots (services/earlyWarning.js). */
+function earlyWarning(loans) {
+  return call("/early-warning/score", { method: "POST", body: JSON.stringify({ loans }) });
+}
+
+function earlyWarningModel() {
+  return call("/early-warning/model");
+}
+
+module.exports = { assess, modelInfo, benchmark, earlyWarning, earlyWarningModel, toFeatures, ageOn };

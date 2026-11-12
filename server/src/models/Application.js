@@ -23,6 +23,19 @@ const documentSchema = new mongoose.Schema(
   { _id: false },
 );
 
+// A member who vouches for the loan. They confirm in their co-maker portal before signing starts.
+const coMakerSchema = new mongoose.Schema(
+  {
+    memberId: { type: String, required: true },
+    name: String,
+    user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    status: { type: String, enum: ["pending", "accepted", "declined"], default: "pending" },
+    respondedAt: Date,
+    note: { type: String, maxlength: 300 },
+  },
+  { _id: false },
+);
+
 // One signed step of the approval chain.
 const approvalSchema = new mongoose.Schema(
   {
@@ -125,6 +138,7 @@ const applicationSchema = new mongoose.Schema(
       applicationDate: { type: Date, required: true },
     },
     documents: [documentSchema],
+    coMakers: { type: [coMakerSchema], default: [] },
     status: { type: String, enum: STATUSES, default: "pending", index: true },
     assessment: assessmentSchema,
     assessmentError: String,

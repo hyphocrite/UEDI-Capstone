@@ -15,6 +15,7 @@ type Draft = {
   products: Record<LoanType, { label: string; monthlyRate: string; maxTermMonths: string }>
   minMonthlySalary: string
   branches: string[]
+  coMakersRequired: string
 }
 
 const toDraft = (s: LoanSettings): Draft => ({
@@ -24,6 +25,7 @@ const toDraft = (s: LoanSettings): Draft => ({
   },
   minMonthlySalary: String(s.minMonthlySalary),
   branches: [...s.branches],
+  coMakersRequired: String(s.coMakersRequired ?? 1),
 })
 
 const LOAN_TYPES: LoanType[] = ['long_term', 'emergency']
@@ -72,6 +74,9 @@ export default function SettingsPage() {
     if (Number(draft.minMonthlySalary) !== current.minMonthlySalary) {
       list.push(`Minimum monthly salary: ${formatPeso(current.minMonthlySalary)} → ${formatPeso(Number(draft.minMonthlySalary))}`)
     }
+    if (Number(draft.coMakersRequired) !== (current.coMakersRequired ?? 1)) {
+      list.push(`Co-makers required: ${current.coMakersRequired ?? 1} → ${draft.coMakersRequired}`)
+    }
     const added = draft.branches.filter((b) => !current.branches.includes(b))
     const removed = current.branches.filter((b) => !draft.branches.includes(b))
     if (added.length) list.push(`Branches added: ${added.join(', ')}`)
@@ -98,6 +103,7 @@ export default function SettingsPage() {
       const body = {
         products: Object.fromEntries(LOAN_TYPES.map((t) => [t, { label: draft.products[t].label, monthlyRate: Number(draft.products[t].monthlyRate), maxTermMonths: Number(draft.products[t].maxTermMonths) }])),
         minMonthlySalary: Number(draft.minMonthlySalary),
+        coMakersRequired: Number(draft.coMakersRequired),
         branches: draft.branches,
       }
       const { settings: next } = await api<{ settings: LoanSettings }>('/api/settings', { method: 'PUT', body: JSON.stringify(body) })
@@ -187,6 +193,14 @@ export default function SettingsPage() {
             <input type="number" min={0} step={500} className="input w-40" value={draft.minMonthlySalary} aria-label="Minimum monthly salary"
               onChange={(e) => { touch(); setDraft((d) => ({ ...d, minMonthlySalary: e.target.value })) }} />
           </div>
+          <h2 className="mt-5 font-semibold text-brand-800">Co-makers per application</h2>
+          <p className="mt-1 text-sm text-brand-600">Members who vouch for the loan and confirm online before signing starts.</p>
+          <select className="input mt-2 w-40" aria-label="Co-makers required" value={draft.coMakersRequired}
+            onChange={(e) => { touch(); setDraft((d) => ({ ...d, coMakersRequired: e.target.value })) }}>
+            <option value="0">None required</option>
+            <option value="1">1 co-maker</option>
+            <option value="2">2 co-makers</option>
+          </select>
         </section>
 
         <section className="card p-5">
