@@ -82,9 +82,11 @@ router.get(
 router.get(
   "/carried",
   handle(async (req, res) => {
-    const filter = { $or: [{ "openingLoan.balance": { $gt: 0 } }, { "openingLoan.payments": { $gt: 0 } }] };
+    // Balances with a payroll deduction set up are ledger loans now, listed with the other loans.
+    const moved = await Loan.distinct("memberId", { source: "ledger" });
+    const filter = { memberId: { $nin: moved }, $or: [{ "openingLoan.balance": { $gt: 0 } }, { "openingLoan.payments": { $gt: 0 } }] };
     if (!seesAllLoans(req.user)) {
-      if (!req.user.memberId) return res.json({ carried: [] });
+      if (!req.user.memberId || moved.includes(req.user.memberId)) return res.json({ carried: [] });
       filter.memberId = req.user.memberId;
     }
     const found = await Member.find(filter).select("memberId fullName remarks openingLoan").limit(5000);

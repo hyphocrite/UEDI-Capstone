@@ -15,7 +15,15 @@ async function connectDb(uri = env.mongoUri) {
     await mongoose.connect(uri);
   }
   console.log(`MongoDB connected: ${mongoose.connection.host}/${mongoose.connection.name}`);
+  await dropOldLoanIndex();
   return mongoose.connection;
+}
+
+/** Loans once all needed an application, so "application_1" allowed only one loan without one. */
+async function dropOldLoanIndex() {
+  const loans = mongoose.connection.collection("loans");
+  const indexes = await loans.indexes().catch(() => []);
+  if (indexes.some((i) => i.name === "application_1")) await loans.dropIndex("application_1");
 }
 
 module.exports = { connectDb };

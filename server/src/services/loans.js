@@ -52,6 +52,60 @@ async function createFromApplication(app) {
   return loan;
 }
 
+const isCutoff = (d, paymentFrequency) => {
+  const day = d.getUTCDate();
+  const last = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
+  return day === last || (paymentFrequency === "quincenal" && day === 15);
+};
+
+/**
+ * Turns a member's balance carried over from the spreadsheet ledger into an active loan, so payroll
+ * deduction runs pick it up. The ledger has no rate or term, so the schedule is the Bookkeeper's
+ * amount per cutoff, with no further interest, until the balance is paid.
+ */
+async function fromCarriedBalance(member, { perCutoff, paymentFrequency, firstDueDate }, user) {
+  const opening = member.openingLoan;
+  if (!(opening?.balance > 0)) throw new LoanError(400, "This member has no balance carried over from the ledger.");
+  if (await Loan.exists({ memberId: member.memberId, source: "ledger" })) {
+    throw new LoanError(409, "Payroll deduction is already set up for this member's carried-over balance.");
+  }
+  const first = ledger.calendarDay(firstDueDate);
+  if (!isCutoff(first, paymentFrequency)) {
+    throw new LoanError(400, paymentFrequency === "quincenal" ? "The first deduction must be on the 15th or the last day of a month." : "The first deduction must be on the last day of a month.");
+  }
+  const asOf = ledger.calendarDay(opening.asOf);
+  if (first <= asOf) throw new LoanError(400, "The first deduction must be after the date of the ledger balance.");
+
+  const balance = opening.balance;
+  const n = Math.ceil(balance / perCutoff);
+  if (n > 240) throw new LoanError(400, "That amount would take more than 240 cutoffs to pay off. Enter a larger amount.");
+  // dueDates() starts at least 10 days after its date, so start 10 days before the first cutoff.
+  const dates = ledger.dueDates(new Date(first.getTime() - 10 * 86_400_000), paymentFrequency, n);
+  const schedule = dates.map((dueDate, k) => {
+    const principalDue = k === n - 1 ? balance - perCutoff * (n - 1) : perCutoff;
+    return { no: k + 1, dueDate, principalDue, interestDue: 0, totalDue: principalDue, paid: 0, interestPaid: 0, principalPaid: 0 };
+  });
+  try {
+    return await Loan.create({
+      loanNo: `LEDGER-${member.memberId}`,
+      source: "ledger",
+      borrowerName: member.fullName,
+      memberId: member.memberId,
+      loanType: "long_term",
+      principal: balance,
+      monthlyRate: 0,
+      termMonths: Math.ceil(n / (paymentFrequency === "quincenal" ? 2 : 1)),
+      paymentFrequency,
+      status: "active",
+      release: { releasedAt: asOf, voucherNo: "Ledger balance", releasedBy: user._id, releasedByName: user.fullName, netProceeds: 0 },
+      schedule,
+    });
+  } catch (err) {
+    if (err?.code === 11000) throw new LoanError(409, "Payroll deduction is already set up for this member's carried-over balance.");
+    throw err;
+  }
+}
+
 /** The loan as the API returns it: stored fields plus balance, amount paid, next due and past due. */
 function present(loan, today = ledger.todayInManila()) {
   return { ...loan.toJSON(), ...ledger.summarize(loan.schedule, today) };
@@ -272,6 +326,7 @@ function bookkeeperFromLedger(b) {
 module.exports = {
   LoanError,
   createFromApplication,
+  fromCarriedBalance,
   present,
   otherActiveLoans,
   release,

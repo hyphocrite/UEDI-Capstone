@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
-import { HandCoins, Pencil, PiggyBank, Plus, Search, UserCheck, Users } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { HandCoins, Pencil, PiggyBank, Plus, ReceiptText, Search, UserCheck, Users } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import StatCard from '../components/StatCard'
 import StatusBadge from '../components/StatusBadge'
 import AccountLinksSection from '../components/members/AccountLinksSection'
 import MemberForm from '../components/members/MemberForm'
+import CarriedDeductionForm from '../components/members/CarriedDeductionForm'
+import { useAuth } from '../context/AuthContext'
 import { api } from '../lib/api'
 import { formatDate } from '../lib/format'
 import { formatCentavos } from '../lib/loans'
@@ -24,6 +27,10 @@ export default function MembersPage() {
   const [status, setStatus] = useState<'all' | 'active' | 'inactive'>('active')
   const [editing, setEditing] = useState<Member | null | 'new'>(null)
   const [notice, setNotice] = useState('')
+  const [deducting, setDeducting] = useState<Member | null>(null)
+  // Same roles that record loan payments and run payroll deductions.
+  const { session } = useAuth()
+  const canSetDeduction = session?.role === 'bookkeeper' || session?.role === 'treasurer'
 
   const load = () =>
     api<{ members: Member[]; nextMemberId: string }>('/api/members')
@@ -132,6 +139,10 @@ export default function MembersPage() {
                   <td className="px-4 py-3 text-right">
                     {(m.loanBalance ?? 0) > 0 ? <span className="font-semibold">{short(m.loanBalance!)}</span> : <span className="text-brand-400">None</span>}
                     {(m.openLoans ?? 0) > 0 && <p className="text-xs text-brand-500">{m.openLoans} in the system</p>}
+                    {m.ledgerLoan && (
+                      <Link to={`/loans/${m.ledgerLoan.id}`} className="text-xs text-accent-dark hover:underline">Payroll deduction set</Link>
+                    )}
+                    {!m.ledgerLoan && (m.openingLoan?.balance ?? 0) > 0 && <p className="text-xs text-amber-700">No payroll deduction yet</p>}
                   </td>
                   <td className="px-4 py-3 text-right">
                     {m.plan ? (
@@ -145,7 +156,13 @@ export default function MembersPage() {
                     <StatusBadge status={memberStatusLabel[m.status]} />
                     {m.remarks && <p className="mt-1 text-xs text-brand-600">{m.remarks}</p>}
                   </td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-4 py-3 text-right whitespace-nowrap">
+                    {canSetDeduction && !m.ledgerLoan && (m.openingLoan?.balance ?? 0) > 0 && (
+                      <button className="rounded p-1.5 text-brand-600 hover:bg-brand-50" onClick={() => setDeducting(m)}
+                        title="Set up payroll deduction" aria-label={`Set up payroll deduction for ${m.fullName}`}>
+                        <ReceiptText className="h-4 w-4" />
+                      </button>
+                    )}
                     <button className="rounded p-1.5 text-brand-600 hover:bg-brand-50" onClick={() => setEditing(m)} aria-label={`Edit ${m.fullName}`}>
                       <Pencil className="h-4 w-4" />
                     </button>
@@ -168,6 +185,17 @@ export default function MembersPage() {
       </div>
 
       <AccountLinksSection />
+
+      {deducting && (
+        <CarriedDeductionForm
+          member={deducting}
+          onClose={() => setDeducting(null)}
+          onSaved={(loan) => {
+            setNotice(`Payroll deduction set for ${deducting.fullName}. The balance is now loan ${loan.loanNo}.`)
+            void load()
+          }}
+        />
+      )}
 
       {editing && (
         <MemberForm

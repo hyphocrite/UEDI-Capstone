@@ -56,7 +56,8 @@ export default function LoansPage() {
     const q = query.trim().toLowerCase()
     return carried.filter((c) => !q || c.memberId.toLowerCase().includes(q) || c.fullName.toLowerCase().includes(q))
   }, [carried, query])
-  const carriedTotal = carried.reduce((s, c) => s + c.balance, 0)
+  // A negative ledger balance is an overpayment; it doesn't reduce what others owe (as on the Members page).
+  const carriedTotal = carried.reduce((s, c) => s + Math.max(0, c.balance), 0)
   const carriedOpen = carried.filter((c) => c.balance > 0).length
 
   const all = useMemo(() => loans ?? [], [loans])
@@ -71,7 +72,8 @@ export default function LoansPage() {
 
   const open = all.filter((l) => l.status === 'active')
   const outstanding = open.reduce((s, l) => s + l.balance, 0)
-  const released = all.filter((l) => l.status !== 'for_release').reduce((s, l) => s + l.principal, 0)
+  // Ledger loans are old balances, not money released by this system.
+  const released = all.filter((l) => l.status !== 'for_release' && l.source !== 'ledger').reduce((s, l) => s + l.principal, 0)
   const pastDue = open.filter((l) => l.pastDue)
 
   return (
@@ -141,7 +143,7 @@ export default function LoansPage() {
                     <Link to={`/loans/${l._id}`} className="font-semibold text-ink hover:text-accent-dark" onClick={(e) => e.stopPropagation()}>
                       {l.loanNo}
                     </Link>
-                    <p className="text-xs text-brand-500">{loanTypeLabel[l.loanType]}</p>
+                    <p className="text-xs text-brand-500">{l.source === 'ledger' ? 'Carried over from the ledger' : loanTypeLabel[l.loanType]}</p>
                   </td>
                   <td className="px-4 py-3">
                     {l.borrowerName}
@@ -174,7 +176,8 @@ export default function LoansPage() {
             <h2 className="font-semibold text-ink">Carried over from the spreadsheet ledger</h2>
             <p className="text-sm text-brand-600">
               Yearly totals from UDEI's loan ledger as of {formatDay(carried[0].asOf)}. The ledger has no rates or schedules,
-              so these are shown as balances only.
+              so these are balances only. Once the Bookkeeper sets a member's payroll deduction on the Members page, the
+              balance moves to the loans above and payroll deduction runs include it.
             </p>
           </div>
           <div className="overflow-x-auto">

@@ -8,7 +8,7 @@ const RetirementPlan = require("../models/RetirementPlan");
 const loans = require("../services/loans");
 const plans = require("../services/retirementPlans");
 const ledger = require("../services/ledger");
-const { requireStaff, requireLevel } = require("../middleware/auth");
+const { requireStaff, requireLevel, requireRole } = require("../middleware/auth");
 
 // UDEI's member records. Loan Officers and everyone above them can see and edit them.
 const router = express.Router();
@@ -61,6 +61,8 @@ async function summaries(members) {
     RetirementPlan.find({ memberId: { $in: ids } }),
   ]);
   const loanInfo = new Map();
+  // Once a carried-over balance has a payroll deduction it is a ledger loan, counted with the loans.
+  const ledgerLoan = new Map(openLoans.filter((l) => l.source === "ledger").map((l) => [l.memberId, { id: l._id, loanNo: l.loanNo }]));
   for (const l of openLoans) {
     const v = loanInfo.get(l.memberId) || { count: 0, balance: 0 };
     v.count += 1;
@@ -73,8 +75,9 @@ async function summaries(members) {
   }));
   return (m) => {
     const info = loanInfo.get(m.memberId) || { count: 0, balance: 0 };
-    const carried = m.openingLoan?.balance > 0 ? m.openingLoan.balance : 0;
-    return { openLoans: info.count, loanBalance: info.balance + carried, plan: plan.get(m.memberId) || null };
+    const moved = ledgerLoan.get(m.memberId) || null;
+    const carried = !moved && m.openingLoan?.balance > 0 ? m.openingLoan.balance : 0;
+    return { openLoans: info.count, loanBalance: info.balance + carried, plan: plan.get(m.memberId) || null, ledgerLoan: moved };
   };
 }
 
@@ -84,7 +87,8 @@ async function summaries(members) {
  * A member "On Amnesty" had fallen behind, so that counts as a late loan.
  */
 async function historyOf(member) {
-  const released = await Loan.find({ memberId: member.memberId, status: { $in: ["active", "paid"] } });
+  // A ledger loan is the carried-over balance, already counted below as a spreadsheet loan.
+  const released = await Loan.find({ memberId: member.memberId, status: { $in: ["active", "paid"] }, source: { $ne: "ledger" } });
   const lateInSystem = released.filter((l) => loans.present(l).pastDue || ["missed", "partial"].includes(l.lastDeduction?.result));
   const opening = member.openingLoan || {};
   const spreadsheetLoans = (opening.balanceStartOfYear > 0 ? 1 : 0) + (opening.loansThisYear || 0);
@@ -150,6 +154,28 @@ router.post("/", async (req, res, next) => {
     }
     res.status(201).json({ member: member.toJSON() });
   } catch (err) {
+    next(err);
+  }
+});
+
+const deductionSchema = z.object({
+  perCutoff: z.coerce.number().int({ message: "Enter the amount in centavos." }).min(100, "Enter the amount to deduct.").max(100_000_000_00),
+  paymentFrequency: z.enum(["quincenal", "monthly"], { message: "Choose quincenal or monthly." }),
+  firstDueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Enter the date of the first deduction."),
+});
+
+// The Bookkeeper sets how much payroll deducts for a balance carried over from the ledger. That
+// makes it a loan with a schedule, so deduction runs include it and posted payments lower it.
+router.post("/:memberId/payroll-deduction", requireRole("bookkeeper", "treasurer"), async (req, res, next) => {
+  try {
+    const parsed = deductionSchema.safeParse(req.body || {});
+    if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0].message });
+    const member = await Member.findOne({ memberId: String(req.params.memberId).slice(0, 32) });
+    if (!member) return res.status(404).json({ error: "Member not found." });
+    const loan = await loans.fromCarriedBalance(member, parsed.data, req.user);
+    res.status(201).json({ loan: loans.present(loan) });
+  } catch (err) {
+    if (err instanceof loans.LoanError) return res.status(err.status).json({ error: err.message });
     next(err);
   }
 });

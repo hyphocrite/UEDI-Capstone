@@ -1,7 +1,8 @@
 const mongoose = require("mongoose");
 const { LOAN_TYPES, PAYMENT_FREQUENCIES } = require("./Application");
 
-// A Mutual Assistance loan, created when the President approves an application.
+// A Mutual Assistance loan, created when the President approves an application, or from a balance
+// carried over from UDEI's spreadsheet ledger once the Bookkeeper sets its payroll deduction (source "ledger").
 // Every money field is an integer number of centavos (₱1 = 100). See services/ledger.js.
 const LOAN_STATUSES = ["for_release", "active", "paid"]; // "past due" is computed, not stored
 
@@ -25,7 +26,9 @@ const installmentSchema = new mongoose.Schema(
 const loanSchema = new mongoose.Schema(
   {
     loanNo: { type: String, required: true, unique: true },
-    application: { type: mongoose.Schema.Types.ObjectId, ref: "Application", required: true, unique: true },
+    source: { type: String, enum: ["application", "ledger"], default: "application" },
+    // Unique when set (index below); ledger loans have no application.
+    application: { type: mongoose.Schema.Types.ObjectId, ref: "Application" },
     applicationNo: String,
     borrowerName: { type: String, required: true, trim: true },
     memberId: String,
@@ -73,6 +76,9 @@ const loanSchema = new mongoose.Schema(
   },
   { timestamps: true },
 );
+
+// Named so it doesn't clash with the old required "application_1" index, which db.js drops.
+loanSchema.index({ application: 1 }, { name: "application_unique", unique: true, partialFilterExpression: { application: { $type: "objectId" } } });
 
 module.exports = mongoose.model("Loan", loanSchema);
 module.exports.LOAN_STATUSES = LOAN_STATUSES;

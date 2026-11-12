@@ -77,7 +77,8 @@ router.get("/", async (req, res, next) => {
     const wide = { $gte: new Date(from.getTime() - DAY), $lt: new Date(to.getTime() + DAY) };
 
     const [released, payments, history, apps, planDocs] = await Promise.all([
-      Loan.find({ "release.releasedAt": { $gte: from, $lt: to } }).select("principal release.releasedAt").lean(),
+      // Ledger loans are old balances carried over, not money released in the period.
+      Loan.find({ "release.releasedAt": { $gte: from, $lt: to }, source: { $ne: "ledger" } }).select("principal release.releasedAt").lean(),
       // Offsets are paid from a new loan's proceeds, not new money coming in.
       Payment.find({ paidAt: { $gte: from, $lt: to }, voided: false, method: { $ne: "offset" } }).select("amount paidAt").lean(),
       LedgerHistory.find({ date: { $gte: from, $lt: to } }).lean(),
