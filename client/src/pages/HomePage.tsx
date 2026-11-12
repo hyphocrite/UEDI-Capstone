@@ -59,13 +59,13 @@ export default function HomePage() {
         <div className="mx-auto grid max-w-7xl gap-10 px-4 py-20 sm:px-6 lg:grid-cols-2 lg:items-center">
           <div>
             <p className="mb-3 inline-block rounded-full bg-white/10 px-3 py-1 text-xs font-semibold tracking-wide text-brand-100 uppercase">
-              UEDI member services
+              UDEI member services
             </p>
             <h1 className="text-4xl leading-tight font-bold sm:text-5xl">
               Loans and retirement plans, managed in one place.
             </h1>
             <p className="mt-4 max-w-xl text-lg text-brand-100">
-              A single system for UEDI staff to manage members, release and collect loans, follow
+              A single system for UDEI staff to manage members, release and collect loans, follow
               retirement plan payments and report to management.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
@@ -127,7 +127,7 @@ export default function HomePage() {
       </section>
 
       <footer className="border-t border-brand-100 py-6 text-center text-xs text-brand-500">
-        © {YEAR} UEDI. All rights reserved.
+        © {YEAR} UDEI. All rights reserved.
       </footer>
     </div>
   )

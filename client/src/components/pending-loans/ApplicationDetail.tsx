@@ -25,7 +25,7 @@ export default function ApplicationDetail({ app, onChange }: { app: LoanApplicat
   const installment = monthlyInstallment(app.loan)
   const share = installment / a.netTakeHomePay
   const books = app.bookkeeper ?? { longTermBalance: 0, shortTermBalance: 0 }
-  // Existing UEDI deductions come out of the same pay.
+  // Existing UDEI deductions come out of the same pay.
   const left = a.netTakeHomePay - (books.monthlyPayment ?? 0) - installment
   const e = app.assessment?.ensemble
   const agree = app.assessment ? app.assessment.models.filter((m) => m.suggestion === e?.suggestion).length : 0
@@ -108,7 +108,7 @@ export default function ApplicationDetail({ app, onChange }: { app: LoanApplicat
           <Item label="Residence" value={a.residenceAddress} />
           <Item label="Member ID" value={a.memberId || 'New applicant'} />
         </dl>
-        <h4 className="mt-5 mb-2 text-sm font-semibold text-brand-800">UEDI balances (Bookkeeper section)</h4>
+        <h4 className="mt-5 mb-2 text-sm font-semibold text-brand-800">UDEI balances (Bookkeeper section)</h4>
         <BookkeeperBalances app={app} />
       </section>
 

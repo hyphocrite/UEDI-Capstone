@@ -39,6 +39,11 @@ export type Loan = {
   schedule: Installment[]
 }
 
+export type LoanSettings = {
+  products: Record<'long_term' | 'emergency', { label: string; monthlyRate: number; maxTermMonths: number }>
+  minMonthlySalary: number
+}
+
 export type Payment = { id: string; amount: number; paidAt: string; method: string }
 
 let token: string | null = null
@@ -92,5 +97,7 @@ export const api = {
   apply: (body: Record<string, unknown>) =>
     request<{ application: Application }>('/member/applications', { method: 'POST', body }),
   loans: () => request<{ loans: Loan[] }>('/member/loans'),
+  // UDEI's loan rules from the office's Settings page: rate per month, longest term, minimum salary.
+  settings: () => request<{ settings: LoanSettings }>('/settings'),
   loan: (id: string) => request<{ loan: Loan; payments: Payment[] }>(`/member/loans/${id}`),
 }

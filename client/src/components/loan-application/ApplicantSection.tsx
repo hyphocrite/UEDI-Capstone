@@ -1,7 +1,10 @@
+import { useEffect, useState } from 'react'
 import Field, { FormSection } from './Field'
 import { memberHistory } from './applicationForm'
 import type { Form } from './applicationForm'
-import { members } from '../../data/mock'
+import { api } from '../../lib/api'
+import { byMemberId } from '../../lib/members'
+import type { Member, MemberHistory } from '../../lib/members'
 import { employmentStatusLabel } from '../../lib/applications'
 import type { EmploymentStatus } from '../../lib/applications'
 
@@ -11,6 +14,27 @@ type Props = { form: Form; update: (patch: Partial<Form>) => void; lockedMemberI
 const statuses = Object.keys(employmentStatusLabel) as EmploymentStatus[]
 
 export default function ApplicantSection({ form, update, lockedMemberId }: Props) {
+  const [members, setMembers] = useState<Member[]>([])
+  const [lookupError, setLookupError] = useState('')
+  useEffect(() => {
+    if (lockedMemberId) return
+    api<{ members: Member[] }>('/api/members?status=active')
+      .then((d) => setMembers([...d.members].sort(byMemberId)))
+      .catch(() => setMembers([]))
+  }, [lockedMemberId])
+
+  const pick = async (memberId: string) => {
+    setLookupError('')
+    if (!memberId) return update({ memberId: '' })
+    update({ memberId })
+    try {
+      const { member, history } = await api<{ member: Member; history: MemberHistory }>(`/api/members/${encodeURIComponent(memberId)}`)
+      const listed = members.find((m) => m.memberId === memberId)
+      update(memberHistory(member, history, (listed?.openLoans ?? 0) > 0))
+    } catch (err) {
+      setLookupError(err instanceof Error ? err.message : 'Could not load the member.')
+    }
+  }
   const text = (key: keyof Form) => ({
     id: key,
     className: 'input',
@@ -28,24 +52,21 @@ export default function ApplicantSection({ form, update, lockedMemberId }: Props
           </Field>
         ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_12rem]">
-          <Field id="memberPicker" label="Member (optional)" hint="Picking a member fills in their name, history and UEDI balances.">
+          <Field id="memberPicker" label="Member (optional)" hint={lookupError || 'Picking a member fills in what UDEI has on file: name, history and balances.'}>
             <select
               id="memberPicker"
               className="input"
-              value={members.some((m) => m.id === form.memberId) ? form.memberId : ''}
-              onChange={(e) => {
-                const m = members.find((x) => x.id === e.target.value)
-                update(m ? memberHistory(m) : { memberId: '' })
-              }}
+              value={members.some((m) => m.memberId === form.memberId) ? form.memberId : ''}
+              onChange={(e) => void pick(e.target.value)}
             >
-              <option value="">New applicant, or type the ID</option>
-              {members.filter((m) => m.status === 'Active').map((m) => (
-                <option key={m.id} value={m.id}>{m.name} ({m.id})</option>
+              <option value="">New applicant, or type the member no.</option>
+              {members.map((m) => (
+                <option key={m.memberId} value={m.memberId}>{m.fullName}{m.lastName ? ` (No. ${m.memberId})` : ''}</option>
               ))}
             </select>
           </Field>
           <Field id="memberId" label="Member ID">
-            <input id="memberId" className="input" maxLength={32} placeholder="e.g. M-0001" value={form.memberId}
+            <input id="memberId" className="input" maxLength={32} placeholder="e.g. 12" value={form.memberId}
               onChange={(e) => update({ memberId: e.target.value })} />
           </Field>
         </div>
@@ -96,7 +117,7 @@ export default function ApplicantSection({ form, update, lockedMemberId }: Props
         </div>
 
         <div className="rounded-lg bg-brand-50 p-3 sm:p-4">
-          <h3 className="text-sm font-semibold text-brand-800">History with UEDI</h3>
+          <h3 className="text-sm font-semibold text-brand-800">History with UDEI</h3>
           <p className="mb-3 text-xs text-brand-500">Used by the ML model to suggest approve or deny.</p>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Field id="yearsAsMember" label="Years as member">

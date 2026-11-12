@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Send } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
@@ -8,13 +8,14 @@ import ApplicantSection from '../components/loan-application/ApplicantSection'
 import BookkeeperSection from '../components/loan-application/BookkeeperSection'
 import DocumentsSection from '../components/loan-application/DocumentsSection'
 import SubmittedCard from '../components/loan-application/SubmittedCard'
-import { DEFAULT_RATE, applicantOf, buildPayload, emptyForm, validateForm } from '../components/loan-application/applicationForm'
+import { applicantOf, buildPayload, emptyForm, rateFor, validateForm } from '../components/loan-application/applicationForm'
 import type { Form } from '../components/loan-application/applicationForm'
 import { useMemberLedger } from '../components/loan-application/useMemberLedger'
 import { useSupportingDocuments } from '../components/loan-application/useSupportingDocuments'
 import { useAuth } from '../context/AuthContext'
 import { api } from '../lib/api'
 import { atLeast } from '../lib/roles'
+import { fetchSettings, useSettings } from '../lib/settings'
 import type { LoanApplication, LoanType } from '../lib/applications'
 import { documentType } from '../lib/ocr/documentTypes'
 
@@ -30,6 +31,14 @@ export default function LoanApplicationPage() {
   const [confirming, setConfirming] = useState(false)
   const [saving, setSaving] = useState(false)
   const [submitted, setSubmitted] = useState<LoanApplication | null>(null)
+  const { settings } = useSettings()
+
+  // Start from the rate on the Settings page once it arrives, unless someone already typed one.
+  useEffect(() => {
+    fetchSettings()
+      .then((s) => setForm((f) => (f.rateEdited ? f : { ...f, monthlyRate: rateFor(s, f.loanType) })))
+      .catch(() => {})
+  }, [])
 
   const { lastName, firstName, middleInitial, residenceAddress, employer, monthlySalary, netTakeHomePay } = form
   const applicant = useMemo(
@@ -45,13 +54,13 @@ export default function LoanApplicationPage() {
   const ledger = useMemberLedger(staffView ? form.memberId : '', (books) => setForm((f) => ({ ...f, ...books })))
 
   const changeLoanType = (loanType: LoanType) => {
-    setForm((f) => ({ ...f, loanType, monthlyRate: f.rateEdited ? f.monthlyRate : DEFAULT_RATE[loanType] }))
+    setForm((f) => ({ ...f, loanType, monthlyRate: f.rateEdited ? f.monthlyRate : rateFor(settings, loanType) }))
     setError('')
     documents.changeLoanType(loanType)
   }
 
   const validate = () => {
-    const problem = validateForm(form)
+    const problem = validateForm(form, settings)
     if (problem) return problem
     const missing = documents.checklist.filter((c) => !c.filled && !c.reading)
     if (missing.length) return `Upload the missing documents: ${missing.map((m) => documentType(m.typeId).label).join(', ')}.`
@@ -86,7 +95,7 @@ export default function LoanApplicationPage() {
 
   const reset = () => {
     documents.clear()
-    setForm(freshForm())
+    setForm({ ...freshForm(), monthlyRate: rateFor(settings, 'long_term') })
     setError('')
     setSubmitted(null)
   }
@@ -98,7 +107,7 @@ export default function LoanApplicationPage() {
       <div className="mx-auto max-w-xl">
         <PageHeader title="Apply for a Loan" subtitle="Mutual Assistance Application Form, United DNSC Employees, Inc." />
         <p className="card p-5 text-sm text-amber-800">
-          Your account isn't linked to a member record yet. Ask the UEDI office to link it, then you can apply here.
+          Your account isn't linked to a member record yet. Ask the UDEI office to link it, then you can apply here.
         </p>
       </div>
     )
@@ -127,7 +136,7 @@ export default function LoanApplicationPage() {
                 ? 'Reading documents…'
                 : staffView
                   ? 'Submitting sends the form and document checks to Pending Loans.'
-                  : 'Submitting sends your application to UEDI for review.'}
+                  : 'Submitting sends your application to UDEI for review.'}
             </p>
             <button type="submit" className="btn-accent px-5" disabled={saving}>
               <Send className="h-4 w-4" /> {saving ? 'Submitting…' : 'Submit application'}

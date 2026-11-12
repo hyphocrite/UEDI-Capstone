@@ -14,13 +14,9 @@ const { createSchema, createApplication } = require("./applications");
 const { signSession, requireAuth } = require("../middleware/auth");
 const { rateLimit } = require("../middleware/rateLimit");
 const verification = require("../services/emailVerification");
+const settings = require("../services/settings");
 
 const router = express.Router();
-
-// Rate per month the coop charges, filled in by the server so members can't pick their own.
-// Keep in step with DEFAULT_RATE in client/src/components/loan-application/applicationForm.ts.
-const MEMBER_RATES = { long_term: 1.0, emergency: 1.5 };
-const MAX_TERM = { long_term: 12, emergency: 6 };
 
 const password = z
   .string()
@@ -197,10 +193,10 @@ router.post("/applications", async (req, res, next) => {
     const parsed = applySchema.safeParse(req.body || {});
     if (!parsed.success) return res.status(400).json({ error: firstIssue(parsed) });
     const f = parsed.data;
-    if (f.termMonths > MAX_TERM[f.loanType]) {
-      const label = f.loanType === "long_term" ? "Long term" : "Emergency";
-      return res.status(400).json({ error: `${label} loans run at most ${MAX_TERM[f.loanType]} months.` });
-    }
+    // The rules on the Settings page: minimum salary, longest term and the rate members get.
+    const rules = await settings.get();
+    const ruleError = settings.checkApplication(rules, f);
+    if (ruleError) return res.status(400).json({ error: ruleError });
     if (await Application.exists({ submittedBy: req.user._id, status: "pending" })) {
       return res.status(409).json({ error: "You already have an application waiting for approval." });
     }
@@ -220,7 +216,7 @@ router.post("/applications", async (req, res, next) => {
         loanType: f.loanType,
         amount: f.amount,
         termMonths: f.termMonths,
-        monthlyRate: MEMBER_RATES[f.loanType],
+        monthlyRate: rules.products[f.loanType].monthlyRate,
         paymentFrequency: f.paymentFrequency,
         purpose: f.purpose,
       },

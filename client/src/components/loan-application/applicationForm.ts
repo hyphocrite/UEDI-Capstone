@@ -1,9 +1,10 @@
 // State, validation and request body for the Mutual Assistance Application Form.
-import { loans } from '../../data/mock'
-import type { Member } from '../../data/mock'
 import { monthlyInstallment } from '../../lib/applications'
 import type { EmploymentStatus, LoanType } from '../../lib/applications'
 import type { MemberBalances } from '../../lib/loans'
+import type { Member, MemberHistory } from '../../lib/members'
+import { FALLBACK_SETTINGS } from '../../lib/settings'
+import type { LoanSettings } from '../../lib/settings'
 import type { Applicant, DocumentAnalysis } from '../../lib/ocr/analyzeDocument'
 
 export type PeriodUnit = 'years' | 'months'
@@ -56,8 +57,8 @@ export type Form = {
 
 export const MAX_TERM_MONTHS = 120
 
-/** UEDI's usual rates, in % per month. */
-export const DEFAULT_RATE: Record<LoanType, string> = { long_term: '2.0', emergency: '3.0' }
+/** The rate on the Settings page for a loan type, as the form's string. */
+export const rateFor = (settings: LoanSettings, t: LoanType) => String(settings.products[t].monthlyRate)
 
 export const PAYROLL_DEDUCTION_TEXT =
   'I hereby authorize the Payroll Officer of my Employer, DNSC and/or the Treasurer of United DNSC Employees, Inc. to deduct the quincenal/monthly installment of my Mutual Assistance from my salary or from any form of benefits due to me.'
@@ -86,7 +87,7 @@ export const emptyForm = (): Form => ({
   purpose: '',
   period: '1',
   periodUnit: 'years',
-  monthlyRate: DEFAULT_RATE.long_term,
+  monthlyRate: rateFor(FALLBACK_SETTINGS, 'long_term'),
   rateEdited: false,
   paymentFrequency: 'quincenal',
 
@@ -129,7 +130,7 @@ export function affordabilityNote(f: Form): string | null {
   const existing = num(f.monthlyPayment)
   const total = existing + inst.monthly
   const left = net - total
-  const what = existing > 0 ? 'The new installment plus existing UEDI deductions' : 'The monthly installment'
+  const what = existing > 0 ? 'The new installment plus existing UDEI deductions' : 'The monthly installment'
   if (total > net / 2) return `${what} ${existing > 0 ? 'are' : 'is'} more than half of the net take-home pay.`
   if (left < 5000) return `Less than ₱5,000 of the net take-home pay is left after ${existing > 0 ? 'existing deductions and ' : ''}the new installment.`
   return null
@@ -168,16 +169,22 @@ export function splitName(full: string): { lastName: string; firstName: string; 
   return { lastName, firstName: rest.join(' '), middleInitial }
 }
 
-/** Prefills what UEDI already knows about a member. */
-export function memberHistory(m: Member): Partial<Form> {
-  const past = loans.filter((l) => l.memberId === m.id && l.status !== 'Pending')
-  const years = Math.max(0, Math.floor((Date.now() - new Date(m.joined).getTime()) / (365.25 * 86_400_000)))
+/**
+ * Prefills what UDEI already knows about a member (GET /api/members/:id): name when on file, and
+ * the history the ML model uses. When the member has no loans in the system yet, the balance
+ * carried over from UDEI's ledger goes in the Bookkeeper section, for the Bookkeeper to confirm.
+ */
+export function memberHistory(m: Member, h: MemberHistory, hasSystemLoans: boolean): Partial<Form> {
   return {
-    memberId: m.id,
-    ...splitName(m.name),
-    yearsAsMember: String(years),
-    priorLoans: String(past.length),
-    priorLatePayments: String(past.filter((l) => l.status === 'Past due').length),
+    memberId: m.memberId,
+    ...(m.lastName ? { lastName: m.lastName, firstName: m.firstName ?? '', middleInitial: m.middleInitial ?? '' } : {}),
+    ...(m.residenceAddress ? { residenceAddress: m.residenceAddress } : {}),
+    ...(m.employer ? { employer: m.employer } : {}),
+    ...(m.employmentStatus ? { employmentStatus: m.employmentStatus } : {}),
+    yearsAsMember: String(h.yearsAsMember),
+    priorLoans: String(h.priorLoans),
+    priorLatePayments: String(h.priorLatePayments),
+    ...(!hasSystemLoans && h.carriedBalance > 0 ? { longTermBalance: String(h.carriedBalance / 100) } : {}),
   }
 }
 
@@ -195,7 +202,7 @@ export const applicantOf = (f: ApplicantFields): Applicant => ({
 })
 
 /** Returns the first problem with the typed fields, or '' when they are fine. Documents are checked separately. */
-export function validateForm(f: Form): string {
+export function validateForm(f: Form, settings: LoanSettings = FALLBACK_SETTINGS): string {
   const salary = num(f.monthlySalary)
   const net = num(f.netTakeHomePay)
   const term = termMonthsOf(f)
@@ -208,10 +215,12 @@ export function validateForm(f: Form): string {
   if (salary <= 0) return 'Enter the monthly salary.'
   if (net <= 0) return 'Enter the net take-home pay.'
   if (net > salary) return 'Net take-home pay cannot be more than the monthly salary.'
+  if (salary < settings.minMonthlySalary) return `UDEI requires a monthly salary of at least ₱${settings.minMonthlySalary.toLocaleString('en-PH')}.`
   if (num(f.priorLatePayments) > num(f.priorLoans)) return 'Late payments cannot be more than past loans.'
   if (!f.applicationDate) return 'Enter the application date.'
   if (num(f.amount) <= 0) return 'Enter the loan amount.'
-  if (term < 1 || term > MAX_TERM_MONTHS) return `The period must be 1 to ${MAX_TERM_MONTHS} months (10 years).`
+  const maxTerm = Math.min(MAX_TERM_MONTHS, settings.products[f.loanType].maxTermMonths)
+  if (term < 1 || term > maxTerm) return `${settings.products[f.loanType].label} loans run 1 to ${maxTerm} months.`
   if (f.monthlyRate.trim() === '' || !Number.isFinite(rate) || rate < 0 || rate > 10) return 'Enter a rate from 0 to 10% per month.'
   if (!f.payrollDeduction) return 'The applicant must authorize payroll deduction.'
   if (!f.autoRestructure) return 'The applicant must agree to automatic re-structuring.'

@@ -8,6 +8,7 @@ const loans = require("../services/loans");
 const { STEPS, STEP_LABELS, currentStepOf, nextStep, followsSuggestion } = require("../services/approvals");
 const { requireStaff, requireLevel } = require("../middleware/auth");
 const { seesAllLoans } = require("../config/access");
+const settings = require("../services/settings");
 
 const router = express.Router();
 router.use(requireStaff);
@@ -165,10 +166,16 @@ router.post("/", async (req, res, next) => {
   try {
     const parsed = createSchema.safeParse(req.body || {});
     if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0].message });
+    const ruleError = settings.checkApplication(await settings.get(), {
+      monthlySalary: parsed.data.applicant.monthlySalary,
+      loanType: parsed.data.loan.loanType,
+      termMonths: parsed.data.loan.termMonths,
+    });
+    if (ruleError) return res.status(400).json({ error: ruleError });
     // Members apply only for themselves, and the Bookkeeper section is the Bookkeeper's to fill.
     if (!seesAllLoans(req.user)) {
       if (!req.user.memberId) {
-        return res.status(403).json({ error: "Your account isn't linked to a member record yet. Ask the UEDI office to link it." });
+        return res.status(403).json({ error: "Your account isn't linked to a member record yet. Ask the UDEI office to link it." });
       }
       parsed.data.applicant.memberId = req.user.memberId;
       parsed.data.bookkeeper = { longTermBalance: 0, shortTermBalance: 0, monthlyPayment: 0 };

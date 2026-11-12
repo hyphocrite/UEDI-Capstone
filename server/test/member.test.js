@@ -52,13 +52,13 @@ test("a member registers, applies and follows the application to a loan", { skip
   assert.equal(me.json.session.role, "member");
   assert.equal(me.json.session.memberNo, "M-0042");
 
-  const tooLong = await as(token, "/member/applications", { method: "POST", body: apply({ loanType: "emergency", termMonths: 12 }) });
+  const tooLong = await as(token, "/member/applications", { method: "POST", body: apply({ loanType: "emergency", termMonths: 13 }) });
   assert.equal(tooLong.status, 400);
 
   const created = await as(token, "/member/applications", { method: "POST", body: apply() });
   assert.equal(created.status, 201, created.json.error);
   assert.equal(created.json.application.waitingFor, "Bookkeeper");
-  assert.equal(created.json.application.loan.monthlyRate, 1);
+  assert.equal(created.json.application.loan.monthlyRate, 2, "the long-term rate from Settings");
   assert.equal(created.json.application.assessment, undefined, "members do not see model scores");
 
   const again = await as(token, "/member/applications", { method: "POST", body: apply() });

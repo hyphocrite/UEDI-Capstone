@@ -1,14 +1,20 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native'
 import { api } from '../api'
+import type { LoanSettings } from '../api'
 import { useAuth } from '../auth'
 import { pesos } from '../format'
 import { colors } from '../theme'
 import { Button, Card, Check, Choice, ErrorText, Field, Header, Row, s } from '../ui'
 
-// Same rates and limits the server applies (server/src/routes/member.js). Shown as an estimate only.
-const RATE = { long_term: 1.0, emergency: 1.5 }
-const MAX_TERM = { long_term: 12, emergency: 6 }
+// Used until the office's Settings arrive (GET /api/settings). The server applies the saved ones.
+const FALLBACK: LoanSettings = {
+  products: {
+    long_term: { label: 'Long term', monthlyRate: 2, maxTermMonths: 12 },
+    emergency: { label: 'Emergency', monthlyRate: 3, maxTermMonths: 6 },
+  },
+  minMonthlySalary: 10000,
+}
 
 type LoanType = 'long_term' | 'emergency'
 type Frequency = 'monthly' | 'quincenal'
@@ -41,14 +47,21 @@ export default function ApplyScreen({ onDone }: { onDone: () => void }) {
   })
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [rules, setRules] = useState<LoanSettings>(FALLBACK)
+  useEffect(() => {
+    api.settings().then((r) => setRules(r.settings)).catch(() => {})
+  }, [])
+  const MAX_TERM = { long_term: rules.products.long_term.maxTermMonths, emergency: rules.products.emergency.maxTermMonths }
   const set = <K extends keyof typeof f>(k: K) => (v: (typeof f)[K]) => setF((x) => ({ ...x, [k]: v }))
 
   const amount = num(f.amount)
   const term = Math.max(1, Math.min(num(f.termMonths) || 1, MAX_TERM[f.loanType]))
-  const rate = RATE[f.loanType]
-  const interest = amount * (rate / 100) * term // add-on interest, as UDEI computes it
-  const installments = term * (f.paymentFrequency === 'quincenal' ? 2 : 1)
-  const perInstallment = amount > 0 ? (amount + interest) / installments : 0
+  const rate = rules.products[f.loanType].monthlyRate
+  // Interest on the remaining balance each month, as UDEI's ledger charges it.
+  const r = rate / 100
+  const monthly = amount > 0 ? (r > 0 ? (amount * r) / (1 - (1 + r) ** -term) : amount / term) : 0
+  const interest = monthly * term - amount
+  const perInstallment = f.paymentFrequency === 'quincenal' ? monthly / 2 : monthly
 
   const changeType = (t: LoanType) =>
     setF((x) => ({ ...x, loanType: t, termMonths: String(Math.min(num(x.termMonths) || MAX_TERM[t], MAX_TERM[t])) }))

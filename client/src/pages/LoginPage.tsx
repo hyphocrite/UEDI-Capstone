@@ -39,7 +39,7 @@ export default function LoginPage() {
   return (
     <AuthShell
       title="Log in"
-      subtitle="Sign in with your UEDI staff account."
+      subtitle="Sign in with your UDEI staff account."
       footer={
         <>
           No account yet?{' '}

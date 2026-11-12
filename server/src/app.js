@@ -9,6 +9,10 @@ const applicationRoutes = require("./routes/applications");
 const loanRoutes = require("./routes/loans");
 const deductionRoutes = require("./routes/deductions");
 const memberRoutes = require("./routes/member");
+const membersRoutes = require("./routes/members");
+const planRoutes = require("./routes/retirementPlans");
+const reportRoutes = require("./routes/reports");
+const settingsRoutes = require("./routes/settings");
 
 function createApp() {
   const app = express();
@@ -36,6 +40,10 @@ function createApp() {
   app.use("/api/loans", loanRoutes);
   app.use("/api/deductions", deductionRoutes);
   app.use("/api/member", memberRoutes);
+  app.use("/api/members", membersRoutes);
+  app.use("/api/retirement-plans", planRoutes);
+  app.use("/api/reports", reportRoutes);
+  app.use("/api/settings", settingsRoutes);
 
   app.use("/api", (_req, res) => res.status(404).json({ error: "Not found." }));
 

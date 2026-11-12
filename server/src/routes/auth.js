@@ -254,7 +254,7 @@ router.patch("/users/:id/role", requireRole("admin"), async (req, res, next) => 
     // Checked after the change so two admins demoting each other at once can't both succeed.
     if (before.role === "admin" && role !== "admin" && (await User.countDocuments({ role: "admin" })) === 0) {
       await User.updateOne({ _id: before._id }, { $set: { role: "admin" } });
-      return res.status(409).json({ error: "UEDI needs at least one administrator. Make someone else an administrator first." });
+      return res.status(409).json({ error: "UDEI needs at least one administrator. Make someone else an administrator first." });
     }
     const user = await User.findById(before._id);
     res.json({ user: { ...user.toSession(), createdAt: user.createdAt } });
