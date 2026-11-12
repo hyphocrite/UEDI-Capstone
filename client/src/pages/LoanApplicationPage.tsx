@@ -17,7 +17,6 @@ import { api } from '../lib/api'
 import { atLeast } from '../lib/roles'
 import { fetchSettings, useSettings } from '../lib/settings'
 import type { LoanApplication, LoanType } from '../lib/applications'
-import { documentType } from '../lib/ocr/documentTypes'
 
 export default function LoanApplicationPage() {
   const { session } = useAuth()
@@ -62,8 +61,7 @@ export default function LoanApplicationPage() {
   const validate = () => {
     const problem = validateForm(form, settings)
     if (problem) return problem
-    const missing = documents.checklist.filter((c) => !c.filled && !c.reading)
-    if (missing.length) return `Upload the missing documents: ${missing.map((m) => documentType(m.typeId).label).join(', ')}.`
+    // Documents support the application but aren't required; wait only so an upload isn't lost mid-read.
     if (documents.reading) return 'Wait for all documents to finish reading.'
     return ''
   }
