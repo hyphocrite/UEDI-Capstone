@@ -43,10 +43,10 @@ async function setup() {
   const server = createApp().listen(0);
   const base = `http://127.0.0.1:${server.address().port}/api`;
 
-  async function call(path, { method = "GET", body, cookie } = {}) {
+  async function call(path, { method = "GET", body, cookie, headers = {} } = {}) {
     const res = await fetch(base + path, {
       method,
-      headers: { ...(body ? { "Content-Type": "application/json" } : {}), ...(cookie ? { Cookie: cookie } : {}) },
+      headers: { ...(body ? { "Content-Type": "application/json" } : {}), ...(cookie ? { Cookie: cookie } : {}), ...headers },
       body: body ? JSON.stringify(body) : undefined,
     });
     return { status: res.status, json: await res.json(), setCookie: res.headers.get("set-cookie") };

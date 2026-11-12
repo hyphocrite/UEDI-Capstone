@@ -2,7 +2,8 @@ const mongoose = require("mongoose");
 
 // loan_officer takes in applications; the four signer roles sign the approval chain
 // (see services/approvals.js); admin manages users but does not sign.
-const ROLES = ["admin", "loan_officer", "bookkeeper", "treasurer", "crecom_chair", "president", "staff"];
+// member is a cooperative member using the mobile app: they only see their own applications and loans.
+const ROLES = ["admin", "loan_officer", "bookkeeper", "treasurer", "crecom_chair", "president", "staff", "member"];
 
 const userSchema = new mongoose.Schema(
   {
@@ -21,6 +22,9 @@ const userSchema = new mongoose.Schema(
     // The member record this account belongs to, set by a Loan Officer or Administrator.
     // A member sees the loans and applications filed under this ID.
     memberId: { type: String, trim: true, maxlength: 32 },
+    // Mobile app members only.
+    memberNo: { type: String, trim: true, maxlength: 32 },
+    phone: { type: String, trim: true, maxlength: 20 },
     lastLoginAt: { type: Date },
     // false until the emailed code is entered. Accounts made before verification existed have no
     // value and are treated as verified.
@@ -44,6 +48,7 @@ userSchema.methods.toSession = function toSession() {
     role: this.role,
     branch: this.branch || null,
     memberId: this.memberId || null,
+    memberNo: this.memberNo || null,
   };
 };
 

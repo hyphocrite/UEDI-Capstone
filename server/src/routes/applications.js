@@ -6,11 +6,11 @@ const { EMPLOYMENT_STATUSES, LOAN_TYPES, PAYMENT_FREQUENCIES } = require("../mod
 const ml = require("../services/mlClient");
 const loans = require("../services/loans");
 const { STEPS, STEP_LABELS, currentStepOf, nextStep, followsSuggestion } = require("../services/approvals");
-const { requireAuth, requireLevel } = require("../middleware/auth");
+const { requireStaff, requireLevel } = require("../middleware/auth");
 const { seesAllLoans } = require("../config/access");
 
 const router = express.Router();
-router.use(requireAuth);
+router.use(requireStaff);
 
 /** A member's own applications: filed for their member ID, or submitted from their account. */
 const ownApplications = (user) => ({
@@ -138,6 +138,29 @@ async function bookkeeperFor(memberId, typed) {
   return { ...typed, source: "manual", loans: [] };
 }
 
+/** Saves a new application from a parsed createSchema body and scores it. Also used by the member app. */
+async function createApplication(data, user) {
+  const bookkeeper = await bookkeeperFor(data.applicant.memberId, data.bookkeeper);
+  let app;
+  for (let attempt = 0; attempt < 3 && !app; attempt++) {
+    try {
+      app = await Application.create({
+        ...data,
+        applicant: { ...data.applicant, fullName: fullNameOf(data.applicant) },
+        bookkeeper,
+        applicationNo: await nextApplicationNo(),
+        currentStep: STEPS[0],
+        approvals: [],
+        submittedBy: user._id,
+        submittedByName: user.fullName,
+      });
+    } catch (err) {
+      if (err?.code !== 11000) throw err; // retry on a numbering clash
+    }
+  }
+  return runAssessment(app);
+}
+
 router.post("/", async (req, res, next) => {
   try {
     const parsed = createSchema.safeParse(req.body || {});
@@ -150,26 +173,7 @@ router.post("/", async (req, res, next) => {
       parsed.data.applicant.memberId = req.user.memberId;
       parsed.data.bookkeeper = { longTermBalance: 0, shortTermBalance: 0, monthlyPayment: 0 };
     }
-    const bookkeeper = await bookkeeperFor(parsed.data.applicant.memberId, parsed.data.bookkeeper);
-
-    let app;
-    for (let attempt = 0; attempt < 3 && !app; attempt++) {
-      try {
-        app = await Application.create({
-          ...parsed.data,
-          applicant: { ...parsed.data.applicant, fullName: fullNameOf(parsed.data.applicant) },
-          bookkeeper,
-          applicationNo: await nextApplicationNo(),
-          currentStep: STEPS[0],
-          approvals: [],
-          submittedBy: req.user._id,
-          submittedByName: req.user.fullName,
-        });
-      } catch (err) {
-        if (err?.code !== 11000) throw err; // retry on a numbering clash
-      }
-    }
-    await runAssessment(app);
+    const app = await createApplication(parsed.data, req.user);
     res.status(201).json({ application: forViewer(req.user, app) });
   } catch (err) {
     next(err);
@@ -324,3 +328,5 @@ router.post("/:id/approvals", async (req, res, next) => {
 });
 
 module.exports = router;
+module.exports.createSchema = createSchema;
+module.exports.createApplication = createApplication;

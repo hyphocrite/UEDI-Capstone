@@ -21,8 +21,15 @@ function signSession(user) {
   });
 }
 
+/** The web app sends a cookie; the mobile app sends "Authorization: Bearer <token>". */
+function tokenOf(req) {
+  const header = req.get?.("authorization") || "";
+  if (header.startsWith("Bearer ")) return header.slice(7).trim();
+  return req.cookies?.[COOKIE_NAME];
+}
+
 async function loadUser(req, _res, next) {
-  const token = req.cookies?.[COOKIE_NAME];
+  const token = tokenOf(req);
   if (!token) return next();
   try {
     const payload = jwt.verify(token, env.jwtSecret, { algorithms: ["HS256"] });
@@ -36,6 +43,13 @@ async function loadUser(req, _res, next) {
 
 function requireAuth(req, res, next) {
   if (!req.user) return res.status(401).json({ error: "Please sign in." });
+  next();
+}
+
+// Office staff only. Members use /api/member and must not reach staff routes.
+function requireStaff(req, res, next) {
+  if (!req.user) return res.status(401).json({ error: "Please sign in." });
+  if (req.user.role === "member") return res.status(403).json({ error: "You do not have access to this action." });
   next();
 }
 
@@ -60,4 +74,4 @@ function requireLevel(minRole) {
   };
 }
 
-module.exports = { COOKIE_NAME, cookieOptions, signSession, loadUser, requireAuth, requireRole, requireLevel };
+module.exports = { COOKIE_NAME, cookieOptions, signSession, loadUser, requireAuth, requireStaff, requireRole, requireLevel };

@@ -4,12 +4,12 @@ const { z } = require("zod");
 const Loan = require("../models/Loan");
 const Payment = require("../models/Payment");
 const loans = require("../services/loans");
-const { requireAuth, requireRole } = require("../middleware/auth");
+const { requireStaff, requireRole } = require("../middleware/auth");
 const { seesAllLoans } = require("../config/access");
 
 // Every amount in this API is an integer number of centavos (₱1 = 100).
 const router = express.Router();
-router.use(requireAuth);
+router.use(requireStaff);
 
 const calendarDate = (what) => z.string().regex(/^\d{4}-\d{2}-\d{2}$/, `Enter the ${what}.`);
 

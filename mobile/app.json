@@ -1,0 +1,40 @@
+{
+  "expo": {
+    "name": "UDEI Member",
+    "slug": "udei-member",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "ph.edu.dnsc.udei.member"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0B422A",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "package": "ph.edu.dnsc.udei.member"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-secure-store",
+      "expo-notifications"
+    ],
+    "splash": {
+      "backgroundColor": "#0B422A"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "35fd68cf-646a-4dee-b779-0b8af820136b"
+      }
+    },
+    "owner": "hyphocrite"
+  }
+}

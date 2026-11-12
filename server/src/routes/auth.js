@@ -130,7 +130,10 @@ router.post("/login", loginLimit, async (req, res, next) => {
     const user = await User.findOne({ email }).select("+passwordHash");
     const ok = await bcrypt.compare(password, user?.passwordHash ?? DUMMY_HASH);
     if (!user || !ok) return res.status(401).json({ error: "Invalid email or password." });
-    // Checked after the password so it reveals nothing about accounts the caller can't sign in to.
+    // Checked after the password so they reveal nothing about accounts the caller can't sign in to.
+    if (user.role === "member") {
+      return res.status(403).json({ error: "Member accounts sign in on the UDEI mobile app." });
+    }
     if (user.emailVerified === false) {
       return res.status(403).json({ error: "Verify your email before signing in.", code: "EMAIL_NOT_VERIFIED" });
     }
