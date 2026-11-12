@@ -28,10 +28,9 @@ export default function AppLayout() {
   const items = nav
     .filter((n) => (n.roles ? !!role && n.roles.includes(role) : atLeast(role, n.min ?? 'staff')))
     .map((n) => (n.to === '/loans' && !atLeast(role, 'loan_officer') ? { ...n, label: 'My Loans' } : n))
-  // Long menus (Treasurer and up) only fit in one row on very wide screens; below that they use the menu button.
+  // Long menus (Treasurer and up) don't fit in one row, so on desktop they go in a sidebar instead.
   const wide = items.length > 6
-  const show = wide ? '2xl:flex' : 'xl:flex'
-  const hide = wide ? '2xl:hidden' : 'xl:hidden'
+  const hide = wide ? 'lg:hidden' : 'xl:hidden'
 
   const onLogout = async () => {
     await logout()
@@ -43,15 +42,51 @@ export default function AppLayout() {
       isActive ? 'bg-white/15 text-white' : 'text-brand-100 hover:bg-white/10 hover:text-white'
     }`
 
+  const profile = (
+    <NavLink to="/profile" title="Your profile" className={({ isActive }) =>
+        `flex min-w-0 items-center gap-2 rounded-lg px-2 py-1 transition ${isActive ? 'bg-white/15' : 'hover:bg-white/10'}`}>
+      <UserRound className="h-5 w-5 shrink-0 text-brand-100" />
+      <span className="min-w-0 text-left leading-tight">
+        <span className="block truncate text-sm font-semibold text-white">{session?.fullName}</span>
+        <span className="block text-xs text-brand-200">{session ? roleLabel[session.role] : ''}</span>
+      </span>
+    </NavLink>
+  )
+
   return (
-    <div className="min-h-screen">
-      <header className="sticky top-0 z-40 bg-[#0B422A] shadow-md print:hidden">
-        <div className={`mx-auto flex h-16 ${wide ? 'max-w-[96rem]' : 'max-w-7xl'} items-center justify-between gap-4 px-4 sm:px-6`}>
+    <div className={`min-h-screen ${wide ? 'lg:flex' : ''}`}>
+      {wide && (
+        <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col bg-[#0B422A] shadow-md lg:flex print:hidden">
+          <NavLink to={homePath(role)} aria-label="UEDI home" className="flex h-16 items-center px-5">
+            <BrandLogo light compact />
+          </NavLink>
+          <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-2" aria-label="Main">
+            {items.map(({ to, label, icon: Icon, end }) => (
+              <NavLink key={to} to={to} end={end} className={(a) => `${linkClass(a)} px-3`}>
+                <Icon className="h-4 w-4" />
+                {label}
+              </NavLink>
+            ))}
+          </nav>
+          <div className="flex flex-col gap-1 border-t border-white/10 p-3">
+            {profile}
+            <button onClick={onLogout} className="btn justify-start px-3 text-brand-100 hover:bg-white/10 hover:text-white">
+              <LogOut className="h-4 w-4" />
+              Log out
+            </button>
+          </div>
+        </aside>
+      )}
+
+      <div className={wide ? 'min-w-0 flex-1' : ''}>
+      <header className={`sticky top-0 z-40 bg-[#0B422A] shadow-md print:hidden ${wide ? 'lg:hidden' : ''}`}>
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
           <NavLink to={homePath(role)} aria-label="UEDI home">
             <BrandLogo light compact />
           </NavLink>
 
-          <nav className={`hidden items-center gap-0.5 ${show}`} aria-label="Main">
+          {!wide && (
+          <nav className={`hidden items-center gap-0.5 xl:flex`} aria-label="Main">
             {items.map(({ to, label, icon: Icon, end }) => (
               <NavLink key={to} to={to} end={end} className={linkClass}>
                 <Icon className="h-4 w-4" />
@@ -59,21 +94,17 @@ export default function AppLayout() {
               </NavLink>
             ))}
           </nav>
+          )}
 
-          <div className={`hidden items-center gap-3 ${show}`}>
-            <NavLink to="/profile" title="Your profile" className={({ isActive }) =>
-                `flex items-center gap-2 rounded-lg px-2 py-1 transition ${isActive ? 'bg-white/15' : 'hover:bg-white/10'}`}>
-              <UserRound className="h-5 w-5 text-brand-100" />
-              <span className="text-left leading-tight">
-                <span className="block text-sm font-semibold whitespace-nowrap text-white">{session?.fullName}</span>
-                <span className="block text-xs text-brand-200">{session ? roleLabel[session.role] : ''}</span>
-              </span>
-            </NavLink>
+          {!wide && (
+          <div className={`hidden items-center gap-3 xl:flex`}>
+            {profile}
             <button onClick={onLogout} className="btn px-3 text-brand-100 hover:bg-white/10 hover:text-white">
               <LogOut className="h-4 w-4" />
               Log out
             </button>
           </div>
+          )}
 
           <button
             className={`rounded-lg p-2 text-white hover:bg-white/10 ${hide}`}
@@ -115,6 +146,7 @@ export default function AppLayout() {
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 print:max-w-none print:p-0">
         <Outlet />
       </main>
+      </div>
     </div>
   )
 }
