@@ -7,7 +7,9 @@ type Auth = {
   session: Session | null
   ready: boolean
   signIn: (email: string, password: string) => Promise<void>
-  register: (body: { fullName: string; email: string; memberNo: string; phone?: string; password: string }) => Promise<void>
+  /** Creates the account and emails a code. Returns the (normalised) email and whether the email went out. */
+  register: (body: { fullName: string; email: string; memberNo: string; phone?: string; password: string }) => Promise<{ email: string; emailSent: boolean }>
+  verifyEmail: (email: string, code: string) => Promise<void>
   signOut: () => Promise<void>
 }
 
@@ -51,7 +53,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       session,
       ready,
       signIn: async (email, password) => start(await api.login(email, password)),
-      register: async (body) => start(await api.register(body)),
+      register: async (body) => {
+        const r = await api.register(body)
+        return { email: r.email, emailSent: r.emailSent }
+      },
+      verifyEmail: async (email, code) => start(await api.verifyEmail(email, code)),
       signOut,
     }),
     [session, ready, signOut],

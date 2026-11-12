@@ -53,7 +53,7 @@ export function setUnauthorizedHandler(fn: () => void) {
 }
 
 export class ApiError extends Error {
-  constructor(public status: number, message: string) {
+  constructor(public status: number, message: string, public code?: string) {
     super(message)
   }
 }
@@ -75,7 +75,7 @@ async function request<T>(path: string, options: { method?: string; body?: unkno
   }
   const json = await res.json().catch(() => ({}))
   if (res.status === 401 && token) onUnauthorized?.()
-  if (!res.ok) throw new ApiError(res.status, json.error || 'Something went wrong. Please try again.')
+  if (!res.ok) throw new ApiError(res.status, json.error || 'Something went wrong. Please try again.', json.code)
   return json as T
 }
 
@@ -83,7 +83,10 @@ export const api = {
   login: (email: string, password: string) =>
     request<{ token: string; session: Session }>('/member/login', { method: 'POST', body: { email, password } }),
   register: (body: { fullName: string; email: string; memberNo: string; phone?: string; password: string }) =>
-    request<{ token: string; session: Session }>('/member/register', { method: 'POST', body }),
+    request<{ verificationRequired: true; email: string; emailSent: boolean }>('/member/register', { method: 'POST', body }),
+  verifyEmail: (email: string, code: string) =>
+    request<{ token: string; session: Session }>('/member/verify-email', { method: 'POST', body: { email, code } }),
+  resendVerification: (email: string) => request<{ ok: true }>('/member/resend-verification', { method: 'POST', body: { email } }),
   me: () => request<{ session: Session }>('/member/me'),
   applications: () => request<{ applications: Application[] }>('/member/applications'),
   apply: (body: Record<string, unknown>) =>
