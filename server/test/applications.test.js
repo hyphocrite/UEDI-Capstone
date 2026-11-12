@@ -73,7 +73,7 @@ const application = (late = 0) => ({
     employer: "Davao del Norte State College", employmentStatus: "permanent", monthlySalary: 38000, netTakeHomePay: 24000,
     dateOfBirth: "1984-03-12", yearsAsMember: 5, priorLoans: 3, priorLatePayments: late,
   },
-  loan: { loanType: "long_term", amount: 60000, termMonths: 24, monthlyRate: 1, paymentFrequency: "quincenal" },
+  loan: { loanType: "long_term", amount: 60000, termMonths: 12, monthlyRate: 1, paymentFrequency: "quincenal" },
   bookkeeper: { longTermBalance: 12000, shortTermBalance: 0 },
   agreement: { payrollDeduction: true, autoRestructure: true, applicationDate: "2026-10-19" },
   documents: [{ fileName: "id.jpg", type: "valid_id", verdict: "verified" }, { fileName: "slip.jpg", type: "payslip", verdict: "mismatch" }],
@@ -104,7 +104,7 @@ test("submit, score and list applications", { skip: !uri && "TEST_MONGODB_URI no
   assert.deepEqual(
     { ...lastFeatures, age: undefined },
     {
-      loanType: "long_term", loanAmount: 60000, termMonths: 24, monthlyRate: 1, monthlySalary: 38000, netTakeHomePay: 24000,
+      loanType: "long_term", loanAmount: 60000, termMonths: 12, monthlyRate: 1, monthlySalary: 38000, netTakeHomePay: 24000,
       longTermBalance: 12000, shortTermBalance: 0, yearsAsMember: 5, priorLoans: 3, priorLatePayments: 0,
       employmentStatus: "permanent", documentsFlagged: 1, age: undefined,
     },

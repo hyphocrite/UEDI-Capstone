@@ -4,7 +4,7 @@ import { KeyRound, Save } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import { useAuth } from '../context/AuthContext'
 import type { Session } from '../context/AuthContext'
-import { branches } from '../data/mock'
+import { useSettings } from '../lib/settings'
 import { api } from '../lib/api'
 import { roleLabel } from '../lib/roles'
 
@@ -21,8 +21,9 @@ function Notice({ message }: { message: Message }) {
 }
 
 export default function ProfilePage() {
+  const { branches } = useSettings().settings
   const { session, updateSession } = useAuth()
-  const [details, setDetails] = useState({ fullName: session?.fullName ?? '', branch: session?.branch ?? branches[0] })
+  const [details, setDetails] = useState({ fullName: session?.fullName ?? '', branch: session?.branch ?? '' })
   const [detailsMsg, setDetailsMsg] = useState<Message>(null)
   const [savingDetails, setSavingDetails] = useState(false)
 
@@ -96,7 +97,7 @@ export default function ProfilePage() {
         </dl>
         {!session.memberId && (
           <p className="mt-4 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
-            To see your loans and apply online, ask the UEDI office to link this account to your member record.
+            To see your loans and apply online, ask the UDEI office to link this account to your member record.
           </p>
         )}
       </section>
@@ -113,6 +114,8 @@ export default function ProfilePage() {
             <label className="label" htmlFor="branch">Branch</label>
             <select id="branch" className="input" value={details.branch}
               onChange={(e) => setDetails((d) => ({ ...d, branch: e.target.value }))}>
+              <option value="">Not set</option>
+              {details.branch && !branches.includes(details.branch) && <option>{details.branch}</option>}
               {branches.map((b) => <option key={b}>{b}</option>)}
             </select>
           </div>

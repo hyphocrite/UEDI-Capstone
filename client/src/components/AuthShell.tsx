@@ -9,7 +9,7 @@ export default function AuthShell({ title, subtitle, children, footer }: Props) 
     <div className="flex min-h-screen flex-col">
       <header className="bg-[#0B422A]">
         <div className="mx-auto flex h-16 max-w-7xl items-center px-4 sm:px-6">
-          <Link to="/" aria-label="UEDI home">
+          <Link to="/" aria-label="UDEI home">
             <BrandLogo light />
           </Link>
         </div>

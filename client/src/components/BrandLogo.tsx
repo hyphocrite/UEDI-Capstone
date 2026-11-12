@@ -15,7 +15,7 @@ export default function BrandLogo({ light = false, compact = false, className = 
       </svg>
       <span className="leading-tight">
         <span className={`block text-base font-bold tracking-wide ${light ? 'text-white' : 'text-brand-800'}`}>
-          UEDI
+          UDEI
         </span>
         <span className={`hidden text-[11px] whitespace-nowrap sm:block ${compact ? 'xl:hidden ' : ''}${light ? 'text-brand-200' : 'text-brand-500'}`}>
           Loans and Retirement Plans

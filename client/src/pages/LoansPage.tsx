@@ -61,7 +61,7 @@ export default function LoansPage() {
 
       {!staffView && !session?.memberId && (
         <p className="mb-4 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800" role="status">
-          Your account isn't linked to a member record yet, so no loans are shown. Ask the UEDI office to link it.
+          Your account isn't linked to a member record yet, so no loans are shown. Ask the UDEI office to link it.
         </p>
       )}
 

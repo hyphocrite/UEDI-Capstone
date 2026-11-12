@@ -1,6 +1,6 @@
-# UEDI Loan and Retirement Plan System
+# UDEI Loan and Retirement Plan System
 
-A MERN app (MongoDB, Express, React, Node) for UEDI staff to manage members, loans,
+A MERN app (MongoDB, Express, React, Node) for UDEI staff to manage members, loans,
 retirement plans, interest rates and reports.
 
 ## What works today
@@ -16,9 +16,26 @@ retirement plans, interest rates and reports.
   machine learning models (XGBoost, Random Forest and Logistic Regression) plus a stacked
   ensemble, which suggests approve, review or deny. Loan officers and administrators
   decide on the Pending Loans page. See [ml-service/README.md](ml-service/README.md).
-- Members, loans, plans and reports use **sample data** from `client/src/data/mock.ts` for
-  now. Settings save to the browser only. These move to MongoDB next, once UEDI's
-  process is final.
+- **Members, Retirement Plans, Reports and Loan Settings** read and save to MongoDB. Settings hold the
+  interest rate and longest term for Long term and Emergency loans, the minimum monthly salary
+  (PHP 10,000 by default) and the branch list; the loan form, the member app and the server all use them.
+  Reports (daily, weekly, monthly, yearly) download as CSV for Excel or print to PDF.
+
+## Loading UDEI's records
+
+UDEI's own spreadsheets (the bookkeeper's `UDEI LOANS-2026.xlsx` and `UDEI CONTRIBUTIONS 2026.xlsx`)
+load with one command. It adds every member by UDEI number, the Mutual Assistance balances as of the
+ledger date, the 2026 payments and releases (for Reports) and each member's retirement plan and monthly
+contributions. Names are not in those files, so members show as "Member No. 12" until staff type the
+name on the Members page. Running it again replaces what the last import wrote and keeps what staff entered.
+
+```
+npm --prefix server run import:udei -- --dry-run "UDEI LOANS-2026.xlsx" "UDEI CONTRIBUTIONS 2026.xlsx"
+npm --prefix server run import:udei -- "UDEI LOANS-2026.xlsx" "UDEI CONTRIBUTIONS 2026.xlsx"
+```
+
+It writes to `MONGODB_URI` in `server/.env`, so point that at Atlas to load the hosted database.
+Keep the spreadsheets out of git: they are members' financial records.
 
 ## Project layout
 

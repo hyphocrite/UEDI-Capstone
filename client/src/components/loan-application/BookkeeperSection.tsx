@@ -13,7 +13,7 @@ const rows = [
 
 /**
  * "To be filled up by the Bookkeeper". Filled from the ledger when the member has loans on record;
- * otherwise typed from the Bookkeeper's books (UEDI's older loans aren't in the system yet).
+ * otherwise typed from the Bookkeeper's books (UDEI's older loans aren't in the system yet).
  */
 export default function BookkeeperSection({ form, update, ledger }: Props) {
   const fromLedger = ledger.status === 'ledger'
@@ -40,7 +40,7 @@ export default function BookkeeperSection({ form, update, ledger }: Props) {
             {balances && <LoanList group={balances[r.group]} />}
           </div>
         ))}
-        <Field id="monthlyPayment" label="Paid per month on these loans (₱)" hint="What payroll already deducts for UEDI each month.">
+        <Field id="monthlyPayment" label="Paid per month on these loans (₱)" hint="What payroll already deducts for UDEI each month.">
           <input id="monthlyPayment" type="number" min={0} inputMode="decimal" className={inputClass} readOnly={locked}
             value={form.monthlyPayment} onChange={(e) => update({ monthlyPayment: e.target.value })} />
         </Field>
@@ -65,7 +65,7 @@ function LedgerNote({ ledger }: { ledger: LedgerState }) {
   if (ledger.status === 'error') {
     return <p className={`${box} bg-amber-50 text-amber-800`}>Couldn't check the ledger ({ledger.message}). Enter balances from the Bookkeeper's books.</p>
   }
-  return <p className={`${box} bg-brand-50 text-brand-700`}>No loans on record. Enter balances from the Bookkeeper's books.</p>
+  return <p className={`${box} bg-brand-50 text-brand-700`}>No loans in the system yet. Picking a member fills in the balance from UDEI's ledger; check it against the books.</p>
 }
 
 function LoanList({ group }: { group: MemberBalances['longTerm'] }) {

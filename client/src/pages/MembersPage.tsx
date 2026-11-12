@@ -1,62 +1,102 @@
-import { useMemo, useState } from 'react'
-import type { FormEvent } from 'react'
-import { PiggyBank, Plus, Search, UserCheck, Users, HandCoins } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { HandCoins, Pencil, PiggyBank, Plus, Search, UserCheck, Users } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import StatCard from '../components/StatCard'
 import StatusBadge from '../components/StatusBadge'
-import Modal from '../components/Modal'
 import AccountLinksSection from '../components/members/AccountLinksSection'
-import { branches, loans, members as seedMembers, retirementPlans } from '../data/mock'
-import type { Member } from '../data/mock'
+import MemberForm from '../components/members/MemberForm'
+import { api } from '../lib/api'
 import { formatDate } from '../lib/format'
+import { formatCentavos } from '../lib/loans'
+import { byMemberId, memberStatusLabel, planStatusLabel } from '../lib/members'
+import type { Member } from '../lib/members'
+import { useSettings } from '../lib/settings'
+
+const short = (c: number) => formatCentavos(c).replace(/\.00$/, '')
 
 export default function MembersPage() {
-  const [members, setMembers] = useState<Member[]>(seedMembers)
+  const { settings } = useSettings()
+  const [members, setMembers] = useState<Member[] | null>(null)
+  const [nextMemberId, setNextMemberId] = useState('1')
+  const [loadError, setLoadError] = useState('')
   const [query, setQuery] = useState('')
   const [branch, setBranch] = useState('All')
-  const [adding, setAdding] = useState(false)
+  const [status, setStatus] = useState<'all' | 'active' | 'inactive'>('active')
+  const [editing, setEditing] = useState<Member | null | 'new'>(null)
+  const [notice, setNotice] = useState('')
 
+  const load = () =>
+    api<{ members: Member[]; nextMemberId: string }>('/api/members')
+      .then((d) => {
+        setMembers(d.members)
+        setNextMemberId(d.nextMemberId)
+      })
+      .catch((err: unknown) => setLoadError(err instanceof Error ? err.message : 'Could not load members.'))
+
+  useEffect(() => {
+    void load()
+  }, [])
+
+  const list = useMemo(() => members ?? [], [members])
+  const branchOptions = useMemo(
+    () => [...new Set([...settings.branches, ...list.map((m) => m.branch).filter((b): b is string => !!b)])],
+    [settings.branches, list],
+  )
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return members.filter(
+    return list.filter(
       (m) =>
+        (status === 'all' || m.status === status) &&
         (branch === 'All' || m.branch === branch) &&
-        (!q || m.name.toLowerCase().includes(q) || m.id.toLowerCase().includes(q)),
+        (!q || m.fullName.toLowerCase().includes(q) || m.memberId.toLowerCase() === q || m.memberId.toLowerCase().includes(q)),
     )
-  }, [members, query, branch])
+  }, [list, query, branch, status])
 
-  const activeLoansFor = (id: string) => loans.filter((l) => l.memberId === id && l.status !== 'Fully paid').length
-  const planFor = (id: string) => retirementPlans.find((p) => p.memberId === id)
+  const saved = (m: Member) => {
+    setNotice(editing === 'new' ? `${m.fullName} was added as member no. ${m.memberId}.` : `${m.fullName}'s record was saved.`)
+    void load()
+  }
+
+  const totalLoans = list.reduce((s, m) => s + (m.loanBalance ?? 0), 0)
+  const totalPlans = list.reduce((s, m) => s + (m.plan?.balance ?? 0), 0)
 
   return (
     <>
       <PageHeader
         title="Members"
-        subtitle="Everyone enrolled with UEDI, their loans and retirement plans."
+        subtitle="Everyone enrolled with UDEI, their Mutual Assistance balance and retirement plan."
         actions={
-          <button className="btn-primary" onClick={() => setAdding(true)}>
+          <button className="btn-primary" onClick={() => setEditing('new')}>
             <Plus className="h-4 w-4" /> Add member
           </button>
         }
       />
 
+      {notice && <p className="mb-4 rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-800" role="status">{notice}</p>}
+      {loadError && <p className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{loadError}</p>}
+
       <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard icon={Users} label="Total members" value={String(members.length)} />
-        <StatCard icon={UserCheck} label="Active" value={String(members.filter((m) => m.status === 'Active').length)} />
-        <StatCard icon={HandCoins} label="With open loans" value={String(members.filter((m) => activeLoansFor(m.id) > 0).length)} />
-        <StatCard icon={PiggyBank} label="With retirement plans" value={String(members.filter((m) => planFor(m.id)).length)} />
+        <StatCard icon={Users} label="Members" value={members ? String(list.length) : '…'} hint={`${list.filter((m) => m.status === 'inactive').length} inactive`} />
+        <StatCard icon={UserCheck} label="Active" value={members ? String(list.filter((m) => m.status === 'active').length) : '…'} />
+        <StatCard icon={HandCoins} label="Loan balances" value={members ? short(totalLoans) : '…'} hint={`${list.filter((m) => (m.loanBalance ?? 0) > 0).length} members owe`} />
+        <StatCard icon={PiggyBank} label="Retirement plans" value={members ? short(totalPlans) : '…'} hint={`${list.filter((m) => m.plan).length} members enrolled`} />
       </div>
 
-      <div className="card">
+      <div className="card min-w-0">
         <div className="flex flex-col gap-3 border-b border-brand-100 p-4 sm:flex-row">
           <div className="relative flex-1">
             <Search className="pointer-events-none absolute top-2.5 left-3 h-4 w-4 text-brand-400" />
-            <input className="input pl-9" placeholder="Search by name or member ID" value={query}
+            <input className="input pl-9" placeholder="Search by name or member no." value={query}
               onChange={(e) => setQuery(e.target.value)} aria-label="Search members" />
           </div>
+          <select className="input sm:w-44" value={status} onChange={(e) => setStatus(e.target.value as typeof status)} aria-label="Filter by status">
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+            <option value="all">All statuses</option>
+          </select>
           <select className="input sm:w-48" value={branch} onChange={(e) => setBranch(e.target.value)} aria-label="Filter by branch">
-            <option>All</option>
-            {branches.map((b) => <option key={b}>{b}</option>)}
+            <option value="All">All branches</option>
+            {branchOptions.map((b) => <option key={b}>{b}</option>)}
           </select>
         </div>
 
@@ -66,104 +106,80 @@ export default function MembersPage() {
               <tr>
                 <th className="px-4 py-3">Member</th>
                 <th className="px-4 py-3">Contact</th>
-                <th className="px-4 py-3">Branch</th>
-                <th className="px-4 py-3">Joined</th>
-                <th className="px-4 py-3">Open loans</th>
-                <th className="px-4 py-3">Retirement plan</th>
+                <th className="px-4 py-3">Member since</th>
+                <th className="px-4 py-3 text-right">Loan balance</th>
+                <th className="px-4 py-3 text-right">Retirement plan</th>
                 <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3"><span className="sr-only">Edit</span></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-brand-50">
-              {filtered.map((m) => {
-                const plan = planFor(m.id)
-                return (
-                  <tr key={m.id} className="hover:bg-brand-50/50">
-                    <td className="px-4 py-3">
-                      <p className="font-semibold text-ink">{m.name}</p>
-                      <p className="text-xs text-brand-500">{m.id}</p>
-                    </td>
-                    <td className="px-4 py-3">
-                      <p>{m.phone}</p>
-                      <p className="text-xs text-brand-500">{m.email}</p>
-                    </td>
-                    <td className="px-4 py-3">{m.branch}</td>
-                    <td className="px-4 py-3">{formatDate(m.joined)}</td>
-                    <td className="px-4 py-3">{activeLoansFor(m.id)}</td>
-                    <td className="px-4 py-3">{plan ? plan.planName : <span className="text-brand-400">None</span>}</td>
-                    <td className="px-4 py-3"><StatusBadge status={m.status} /></td>
-                  </tr>
-                )
-              })}
-              {filtered.length === 0 && (
-                <tr><td colSpan={7} className="px-4 py-10 text-center text-brand-500">No members match your search.</td></tr>
+              {[...filtered].sort(byMemberId).map((m) => (
+                <tr key={m.memberId} className="hover:bg-brand-50/50">
+                  <td className="px-4 py-3">
+                    <p className={`font-semibold ${m.lastName ? 'text-ink' : 'text-brand-500 italic'}`}>{m.fullName}</p>
+                    <p className="text-xs text-brand-500">No. {m.memberId}{m.branch ? ` · ${m.branch}` : ''}</p>
+                  </td>
+                  <td className="px-4 py-3">
+                    {m.phone || m.email ? (
+                      <>
+                        <p>{m.phone}</p>
+                        <p className="text-xs text-brand-500">{m.email}</p>
+                      </>
+                    ) : <span className="text-brand-400">Not on file</span>}
+                  </td>
+                  <td className="px-4 py-3">{m.joinedAt ? formatDate(m.joinedAt) : <span className="text-brand-400">Not on file</span>}</td>
+                  <td className="px-4 py-3 text-right">
+                    {(m.loanBalance ?? 0) > 0 ? <span className="font-semibold">{short(m.loanBalance!)}</span> : <span className="text-brand-400">None</span>}
+                    {(m.openLoans ?? 0) > 0 && <p className="text-xs text-brand-500">{m.openLoans} in the system</p>}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    {m.plan ? (
+                      <>
+                        <p className="font-semibold">{short(m.plan.balance)}</p>
+                        <p className={`text-xs ${m.plan.status === 'behind' ? 'text-amber-700' : 'text-brand-500'}`}>{planStatusLabel[m.plan.status]}</p>
+                      </>
+                    ) : <span className="text-brand-400">None</span>}
+                  </td>
+                  <td className="px-4 py-3">
+                    <StatusBadge status={memberStatusLabel[m.status]} />
+                    {m.remarks && <p className="mt-1 text-xs text-brand-600">{m.remarks}</p>}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <button className="rounded p-1.5 text-brand-600 hover:bg-brand-50" onClick={() => setEditing(m)} aria-label={`Edit ${m.fullName}`}>
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {members && filtered.length === 0 && (
+                <tr><td colSpan={7} className="px-4 py-10 text-center text-brand-500">
+                  {list.length ? 'No members match your search.' : 'No members yet. Add them here, or load UDEI\'s spreadsheets with the import script.'}
+                </td></tr>
               )}
+              {!members && !loadError && <tr><td colSpan={7} className="px-4 py-10 text-center text-brand-500">Loading members…</td></tr>}
             </tbody>
           </table>
         </div>
+        <p className="border-t border-brand-100 px-4 py-3 text-xs text-brand-500">
+          Loan balance is what the member owes on loans in this system plus the balance carried over from UDEI's ledger
+          {list.find((m) => m.openingLoan)?.openingLoan?.asOf ? ` (as of ${formatDate(list.find((m) => m.openingLoan)!.openingLoan!.asOf)})` : ''}.
+        </p>
       </div>
 
       <AccountLinksSection />
 
-      <AddMemberModal
-        open={adding}
-        onClose={() => setAdding(false)}
-        nextId={`M-${String(members.length + 1).padStart(4, '0')}`}
-        onAdd={(m) => setMembers((list) => [m, ...list])}
-      />
+      {editing && (
+        <MemberForm
+          key={editing === 'new' ? 'new' : editing.memberId}
+          member={editing === 'new' ? null : editing}
+          nextMemberId={nextMemberId}
+          branches={settings.branches}
+          open
+          onClose={() => setEditing(null)}
+          onSaved={saved}
+        />
+      )}
     </>
-  )
-}
-
-function AddMemberModal({ open, onClose, nextId, onAdd }: {
-  open: boolean
-  onClose: () => void
-  nextId: string
-  onAdd: (m: Member) => void
-}) {
-  const [form, setForm] = useState({ name: '', phone: '', email: '', branch: branches[0] })
-  const [error, setError] = useState('')
-
-  const submit = (e: FormEvent) => {
-    e.preventDefault()
-    if (form.name.trim().length < 2) return setError('Enter the member’s full name.')
-    if (!/^09\d{9}$/.test(form.phone)) return setError('Phone must be 11 digits starting with 09.')
-    onAdd({ id: nextId, ...form, name: form.name.trim(), joined: new Date().toISOString().slice(0, 10), status: 'Active' })
-    setForm({ name: '', phone: '', email: '', branch: branches[0] })
-    setError('')
-    onClose()
-  }
-
-  return (
-    <Modal title="Add member" open={open} onClose={onClose}>
-      <form onSubmit={submit} className="space-y-4" noValidate>
-        <p className="text-xs text-brand-500">New member ID: {nextId}. Saved on this screen only until members are connected to the database.</p>
-        <div>
-          <label className="label" htmlFor="m-name">Full name</label>
-          <input id="m-name" className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label className="label" htmlFor="m-phone">Mobile number</label>
-            <input id="m-phone" className="input" inputMode="numeric" placeholder="09XXXXXXXXX" value={form.phone}
-              onChange={(e) => setForm({ ...form, phone: e.target.value.replace(/\D/g, '').slice(0, 11) })} />
-          </div>
-          <div>
-            <label className="label" htmlFor="m-branch">Branch</label>
-            <select id="m-branch" className="input" value={form.branch} onChange={(e) => setForm({ ...form, branch: e.target.value })}>
-              {branches.map((b) => <option key={b}>{b}</option>)}
-            </select>
-          </div>
-        </div>
-        <div>
-          <label className="label" htmlFor="m-email">Email (optional)</label>
-          <input id="m-email" type="email" className="input" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-        </div>
-        {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{error}</p>}
-        <div className="flex justify-end gap-2">
-          <button type="button" className="btn-ghost" onClick={onClose}>Cancel</button>
-          <button type="submit" className="btn-primary">Add member</button>
-        </div>
-      </form>
-    </Modal>
   )
 }

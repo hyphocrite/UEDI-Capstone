@@ -59,7 +59,7 @@ export default function CreditModelPage() {
       {model?.sampleData && (
         <p className="mb-4 flex items-start gap-2 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-          The model is trained on sample loans shaped like UEDI's form, rates and terms. UEDI's records so far (45 borrowers) are too few to train on; retrain once there are about 200 loans.
+          The model is trained on sample loans shaped like UDEI's form, rates and terms. UDEI's records so far (45 borrowers) are too few to train on; retrain once there are about 200 loans.
         </p>
       )}
 

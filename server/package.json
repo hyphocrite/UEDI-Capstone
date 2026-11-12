@@ -8,7 +8,8 @@
     "start": "node src/index.js",
     "test": "node --test --test-concurrency=1 test/*.test.js",
     "seed": "node scripts/seed-applications.js",
-    "seed:signers": "node scripts/seed-signers.js"
+    "seed:signers": "node scripts/seed-signers.js",
+    "import:udei": "node scripts/import-udei.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
@@ -22,6 +23,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "exceljs": "^4.4.0",
     "nodemon": "^3.1.14"
   },
   "private": true

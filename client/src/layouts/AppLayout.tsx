@@ -57,7 +57,7 @@ export default function AppLayout() {
     <div className={`min-h-screen ${wide ? 'lg:flex' : ''}`}>
       {wide && (
         <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col bg-[#0B422A] shadow-md lg:flex print:hidden">
-          <NavLink to={homePath(role)} aria-label="UEDI home" className="flex h-16 items-center px-5">
+          <NavLink to={homePath(role)} aria-label="UDEI home" className="flex h-16 items-center px-5">
             <BrandLogo light compact />
           </NavLink>
           <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-2" aria-label="Main">
@@ -81,7 +81,7 @@ export default function AppLayout() {
       <div className={wide ? 'min-w-0 flex-1' : ''}>
       <header className={`sticky top-0 z-40 bg-[#0B422A] shadow-md print:hidden ${wide ? 'lg:hidden' : ''}`}>
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
-          <NavLink to={homePath(role)} aria-label="UEDI home">
+          <NavLink to={homePath(role)} aria-label="UDEI home">
             <BrandLogo light compact />
           </NavLink>
 

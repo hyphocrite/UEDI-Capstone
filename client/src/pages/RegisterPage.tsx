@@ -4,7 +4,7 @@ import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { UserPlus } from 'lucide-react'
 import AuthShell from '../components/AuthShell'
 import { useAuth } from '../context/AuthContext'
-import { branches } from '../data/mock'
+import { useSettings } from '../lib/settings'
 
 function validate(v: { fullName: string; email: string; password: string; confirm: string }) {
   if (v.fullName.trim().length < 2) return 'Enter your full name.'
@@ -17,9 +17,10 @@ function validate(v: { fullName: string; email: string; password: string; confir
 }
 
 export default function RegisterPage() {
+  const { branches } = useSettings().settings
   const { session, register } = useAuth()
   const navigate = useNavigate()
-  const [form, setForm] = useState({ fullName: '', email: '', branch: branches[0], password: '', confirm: '' })
+  const [form, setForm] = useState({ fullName: '', email: '', branch: '', password: '', confirm: '' })
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -39,7 +40,7 @@ export default function RegisterPage() {
         fullName: form.fullName.trim(),
         email: form.email.trim(),
         password: form.password,
-        branch: form.branch,
+        branch: form.branch || branches[0],
       })
       navigate('/verify-email', { replace: true, state: { email, emailSent } })
     } catch (err) {
@@ -52,7 +53,7 @@ export default function RegisterPage() {
   return (
     <AuthShell
       title="Create your account"
-      subtitle="Staff accounts for UEDI's loan and retirement plan office."
+      subtitle="Staff accounts for UDEI's loan and retirement plan office."
       footer={
         <>
           Already registered?{' '}
@@ -73,7 +74,7 @@ export default function RegisterPage() {
         </div>
         <div>
           <label className="label" htmlFor="branch">Branch</label>
-          <select id="branch" className="input" value={form.branch} onChange={set('branch')}>
+          <select id="branch" className="input" value={form.branch || branches[0]} onChange={set('branch')}>
             {branches.map((b) => <option key={b}>{b}</option>)}
           </select>
         </div>

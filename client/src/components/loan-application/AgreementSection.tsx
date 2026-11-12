@@ -1,6 +1,7 @@
 import { AlertTriangle } from 'lucide-react'
 import Field, { FormSection } from './Field'
-import { AUTO_RESTRUCTURE_TEXT, MAX_TERM_MONTHS, PAYROLL_DEDUCTION_TEXT, affordabilityNote, installmentOf, termMonthsOf } from './applicationForm'
+import { useSettings } from '../../lib/settings'
+import { AUTO_RESTRUCTURE_TEXT, PAYROLL_DEDUCTION_TEXT, affordabilityNote, installmentOf, termMonthsOf } from './applicationForm'
 import type { Form, PaymentFrequency, PeriodUnit } from './applicationForm'
 import { loanTypeLabel } from '../../lib/applications'
 import type { LoanType } from '../../lib/applications'
@@ -45,6 +46,7 @@ function Choice<T extends string>({ name, value, options, onChange }: {
 }
 
 export default function AgreementSection({ form, update, onLoanTypeChange }: Props) {
+  const { settings } = useSettings()
   const term = termMonthsOf(form)
   const inst = installmentOf(form)
   const note = affordabilityNote(form)
@@ -80,7 +82,7 @@ export default function AgreementSection({ form, update, onLoanTypeChange }: Pro
           <Field
             id="period"
             label="Period"
-            hint={form.periodUnit === 'years' && term > 0 ? `${term} months` : `Up to ${MAX_TERM_MONTHS / 12} years.`}
+            hint={form.periodUnit === 'years' && term > 0 ? `${term} months` : `Up to ${settings.products[form.loanType].maxTermMonths} months.`}
           >
             <div className="flex gap-2">
               <input id="period" type="number" min={1} inputMode="decimal" className="input min-w-0" value={form.period} onChange={(e) => update({ period: e.target.value })} />
@@ -128,7 +130,7 @@ export default function AgreementSection({ form, update, onLoanTypeChange }: Pro
         </dl>
         {Number(form.monthlyPayment) > 0 && (
           <p className="-mt-2 text-center text-xs text-brand-600">
-            Already deducted: <strong className="text-ink">{formatCentavos(toCentavos(form.monthlyPayment))} per month</strong> on existing UEDI loans
+            Already deducted: <strong className="text-ink">{formatCentavos(toCentavos(form.monthlyPayment))} per month</strong> on existing UDEI loans
             {inst && <>, so {formatCentavos(toCentavos(form.monthlyPayment) + Math.round(inst.monthly * 100))} per month in all</>}.
           </p>
         )}
