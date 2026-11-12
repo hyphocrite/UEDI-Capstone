@@ -14,10 +14,11 @@ import { useMemberLedger } from '../components/loan-application/useMemberLedger'
 import { useSupportingDocuments } from '../components/loan-application/useSupportingDocuments'
 import { useAuth } from '../context/AuthContext'
 import { api } from '../lib/api'
+import { clearDraft, draftKey, loadDraft, saveDraft } from '../lib/drafts'
+import { formatDateTime } from '../lib/format'
 import { atLeast } from '../lib/roles'
 import { fetchSettings, useSettings } from '../lib/settings'
 import type { LoanApplication, LoanType } from '../lib/applications'
-import { documentType } from '../lib/ocr/documentTypes'
 
 export default function LoanApplicationPage() {
   const { session } = useAuth()
@@ -26,7 +27,12 @@ export default function LoanApplicationPage() {
   const staffView = atLeast(session?.role, 'loan_officer')
   const ownMemberId = staffView ? '' : session?.memberId ?? ''
   const freshForm = () => ({ ...emptyForm(), memberId: ownMemberId })
-  const [form, setForm] = useState<Form>(freshForm)
+  // What was typed is kept in this browser until it is sent, so a reload doesn't lose it.
+  const key = draftKey('loanApplication', session?.id ?? 'anonymous')
+  const [restored] = useState(() => loadDraft<Form>(key))
+  const [restoredNotice, setRestoredNotice] = useState(!!restored)
+  // A member's own ID always comes from their account, never from the draft.
+  const [form, setForm] = useState<Form>(() => ({ ...freshForm(), ...restored?.values, ...(staffView ? {} : { memberId: ownMemberId }) }))
   const [error, setError] = useState('')
   const [confirming, setConfirming] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -47,6 +53,16 @@ export default function LoanApplicationPage() {
   )
   const documents = useSupportingDocuments(applicant, form.loanType)
 
+  useEffect(() => {
+    if (submitted) return
+    // Nothing typed yet (the date and the rate from Settings fill themselves in): don't keep a draft.
+    const blank = JSON.stringify(form) === JSON.stringify({ ...freshForm(), applicationDate: form.applicationDate, monthlyRate: form.monthlyRate, rateEdited: form.rateEdited })
+    if (blank) clearDraft(key)
+    else saveDraft(key, form)
+    // freshForm only depends on ownMemberId, which comes from the session like key.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, form, submitted])
+
   const update = (patch: Partial<Form>) => {
     setForm((f) => ({ ...f, ...patch }))
     setError('')
@@ -62,8 +78,7 @@ export default function LoanApplicationPage() {
   const validate = () => {
     const problem = validateForm(form, settings)
     if (problem) return problem
-    const missing = documents.checklist.filter((c) => !c.filled && !c.reading)
-    if (missing.length) return `Upload the missing documents: ${missing.map((m) => documentType(m.typeId).label).join(', ')}.`
+    // Documents support the application but aren't required; wait only so an upload isn't lost mid-read.
     if (documents.reading) return 'Wait for all documents to finish reading.'
     return ''
   }
@@ -76,6 +91,7 @@ export default function LoanApplicationPage() {
         method: 'POST',
         body: JSON.stringify(buildPayload(form, documents.payload())),
       })
+      clearDraft(key)
       setSubmitted(application)
       window.scrollTo({ top: 0 })
     } catch (err) {
@@ -95,8 +111,10 @@ export default function LoanApplicationPage() {
 
   const reset = () => {
     documents.clear()
+    clearDraft(key)
     setForm({ ...freshForm(), monthlyRate: rateFor(settings, 'long_term') })
     setError('')
+    setRestoredNotice(false)
     setSubmitted(null)
   }
 
@@ -121,6 +139,19 @@ export default function LoanApplicationPage() {
         title={staffView ? 'Loan Application' : 'Apply for a Loan'}
         subtitle="Mutual Assistance Application Form, United DNSC Employees, Inc. Supporting documents are read and checked against the form."
       />
+
+      {restoredNotice && restored && (
+        <div className="mb-4 flex flex-col gap-2 rounded-lg bg-sky-50 px-4 py-3 text-sm text-sky-900 sm:flex-row sm:items-center" role="status">
+          <p className="flex-1">
+            Restored the application you were filling in ({formatDateTime(restored.savedAt)}). Supporting documents
+            aren't kept, so add them again.
+          </p>
+          <div className="flex gap-2">
+            <button type="button" className="btn-ghost px-3 py-1.5" onClick={() => setRestoredNotice(false)}>Keep going</button>
+            <button type="button" className="btn-ghost px-3 py-1.5" onClick={reset}>Start over</button>
+          </div>
+        </div>
+      )}
 
       <div className="grid min-w-0 grid-cols-1 gap-6">
         <ApplicantSection form={form} update={update} lockedMemberId={staffView ? undefined : ownMemberId} />

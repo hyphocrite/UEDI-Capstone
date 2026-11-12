@@ -34,7 +34,7 @@ export default function DocumentsSection({ loanType, documents: d }: Props) {
       subtitle="Take a photo of each document or choose a file (JPEG, PNG, WebP or PDF, up to 10 MB). Each one is read on this device and checked against the form above."
     >
       <div className="mb-4 rounded-lg bg-brand-50 p-3">
-        <p className="mb-2 text-sm font-semibold text-brand-800">Required for {loanTypeLabel[loanType]}</p>
+        <p className="mb-2 text-sm font-semibold text-brand-800">Recommended for {loanTypeLabel[loanType]}, but optional: the application can be sent without them.</p>
         <ul className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
           {d.checklist.map(({ typeId, verdict, reading }) => (
             <li key={typeId} className="flex min-w-0 items-start gap-2">
