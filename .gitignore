@@ -21,3 +21,12 @@ ml-service/data/*
 !ml-service/data/public/
 # Document photos for OCR testing: real IDs and payslips must never be committed
 client/ocr-samples/
+# Spreadsheets hold members' financial records (loan ledgers, contributions): never commit them.
+# The CSVs above that the ML service needs stay tracked.
+*.xlsx
+*.xls
+*.xlsm
+*.csv
+!ml-service/data/sample_loans.csv
+!ml-service/data/uedi_loans_template.csv
+!ml-service/data/public/*.csv
