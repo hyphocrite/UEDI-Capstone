@@ -23,16 +23,16 @@ async function issue(user) {
   await user.save();
   await mailer.send({
     to: user.email,
-    subject: `Your UEDI verification code: ${code}`,
+    subject: `Your UDEI verification code: ${code}`,
     text:
       `Hello ${user.fullName},\n\n` +
-      `Your UEDI account verification code is ${code}.\n` +
-      `It expires in 15 minutes. If you didn't create a UEDI account, you can ignore this email.\n`,
+      `Your UDEI account verification code is ${code}.\n` +
+      `It expires in 15 minutes. If you didn't create a UDEI account, you can ignore this email.\n`,
     html:
       `<p>Hello ${escapeHtml(user.fullName)},</p>` +
-      `<p>Your UEDI account verification code is</p>` +
+      `<p>Your UDEI account verification code is</p>` +
       `<p style="font-size:28px;font-weight:bold;letter-spacing:6px">${code}</p>` +
-      `<p>It expires in 15 minutes. If you didn't create a UEDI account, you can ignore this email.</p>`,
+      `<p>It expires in 15 minutes. If you didn't create a UDEI account, you can ignore this email.</p>`,
   });
 }
 

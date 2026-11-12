@@ -2,7 +2,7 @@
 //   TEST_MONGODB_URI=mongodb://127.0.0.1:27017/uedi_test npm test
 const { test, before, after } = require("node:test");
 const assert = require("node:assert/strict");
-const { uri, setup } = require("./helpers");
+const { uri, setup, lastCode } = require("./helpers");
 
 const skip = !uri && "TEST_MONGODB_URI not set";
 let t;
@@ -33,7 +33,9 @@ async function member(email, memberNo = "M-0042") {
     body: { fullName: "Maria C. Santos", email, memberNo, password: "secret123" },
   });
   assert.equal(r.status, 201, r.json.error);
-  return r.json.token;
+  const v = await t.call("/member/verify-email", { method: "POST", body: { email, code: lastCode(email) } });
+  assert.equal(v.status, 200, v.json.error);
+  return v.json.token;
 }
 
 const apply = (overrides = {}) => ({
@@ -105,4 +107,39 @@ test("members only see their own records and cannot use staff routes", { skip },
   const staffOnPhone = await t.call("/member/login", { method: "POST", body: { email: "admin@uedi.test", password: "secret123" } });
   assert.equal(staffOnPhone.status, 403);
   assert.equal((await t.call("/member/me", { cookie: admin.cookie })).status, 403);
+});
+
+test("a member must verify their email before the app gets a token", { skip }, async () => {
+  const email = "pedro@uedi.test";
+  const body = { fullName: "Pedro Reyes", email, memberNo: "M-0077", password: "secret123" };
+  const reg = await t.call("/member/register", { method: "POST", body });
+  assert.equal(reg.status, 201, reg.json.error);
+  assert.equal(reg.json.verificationRequired, true);
+  assert.equal(reg.json.token, undefined, "no token before the email is verified");
+
+  const early = await t.call("/member/login", { method: "POST", body: { email, password: "secret123" } });
+  assert.equal(early.status, 403);
+  assert.equal(early.json.code, "EMAIL_NOT_VERIFIED");
+
+  const code = lastCode(email);
+  assert.match(code, /^\d{6}$/);
+  const wrong = String((Number(code) + 1) % 1_000_000).padStart(6, "0");
+  assert.equal((await t.call("/member/verify-email", { method: "POST", body: { email, code: wrong } })).status, 400);
+
+  const resend = await t.call("/member/resend-verification", { method: "POST", body: { email } });
+  assert.equal(resend.status, 200);
+  assert.equal(lastCode(email), code, "no new code inside the one-minute cooldown");
+
+  const ok = await t.call("/member/verify-email", { method: "POST", body: { email, code } });
+  assert.equal(ok.status, 200, ok.json.error);
+  assert.ok(ok.json.token);
+  assert.equal(ok.json.session.role, "member");
+  assert.equal((await as(ok.json.token, "/member/me")).status, 200);
+
+  const reuse = await t.call("/member/verify-email", { method: "POST", body: { email, code } });
+  assert.equal(reuse.status, 400, "a code works once");
+
+  const login = await t.call("/member/login", { method: "POST", body: { email, password: "secret123" } });
+  assert.equal(login.status, 200);
+  assert.ok(login.json.token);
 });

@@ -12,6 +12,8 @@ const loans = require("../services/loans");
 const { STEP_LABELS, currentStepOf } = require("../services/approvals");
 const { createSchema, createApplication } = require("./applications");
 const { signSession, requireAuth } = require("../middleware/auth");
+const { rateLimit } = require("../middleware/rateLimit");
+const verification = require("../services/emailVerification");
 
 const router = express.Router();
 
@@ -58,6 +60,21 @@ const applySchema = z.object({
   autoRestructure: z.literal(true, { message: "You must agree to automatic restructuring." }),
 });
 
+const codeSchema = z.object({
+  email: z.string().trim().toLowerCase().email("Enter a valid email address."),
+  code: z.string().trim().regex(/^\d{6}$/, "Enter the 6-digit code from the email."),
+});
+const emailSchema = z.object({ email: z.string().trim().toLowerCase().email("Enter a valid email address.") });
+
+// Same limits as the web sign-in (routes/auth.js).
+const MINUTE = 60 * 1000;
+const emailKey = (req) => String(req.body?.email || "").trim().toLowerCase();
+const registerLimit = rateLimit({ windowMs: 60 * MINUTE, max: 10, message: "Too many sign-ups from this network. Try again later." });
+const loginLimit = rateLimit({ windowMs: 15 * MINUTE, max: 10, key: emailKey, message: "Too many sign-in attempts. Wait 15 minutes and try again." });
+const verifyLimit = rateLimit({ windowMs: 15 * MINUTE, max: 20, message: "Too many attempts. Wait 15 minutes and try again." });
+// Compared against when the email is unknown, so a login takes as long whether or not the account exists.
+const DUMMY_HASH = bcrypt.hashSync("not-a-real-password", 12);
+
 const firstIssue = (result) => result.error.issues[0]?.message || "Invalid input.";
 
 function requireMember(req, res, next) {
@@ -68,7 +85,8 @@ function requireMember(req, res, next) {
 
 const reply = (user) => ({ token: signSession(user), session: user.toSession() });
 
-router.post("/register", async (req, res, next) => {
+// Creates the member account and emails a 6-digit code. The app gets no token until the code is entered.
+router.post("/register", registerLimit, async (req, res, next) => {
   try {
     const parsed = registerSchema.safeParse(req.body || {});
     if (!parsed.success) return res.status(400).json({ error: firstIssue(parsed) });
@@ -77,23 +95,63 @@ router.post("/register", async (req, res, next) => {
       return res.status(409).json({ error: "An account with this email already exists." });
     }
     const passwordHash = await bcrypt.hash(pw, 12);
-    const user = await User.create({ fullName, email, memberNo, phone, passwordHash, role: "member" });
-    res.status(201).json(reply(user));
+    const user = await User.create({ fullName, email, memberNo, phone, passwordHash, role: "member", emailVerified: false });
+    let emailSent = true;
+    try {
+      await verification.issue(user);
+    } catch (err) {
+      console.error("Could not send the verification email:", err.message);
+      emailSent = false;
+    }
+    res.status(201).json({ verificationRequired: true, email: user.email, emailSent });
   } catch (err) {
     if (err?.code === 11000) return res.status(409).json({ error: "An account with this email already exists." });
     next(err);
   }
 });
 
-router.post("/login", async (req, res, next) => {
+router.post("/verify-email", verifyLimit, async (req, res, next) => {
+  try {
+    const parsed = codeSchema.safeParse(req.body || {});
+    if (!parsed.success) return res.status(400).json({ error: firstIssue(parsed) });
+    const { result, user } = await verification.check(parsed.data.email, parsed.data.code);
+    if (result === "invalid") return res.status(400).json({ error: "That code is not correct. Check the email and try again." });
+    if (result === "expired") {
+      return res.status(400).json({ error: "This code has expired or was tried too many times. Request a new code." });
+    }
+    // Verified either way; staff then sign in on the web app.
+    if (user.role !== "member") return res.status(403).json({ error: "Staff accounts sign in on the UDEI office web app." });
+    res.json(reply(user));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Always answers the same way, so it can't be used to find out which emails have accounts.
+router.post("/resend-verification", verifyLimit, async (req, res, next) => {
+  try {
+    const parsed = emailSchema.safeParse(req.body || {});
+    if (!parsed.success) return res.status(400).json({ error: firstIssue(parsed) });
+    const user = await User.findOne({ email: parsed.data.email, emailVerified: false }).select("+emailVerification");
+    if (user && verification.canResend(user)) await verification.issue(user);
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post("/login", loginLimit, async (req, res, next) => {
   try {
     const parsed = loginSchema.safeParse(req.body || {});
     if (!parsed.success) return res.status(400).json({ error: firstIssue(parsed) });
     const user = await User.findOne({ email: parsed.data.email }).select("+passwordHash");
-    const ok = user && (await bcrypt.compare(parsed.data.password, user.passwordHash));
-    if (!ok) return res.status(401).json({ error: "Invalid email or password." });
+    const ok = await bcrypt.compare(parsed.data.password, user?.passwordHash ?? DUMMY_HASH);
+    if (!user || !ok) return res.status(401).json({ error: "Invalid email or password." });
     if (user.role !== "member") {
       return res.status(403).json({ error: "Staff accounts sign in on the UDEI office web app." });
+    }
+    if (user.emailVerified === false) {
+      return res.status(403).json({ error: "Verify your email before signing in.", code: "EMAIL_NOT_VERIFIED" });
     }
     user.lastLoginAt = new Date();
     await user.save();
