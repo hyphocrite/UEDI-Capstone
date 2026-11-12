@@ -9,6 +9,7 @@
     "test": "node --test --test-concurrency=1 test/*.test.js",
     "seed": "node scripts/seed-applications.js",
     "seed:signers": "node scripts/seed-signers.js",
+    "dev:admin": "node scripts/create-dev-admin",
     "import:udei": "node scripts/import-udei.js"
   },
   "dependencies": {
