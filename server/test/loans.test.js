@@ -62,7 +62,8 @@ test("approval creates a loan; the Treasurer releases it", { skip }, async () =>
   assert.equal(l.status, "active");
   assert.equal(l.release.voucherNo, "CV-2026-001");
   assert.equal(l.release.releasedByName, "Test treasurer");
-  assert.equal(l.release.netProceeds, 4_800_000, "principal minus the Bookkeeper's balances");
+  assert.equal(l.release.netProceeds, 6_000_000, "nothing offset, so the full principal");
+  assert.deepEqual(l.release.offsets, []);
   assert.equal(l.schedule.length, 48, "24 months, quincenal");
   assert.equal(l.totalPayable, 6_763_690, "₱60,000 at 1% a month on the remaining balance, 48 quincenas");
   assert.equal(l.balance, 6_763_690);

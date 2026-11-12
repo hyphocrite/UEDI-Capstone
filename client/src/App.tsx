@@ -9,6 +9,8 @@ import VerifyEmailPage from './pages/VerifyEmailPage'
 import MembersPage from './pages/MembersPage'
 import LoansPage from './pages/LoansPage'
 import LoanDetailPage from './pages/LoanDetailPage'
+import DeductionsPage from './pages/DeductionsPage'
+import DeductionRunPage from './pages/DeductionRunPage'
 import RetirementPlansPage from './pages/RetirementPlansPage'
 import SettingsPage from './pages/SettingsPage'
 import ReportsPage from './pages/ReportsPage'
@@ -40,6 +42,8 @@ export default function App() {
           <Route path="/loans/pending" element={<PendingLoansPage />} />
           <Route path="/credit-model" element={<CreditModelPage />} />
           <Route path="/loans/:id" element={<LoanDetailPage />} />
+          <Route path="/deductions" element={<DeductionsPage />} />
+          <Route path="/deductions/:id" element={<DeductionRunPage />} />
           <Route path="/retirement-plans" element={<RetirementPlansPage />} />
           <Route path="/reports" element={<ReportsPage />} />
           <Route path="/settings" element={<SettingsPage />} />

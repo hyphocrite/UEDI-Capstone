@@ -1,6 +1,9 @@
 const tones: Record<string, string> = {
   Active: 'bg-brand-50 text-brand-700 ring-brand-200',
   'For release': 'bg-sky-50 text-sky-700 ring-sky-200',
+  Draft: 'bg-gray-100 text-gray-700 ring-gray-200',
+  'Sent to payroll': 'bg-sky-50 text-sky-700 ring-sky-200',
+  Posted: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
   Approved: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
   Denied: 'bg-red-50 text-red-700 ring-red-200',
   'On track': 'bg-brand-50 text-brand-700 ring-brand-200',

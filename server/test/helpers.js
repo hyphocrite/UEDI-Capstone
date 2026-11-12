@@ -74,7 +74,7 @@ async function setup() {
     fakeMl.close();
   }
 
-  return { call, register, userWithRole, close };
+  return { call, register, userWithRole, close, baseUrl: base };
 }
 
 /** The verification code most recently "emailed" to this address (mail isn't sent in tests). */
@@ -88,12 +88,52 @@ const application = (late = 0, overrides = {}) => ({
   applicant: {
     lastName: "Santos", firstName: "Maria", middleInitial: "C", residenceAddress: "Purok 3, New Visayas, Panabo City",
     employer: "Davao del Norte State College", employmentStatus: "permanent", monthlySalary: 38000, netTakeHomePay: 24000,
-    dateOfBirth: "1984-03-12", yearsAsMember: 5, priorLoans: 3, priorLatePayments: late,
+    dateOfBirth: "1984-03-12", yearsAsMember: 5, priorLoans: 3, priorLatePayments: late, ...overrides.applicant,
   },
   loan: { loanType: "long_term", amount: 60000, termMonths: 24, monthlyRate: 1, paymentFrequency: "quincenal", ...overrides.loan },
-  bookkeeper: { longTermBalance: 12000, shortTermBalance: 0 },
+  bookkeeper: overrides.bookkeeper ?? { longTermBalance: 12000, shortTermBalance: 0 },
   agreement: { payrollDeduction: true, autoRestructure: true, applicationDate: "2026-10-19" },
   documents: [],
 });
 
-module.exports = { uri, lastCode, setup, application };
+const SIGNER_ROLES = ["bookkeeper", "treasurer", "crecom_chair", "president"];
+
+/** Creates an admin, a loan officer and one user per signer role. */
+async function staffUp(t) {
+  const admin = await t.register("Admin One", "admin@uedi.test");
+  const officer = await t.userWithRole(admin.cookie, "loan_officer", "Lorna Officer");
+  const signer = {};
+  for (const role of SIGNER_ROLES) signer[role] = await t.userWithRole(admin.cookie, role);
+  return { admin, officer, signer };
+}
+
+/** Calendar date n days before today in Manila, as YYYY-MM-DD. */
+function daysAgo(n) {
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" });
+  return new Date(new Date(`${today}T00:00:00Z`).getTime() - n * 86_400_000).toISOString().slice(0, 10);
+}
+
+/** Submits an application and has all four signers approve it. Returns the approved application. */
+async function approve(t, staff, body) {
+  const app = (await t.call("/applications", { method: "POST", cookie: staff.officer.cookie, body })).json.application;
+  let res;
+  for (const role of SIGNER_ROLES) {
+    res = await t.call(`/applications/${app._id}/approvals`, { method: "POST", cookie: staff.signer[role].cookie, body: { decision: "approved" } });
+    if (res.status !== 200) throw new Error(`${role} could not sign: ${res.json.error}`);
+  }
+  return res.json.application;
+}
+
+/** Approves and releases a loan for a member. Returns the released loan as the API shows it. */
+async function releasedLoan(t, staff, { memberId, loan, releasedAt = daysAgo(40), offsetLoanIds }) {
+  const app = await approve(t, staff, application(0, { applicant: { memberId }, loan, bookkeeper: { longTermBalance: 0, shortTermBalance: 0 } }));
+  const r = await t.call(`/loans/${app.loanId}/release`, {
+    method: "POST",
+    cookie: staff.signer.treasurer.cookie,
+    body: { releasedAt, voucherNo: `CV-${app.loanNo}`, offsetLoanIds },
+  });
+  if (r.status !== 200) throw new Error(`release failed: ${r.json.error}`);
+  return r.json.loan;
+}
+
+module.exports = { uri, lastCode, setup, application, staffUp, daysAgo, approve, releasedLoan };

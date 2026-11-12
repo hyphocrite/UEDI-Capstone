@@ -8,10 +8,10 @@ import ProgressBar from '../components/ProgressBar'
 import { api } from '../lib/api'
 import { loanTypeLabel } from '../lib/applications'
 import { percent } from '../lib/format'
-import { displayStatus, formatCentavos, formatDay } from '../lib/loans'
+import { displayStatus, formatCentavos, formatDay, missedDeductionText } from '../lib/loans'
 import type { Loan, LoanDisplayStatus } from '../lib/loans'
 
-const statuses: ('All' | LoanDisplayStatus)[] = ['All', 'For release', 'Active', 'Past due', 'Fully paid']
+const statuses: ('All' | LoanDisplayStatus | 'Missed deductions')[] = ['All', 'For release', 'Active', 'Past due', 'Fully paid', 'Missed deductions']
 
 export default function LoansPage() {
   const navigate = useNavigate()
@@ -34,7 +34,7 @@ export default function LoansPage() {
     const q = query.trim().toLowerCase()
     return all.filter(
       (l) =>
-        (status === 'All' || displayStatus(l) === status) &&
+        (status === 'All' || (status === 'Missed deductions' ? !!missedDeductionText(l) : displayStatus(l) === status)) &&
         (!q || l.loanNo.toLowerCase().includes(q) || l.borrowerName.toLowerCase().includes(q)),
     )
   }, [all, status, query])
@@ -103,7 +103,11 @@ export default function LoansPage() {
                     </Link>
                     <p className="text-xs text-brand-500">{loanTypeLabel[l.loanType]}</p>
                   </td>
-                  <td className="px-4 py-3">{l.borrowerName}</td>
+                  <td className="px-4 py-3">
+                    {l.borrowerName}
+                    {missedDeductionText(l) && <p className="text-xs whitespace-nowrap text-red-700">{missedDeductionText(l)}</p>}
+                    {l.collectFrom?.source === 'final_pay' && <p className="text-xs font-semibold text-red-700">Separated from DNSC</p>}
+                  </td>
                   <td className="px-4 py-3 text-right whitespace-nowrap">{formatCentavos(l.principal)}</td>
                   <td className="px-4 py-3 whitespace-nowrap">{l.monthlyRate}%/mo · {l.termMonths} mo</td>
                   <td className="px-4 py-3 whitespace-nowrap">{l.release?.releasedAt ? formatDay(l.release.releasedAt) : '—'}</td>

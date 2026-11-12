@@ -58,7 +58,12 @@ export type LoanApplication = {
     paymentFrequency: 'quincenal' | 'monthly'
     purpose?: string
   }
+  /** Amounts in pesos. source: filled from the ledger, or typed for loans that predate the system. */
   bookkeeper?: {
+    source?: 'ledger' | 'manual'
+    asOf?: string
+    monthlyPayment?: number
+    loans?: { loanNo: string; loanType: LoanType; balance: number; maturity?: string }[]
     longTermBalance: number
     longTermDueDate?: string
     shortTermBalance: number

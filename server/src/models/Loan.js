@@ -34,7 +34,8 @@ const loanSchema = new mongoose.Schema(
     monthlyRate: { type: Number, required: true, min: 0 }, // percent per month
     termMonths: { type: Number, required: true, min: 1 },
     paymentFrequency: { type: String, enum: PAYMENT_FREQUENCIES, required: true },
-    // Long-term + short-term balances from the Bookkeeper section, deducted from the release.
+    // Long-term + short-term balances from the application's Bookkeeper section, for reference.
+    // What is actually deducted at release is release.offsets.
     existingBalances: { ...centavos, default: 0 },
     status: { type: String, enum: LOAN_STATUSES, default: "for_release", index: true },
     release: {
@@ -42,10 +43,33 @@ const loanSchema = new mongoose.Schema(
       voucherNo: { type: String, trim: true, maxlength: 40 },
       releasedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
       releasedByName: String,
+      // Principal minus the old loans paid off from it (offsets).
       netProceeds: { type: Number, validate: Number.isInteger },
+      offsets: [
+        new mongoose.Schema(
+          { loan: { type: mongoose.Schema.Types.ObjectId, ref: "Loan" }, loanNo: String, amount: centavos },
+          { _id: false },
+        ),
+      ],
     },
     schedule: [installmentSchema],
     paidOffAt: Date,
+    // Set when a payroll run marks the borrower separated from DNSC: payroll won't deduct again.
+    // TODO: collection from final pay or the retirement plan is not built yet.
+    // (Named collectFrom because Mongoose reserves "collection" on documents.)
+    collectFrom: {
+      source: { type: String, enum: ["final_pay"] },
+      run: { type: mongoose.Schema.Types.ObjectId, ref: "DeductionRun" },
+      cutoffDate: Date,
+    },
+    // This loan's line on the latest posted payroll run, for the "Missed deduction" flag.
+    lastDeduction: {
+      run: { type: mongoose.Schema.Types.ObjectId, ref: "DeductionRun" },
+      cutoffDate: Date,
+      result: { type: String, enum: ["full", "partial", "missed"] },
+      reason: String,
+      reasonNote: String,
+    },
   },
   { timestamps: true },
 );

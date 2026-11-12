@@ -1,0 +1,37 @@
+// Creates (or resets) an administrator account for checking the pages locally.
+//   npm --prefix server run dev:admin
+// Log in with the email and password printed below. Override them with
+// DEV_ADMIN_EMAIL and DEV_ADMIN_PASSWORD in server/.env. Refuses to run in production.
+if (process.env.NODE_ENV === "production") {
+  console.error("Refusing to create a dev account when NODE_ENV=production.");
+  process.exit(1);
+}
+ 
+const bcrypt = require("bcryptjs");
+const mongoose = require("mongoose");
+const { connectDb } = require("../src/config/db");
+const User = require("../src/models/User");
+ 
+const EMAIL = (process.env.DEV_ADMIN_EMAIL || "admin@uedi.local").trim().toLowerCase();
+const PASSWORD = process.env.DEV_ADMIN_PASSWORD || "UediAdmin2026";
+ 
+async function main() {
+  await connectDb();
+  const passwordHash = await bcrypt.hash(PASSWORD, 12);
+  await User.updateOne(
+    { email: EMAIL },
+    { $set: { fullName: "UEDI Admin (dev)", passwordHash, role: "admin", branch: "Main" } },
+    { upsert: true, runValidators: true },
+  );
+  console.log("\nDev admin account ready. Log in at http://localhost:5173/login with:");
+  console.log(`  Email:    ${EMAIL}`);
+  console.log(`  Password: ${PASSWORD}\n`);
+}
+ 
+main()
+  .catch((err) => {
+    console.error(err.message);
+    process.exitCode = 1;
+  })
+  .finally(() => mongoose.disconnect());
+ 

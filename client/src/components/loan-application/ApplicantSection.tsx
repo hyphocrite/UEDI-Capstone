@@ -21,22 +21,28 @@ export default function ApplicantSection({ form, update }: Props) {
   return (
     <FormSection title="Applicant">
       <div className="space-y-4">
-        <Field id="memberId" label="Member (optional)" hint="Picking a member fills in their name and history with UEDI.">
-          <select
-            id="memberId"
-            className="input"
-            value={form.memberId}
-            onChange={(e) => {
-              const m = members.find((x) => x.id === e.target.value)
-              update(m ? memberHistory(m) : { memberId: '' })
-            }}
-          >
-            <option value="">New applicant (not yet a member)</option>
-            {members.filter((m) => m.status === 'Active').map((m) => (
-              <option key={m.id} value={m.id}>{m.name} ({m.id})</option>
-            ))}
-          </select>
-        </Field>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_12rem]">
+          <Field id="memberPicker" label="Member (optional)" hint="Picking a member fills in their name, history and UEDI balances.">
+            <select
+              id="memberPicker"
+              className="input"
+              value={members.some((m) => m.id === form.memberId) ? form.memberId : ''}
+              onChange={(e) => {
+                const m = members.find((x) => x.id === e.target.value)
+                update(m ? memberHistory(m) : { memberId: '' })
+              }}
+            >
+              <option value="">New applicant, or type the ID</option>
+              {members.filter((m) => m.status === 'Active').map((m) => (
+                <option key={m.id} value={m.id}>{m.name} ({m.id})</option>
+              ))}
+            </select>
+          </Field>
+          <Field id="memberId" label="Member ID">
+            <input id="memberId" className="input" maxLength={32} placeholder="e.g. M-0001" value={form.memberId}
+              onChange={(e) => update({ memberId: e.target.value })} />
+          </Field>
+        </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_1fr_6rem]">
           <Field id="lastName" label="Last Name">

@@ -9,21 +9,23 @@ import ScheduleTable from '../components/loans/ScheduleTable'
 import { useAuth } from '../context/AuthContext'
 import { api } from '../lib/api'
 import { loanTypeLabel } from '../lib/applications'
-import { displayStatus, formatCentavos, formatDay } from '../lib/loans'
-import type { Loan, Payment } from '../lib/loans'
+import { displayStatus, formatCentavos, formatDay, missedDeductionText } from '../lib/loans'
+import type { Loan, OtherActiveLoan, Payment } from '../lib/loans'
 
 export default function LoanDetailPage() {
   const { id } = useParams()
   const { session } = useAuth()
   const [loan, setLoan] = useState<Loan | null>(null)
   const [payments, setPayments] = useState<Payment[]>([])
+  const [otherLoans, setOtherLoans] = useState<OtherActiveLoan[]>([])
   const [error, setError] = useState('')
 
   useEffect(() => {
-    api<{ loan: Loan; payments: Payment[] }>(`/api/loans/${id}`)
+    api<{ loan: Loan; payments: Payment[]; otherActiveLoans?: OtherActiveLoan[] }>(`/api/loans/${id}`)
       .then((d) => {
         setLoan(d.loan)
         setPayments(d.payments)
+        setOtherLoans(d.otherActiveLoans ?? [])
       })
       .catch((err: unknown) => setError(err instanceof Error ? err.message : 'Could not load the loan.'))
   }, [id])
@@ -54,6 +56,16 @@ export default function LoanDetailPage() {
         actions={back}
       />
 
+      {loan.collectFrom?.source === 'final_pay' && (
+        <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-800" role="alert">
+          Separated from DNSC: collect from final pay or retirement plan.
+          {loan.collectFrom.cutoffDate && <span className="font-normal"> Reported on the {formatDay(loan.collectFrom.cutoffDate)} payroll run.</span>}
+        </p>
+      )}
+      {missedDeductionText(loan) && (
+        <p className="mb-4 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800">{missedDeductionText(loan)}.</p>
+      )}
+
       <section className="card mb-6 min-w-0 p-4 sm:p-5">
         <div className="mb-4 flex flex-wrap items-center gap-3">
           <StatusBadge status={displayStatus(loan)} />
@@ -74,7 +86,9 @@ export default function LoanDetailPage() {
               : 'Not yet'}
           />
           {loan.release?.netProceeds !== undefined && <Item label="Net proceeds" value={formatCentavos(loan.release.netProceeds)} />}
-          {loan.existingBalances > 0 && <Item label="Existing balances deducted" value={formatCentavos(loan.existingBalances)} />}
+          {loan.release?.offsets?.map((o) => (
+            <Item key={o.loanNo} label="Deducted from proceeds" value={`${formatCentavos(o.amount)} to close ${o.loanNo}`} />
+          ))}
         </dl>
       </section>
 
@@ -83,7 +97,7 @@ export default function LoanDetailPage() {
       <div className="space-y-6">
         {loan.status === 'for_release' &&
           (role === 'treasurer' ? (
-            <ReleaseForm loan={loan} onDone={setLoan} />
+            <ReleaseForm loan={loan} otherLoans={otherLoans} onDone={setLoan} />
           ) : (
             <p className="card p-4 text-sm text-brand-700 sm:p-5">Waiting for the Treasurer to release this loan.</p>
           ))}

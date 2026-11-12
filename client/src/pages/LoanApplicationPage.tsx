@@ -10,6 +10,7 @@ import DocumentsSection from '../components/loan-application/DocumentsSection'
 import SubmittedCard from '../components/loan-application/SubmittedCard'
 import { DEFAULT_RATE, applicantOf, buildPayload, emptyForm, validateForm } from '../components/loan-application/applicationForm'
 import type { Form } from '../components/loan-application/applicationForm'
+import { useMemberLedger } from '../components/loan-application/useMemberLedger'
 import { useSupportingDocuments } from '../components/loan-application/useSupportingDocuments'
 import { api } from '../lib/api'
 import type { LoanApplication, LoanType } from '../lib/applications'
@@ -33,6 +34,7 @@ export default function LoanApplicationPage() {
     setForm((f) => ({ ...f, ...patch }))
     setError('')
   }
+  const ledger = useMemberLedger(form.memberId, (books) => setForm((f) => ({ ...f, ...books })))
 
   const changeLoanType = (loanType: LoanType) => {
     setForm((f) => ({ ...f, loanType, monthlyRate: f.rateEdited ? f.monthlyRate : DEFAULT_RATE[loanType] }))
@@ -95,7 +97,7 @@ export default function LoanApplicationPage() {
       <div className="grid min-w-0 grid-cols-1 gap-6">
         <ApplicantSection form={form} update={update} />
         <AgreementSection form={form} update={update} onLoanTypeChange={changeLoanType} />
-        <BookkeeperSection form={form} update={update} />
+        <BookkeeperSection form={form} update={update} ledger={ledger} />
         <DocumentsSection loanType={form.loanType} documents={documents} />
 
         <section className="card min-w-0 p-4 sm:p-5">

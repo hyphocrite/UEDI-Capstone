@@ -3,7 +3,6 @@ const mongoose = require("mongoose");
 const { z } = require("zod");
 const Loan = require("../models/Loan");
 const Payment = require("../models/Payment");
-const { PAYMENT_METHODS } = require("../models/Payment");
 const loans = require("../services/loans");
 const { requireAuth, requireRole } = require("../middleware/auth");
 
@@ -16,12 +15,15 @@ const calendarDate = (what) => z.string().regex(/^\d{4}-\d{2}-\d{2}$/, `Enter th
 const releaseSchema = z.object({
   releasedAt: calendarDate("release date"),
   voucherNo: z.string().trim().min(1, "Enter the voucher number.").max(40),
+  // Old loans of the same borrower to pay off from the proceeds.
+  offsetLoanIds: z.array(z.string().refine(mongoose.isValidObjectId, "Unknown loan.")).max(20).default([]),
 });
 
 const paymentSchema = z.object({
   amount: z.coerce.number().int({ message: "Enter the amount in centavos." }).min(1, "Enter the amount paid.").max(100_000_000_00),
   paidAt: calendarDate("payment date"),
-  method: z.enum(PAYMENT_METHODS, { message: "Choose payroll, cash or other." }),
+  // "offset" payments are only made by a release.
+  method: z.enum(["payroll", "cash", "other"], { message: "Choose payroll, cash or other." }),
   reference: z.string().trim().max(60).optional(),
 });
 
@@ -29,13 +31,14 @@ const voidSchema = z.object({
   reason: z.string().trim().min(3, "Give a reason for voiding this payment.").max(300),
 });
 
-const FILTERS = ["for_release", "active", "paid", "past_due"];
+const FILTERS = ["for_release", "active", "paid", "past_due", "missed_deduction"];
 const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 async function findLoan(id) {
   if (!mongoose.isValidObjectId(id)) return null;
   return Loan.findById(id);
 }
+
 
 /** Runs a handler and turns LoanError into its HTTP status. */
 const handle = (fn) => async (req, res, next) => {
@@ -52,7 +55,8 @@ router.get(
   handle(async (req, res) => {
     const status = FILTERS.includes(req.query.status) ? req.query.status : undefined;
     const filter = {};
-    if (status) filter.status = status === "past_due" ? "active" : status;
+    if (status === "missed_deduction") filter["lastDeduction.result"] = { $in: ["missed", "partial"] };
+    else if (status) filter.status = status === "past_due" ? "active" : status;
     const q = typeof req.query.q === "string" ? req.query.q.trim().slice(0, 60) : "";
     if (q) {
       const re = new RegExp(escapeRegex(q), "i");
@@ -65,13 +69,24 @@ router.get(
   }),
 );
 
+// The Bookkeeper section of the application form, from the ledger. Amounts in centavos.
+router.get(
+  "/balances",
+  handle(async (req, res) => {
+    const memberId = typeof req.query.memberId === "string" ? req.query.memberId.trim().slice(0, 32) : "";
+    if (!memberId) return res.status(400).json({ error: "Give a member ID." });
+    res.json({ balances: await loans.balancesFor(memberId) });
+  }),
+);
+
 router.get(
   "/:id",
   handle(async (req, res) => {
     const loan = await findLoan(req.params.id);
     if (!loan) return res.status(404).json({ error: "Loan not found." });
     const payments = await Payment.find({ loan: loan._id }).sort({ paidAt: -1, createdAt: -1 });
-    res.json({ loan: loans.present(loan), payments });
+    const otherActiveLoans = loan.status === "for_release" ? await loans.otherActiveLoans(loan) : undefined;
+    res.json({ loan: loans.present(loan), payments, otherActiveLoans });
   }),
 );
 

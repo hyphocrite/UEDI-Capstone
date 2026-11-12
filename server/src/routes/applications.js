@@ -20,6 +20,8 @@ const bookkeeperSchema = z.object({
   longTermDueDate: optionalDate,
   shortTermBalance: money.default(0),
   shortTermDueDate: optionalDate,
+  // What the member already pays UEDI per month on these loans.
+  monthlyPayment: money.default(0),
 });
 
 // The body mirrors UEDI's Mutual Assistance Application Form.
@@ -103,10 +105,23 @@ async function runAssessment(app) {
   return app;
 }
 
+/**
+ * The Bookkeeper section: from the ledger when the member has loans on record, otherwise what was
+ * typed (UEDI's older loans aren't in the system yet).
+ */
+async function bookkeeperFor(memberId, typed) {
+  if (memberId) {
+    const b = await loans.balancesFor(memberId);
+    if (b.hasLoans) return loans.bookkeeperFromLedger(b);
+  }
+  return { ...typed, source: "manual", loans: [] };
+}
+
 router.post("/", async (req, res, next) => {
   try {
     const parsed = createSchema.safeParse(req.body || {});
     if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0].message });
+    const bookkeeper = await bookkeeperFor(parsed.data.applicant.memberId, parsed.data.bookkeeper);
 
     let app;
     for (let attempt = 0; attempt < 3 && !app; attempt++) {
@@ -114,6 +129,7 @@ router.post("/", async (req, res, next) => {
         app = await Application.create({
           ...parsed.data,
           applicant: { ...parsed.data.applicant, fullName: fullNameOf(parsed.data.applicant) },
+          bookkeeper,
           applicationNo: await nextApplicationNo(),
           currentStep: STEPS[0],
           approvals: [],
@@ -189,7 +205,7 @@ router.post("/:id/assess", async (req, res, next) => {
 });
 
 const sameBooks = (a = {}, b = {}) =>
-  ["longTermBalance", "shortTermBalance"].every((k) => (a[k] || 0) === (b[k] || 0)) &&
+  ["longTermBalance", "shortTermBalance", "monthlyPayment"].every((k) => (a[k] || 0) === (b[k] || 0)) &&
   ["longTermDueDate", "shortTermDueDate"].every((k) => String(a[k] ?? "") === String(b[k] ?? ""));
 
 // Signs the current step of the approval chain: Bookkeeper, Treasurer, CreCom Chairman, President.
@@ -218,6 +234,10 @@ router.post("/:id/approvals", async (req, res, next) => {
     if (bookkeeper && step !== "bookkeeper") {
       return res.status(400).json({ error: "Only the Bookkeeper can change the balances." });
     }
+    const fromLedger = step === "bookkeeper" && app.bookkeeper?.source === "ledger";
+    if (bookkeeper && fromLedger) {
+      return res.status(400).json({ error: "These balances come from the ledger and can't be edited. They are refreshed when you sign." });
+    }
     if (decision === "denied" && !note) {
       return res.status(400).json({ error: "Add a note explaining why the application is denied." });
     }
@@ -230,8 +250,13 @@ router.post("/:id/approvals", async (req, res, next) => {
     const set = { currentStep: next ?? "none" };
     if (decision === "denied") set.status = "denied";
     else if (!next) set.status = "approved";
-    const booksChanged = bookkeeper && !sameBooks(bookkeeper, app.bookkeeper?.toObject?.() ?? app.bookkeeper);
-    if (bookkeeper) set.bookkeeper = bookkeeper;
+    // Ledger balances are refreshed at the Bookkeeper's step (a payment may have come in since filing);
+    // typed balances take the Bookkeeper's corrections.
+    const books = fromLedger
+      ? loans.bookkeeperFromLedger(await loans.balancesFor(app.applicant.memberId))
+      : bookkeeper && { ...bookkeeper, source: "manual", loans: [] };
+    const booksChanged = books && !sameBooks(books, app.bookkeeper?.toObject?.() ?? app.bookkeeper);
+    if (books) set.bookkeeper = books;
 
     const signature = {
       step,

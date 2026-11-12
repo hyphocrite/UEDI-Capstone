@@ -7,6 +7,7 @@ const { loadUser } = require("./middleware/auth");
 const authRoutes = require("./routes/auth");
 const applicationRoutes = require("./routes/applications");
 const loanRoutes = require("./routes/loans");
+const deductionRoutes = require("./routes/deductions");
 
 function createApp() {
   const app = express();
@@ -32,6 +33,7 @@ function createApp() {
   app.use("/api/auth", authRoutes);
   app.use("/api/applications", applicationRoutes);
   app.use("/api/loans", loanRoutes);
+  app.use("/api/deductions", deductionRoutes);
 
   app.use("/api", (_req, res) => res.status(404).json({ error: "Not found." }));
 
