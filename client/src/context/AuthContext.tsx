@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import type { ReactNode } from 'react'
 import { api } from '../lib/api'
 import type { Role } from '../lib/roles'
+import { clearAllDrafts } from '../lib/drafts'
 
 export type Session = {
   id: string
@@ -78,6 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     await api('/api/auth/logout', { method: 'POST' }).catch(() => undefined)
+    clearAllDrafts()
     setSession(null)
   }, [])
 
