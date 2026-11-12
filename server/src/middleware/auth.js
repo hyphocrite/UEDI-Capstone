@@ -1,6 +1,7 @@
 const jwt = require("jsonwebtoken");
 const env = require("../config/env");
 const User = require("../models/User");
+const { atLeast } = require("../config/access");
 
 const COOKIE_NAME = "uedi_session";
 
@@ -48,4 +49,15 @@ function requireRole(...roles) {
   };
 }
 
-module.exports = { COOKIE_NAME, cookieOptions, signSession, loadUser, requireAuth, requireRole };
+/** Lets through `minRole` and every role above it on the ladder in config/access.js. */
+function requireLevel(minRole) {
+  return (req, res, next) => {
+    if (!req.user) return res.status(401).json({ error: "Please sign in." });
+    if (!atLeast(req.user.role, minRole)) {
+      return res.status(403).json({ error: "You do not have access to this action." });
+    }
+    next();
+  };
+}
+
+module.exports = { COOKIE_NAME, cookieOptions, signSession, loadUser, requireAuth, requireRole, requireLevel };

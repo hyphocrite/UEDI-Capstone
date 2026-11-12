@@ -18,6 +18,9 @@ const userSchema = new mongoose.Schema(
     passwordHash: { type: String, required: true, select: false },
     role: { type: String, enum: ROLES, default: "staff" },
     branch: { type: String, trim: true, maxlength: 120 },
+    // The member record this account belongs to, set by a Loan Officer or Administrator.
+    // A member sees the loans and applications filed under this ID.
+    memberId: { type: String, trim: true, maxlength: 32 },
     lastLoginAt: { type: Date },
     // false until the emailed code is entered. Accounts made before verification existed have no
     // value and are treated as verified.
@@ -40,8 +43,12 @@ userSchema.methods.toSession = function toSession() {
     email: this.email,
     role: this.role,
     branch: this.branch || null,
+    memberId: this.memberId || null,
   };
 };
+
+// One account per member record, so nobody else can see that member's loans.
+userSchema.index({ memberId: 1 }, { unique: true, partialFilterExpression: { memberId: { $type: "string" } } });
 
 module.exports = mongoose.model("User", userSchema);
 module.exports.ROLES = ROLES;

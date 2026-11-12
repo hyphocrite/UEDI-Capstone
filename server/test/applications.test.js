@@ -84,18 +84,20 @@ test("submit, score and list applications", { skip: !uri && "TEST_MONGODB_URI no
   assert.equal(anon.status, 401);
 
   const admin = await signUp("Admin One", "admin@uedi.coop");
-  const staff = await signUp("Staff Two", "staff@uedi.coop");
+  const officer = await signUp("Lorna Officer", "officer@uedi.coop");
+  const officerId = (await call("/auth/me", { cookie: officer })).json.session.id;
+  await call(`/auth/users/${officerId}/role`, { method: "PATCH", cookie: admin, body: { role: "loan_officer" } });
 
-  const bad = await call("/applications", { method: "POST", cookie: staff, body: { ...application(), loan: { ...application().loan, amount: 0 } } });
+  const bad = await call("/applications", { method: "POST", cookie: officer, body: { ...application(), loan: { ...application().loan, amount: 0 } } });
   assert.equal(bad.status, 400);
 
-  const noConsent = await call("/applications", { method: "POST", cookie: staff, body: { ...application(), agreement: { ...application().agreement, payrollDeduction: false } } });
+  const noConsent = await call("/applications", { method: "POST", cookie: officer, body: { ...application(), agreement: { ...application().agreement, payrollDeduction: false } } });
   assert.equal(noConsent.status, 400);
-  const netTooHigh = await call("/applications", { method: "POST", cookie: staff, body: { ...application(), applicant: { ...application().applicant, netTakeHomePay: 50000 } } });
+  const netTooHigh = await call("/applications", { method: "POST", cookie: officer, body: { ...application(), applicant: { ...application().applicant, netTakeHomePay: 50000 } } });
   assert.equal(netTooHigh.status, 400);
   assert.match(netTooHigh.json.error, /net take-home/i);
 
-  const good = await call("/applications", { method: "POST", cookie: staff, body: application(0) });
+  const good = await call("/applications", { method: "POST", cookie: officer, body: application(0) });
   assert.equal(good.status, 201);
   const app = good.json.application;
   assert.equal(app.applicant.fullName, "Maria C. Santos");
@@ -114,29 +116,29 @@ test("submit, score and list applications", { skip: !uri && "TEST_MONGODB_URI no
   assert.equal(app.assessment.models.length, 3);
   assert.equal(predictCalls, 1);
 
-  const risky = (await call("/applications", { method: "POST", cookie: staff, body: application(3) })).json.application;
+  const risky = (await call("/applications", { method: "POST", cookie: officer, body: application(3) })).json.application;
   assert.equal(risky.assessment.ensemble.suggestion, "deny");
   assert.equal(risky.applicationNo.endsWith("0002"), true);
 
-  const pending = await call("/applications?status=pending", { cookie: staff });
+  const pending = await call("/applications?status=pending", { cookie: officer });
   assert.equal(pending.json.applications.length, 2);
 
   assert.equal(app.currentStep, "bookkeeper", "new applications wait for the Bookkeeper");
   assert.deepEqual(app.approvals, []);
 
-  // Signing is covered in approvals.test.js; here only check that staff and admins can't sign.
-  const staffSigns = await call(`/applications/${app._id}/approvals`, { method: "POST", cookie: staff, body: { decision: "approved" } });
-  assert.equal(staffSigns.status, 403);
-  assert.match(staffSigns.json.error, /Bookkeeper/);
+  // Signing is covered in approvals.test.js; here only check that loan officers and admins can't sign.
+  const officerSigns = await call(`/applications/${app._id}/approvals`, { method: "POST", cookie: officer, body: { decision: "approved" } });
+  assert.equal(officerSigns.status, 403);
+  assert.match(officerSigns.json.error, /Bookkeeper/);
   const adminSigns = await call(`/applications/${app._id}/approvals`, { method: "POST", cookie: admin, body: { decision: "approved" } });
   assert.equal(adminSigns.status, 403, "admins manage users but do not sign");
   assert.equal((await call(`/applications/${app._id}/decision`, { method: "POST", cookie: admin, body: { decision: "approved" } })).status, 404, "old route is gone");
 
-  const rescore = await call(`/applications/${app._id}/assess`, { method: "POST", cookie: staff });
+  const rescore = await call(`/applications/${app._id}/assess`, { method: "POST", cookie: officer });
   assert.equal(rescore.status, 200);
   assert.equal(predictCalls, 3);
 
-  assert.equal((await call("/applications?status=pending", { cookie: staff })).json.applications.length, 2);
-  assert.equal((await call("/applications?awaiting=me", { cookie: staff })).json.applications.length, 0, "staff never sign");
-  assert.equal((await call("/applications/not-an-id", { cookie: staff })).status, 404);
+  assert.equal((await call("/applications?status=pending", { cookie: officer })).json.applications.length, 2);
+  assert.equal((await call("/applications?awaiting=me", { cookie: officer })).json.applications.length, 0, "loan officers never sign");
+  assert.equal((await call("/applications/not-an-id", { cookie: officer })).status, 404);
 });

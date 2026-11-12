@@ -18,7 +18,7 @@ export default function VerifyEmailPage() {
   const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
 
-  if (session) return <Navigate to="/members" replace />
+  if (session) return <Navigate to="/dashboard" replace />
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -27,7 +27,7 @@ export default function VerifyEmailPage() {
     setBusy(true)
     try {
       await verifyEmail(email.trim(), code.trim())
-      navigate('/members', { replace: true })
+      navigate('/dashboard', { replace: true })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not verify the email.')
     } finally {

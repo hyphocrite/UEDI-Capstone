@@ -5,11 +5,12 @@ import { members } from '../../data/mock'
 import { employmentStatusLabel } from '../../lib/applications'
 import type { EmploymentStatus } from '../../lib/applications'
 
-type Props = { form: Form; update: (patch: Partial<Form>) => void }
+/** lockedMemberId: a member applying for themselves; the member picker is hidden and the ID can't change. */
+type Props = { form: Form; update: (patch: Partial<Form>) => void; lockedMemberId?: string }
 
 const statuses = Object.keys(employmentStatusLabel) as EmploymentStatus[]
 
-export default function ApplicantSection({ form, update }: Props) {
+export default function ApplicantSection({ form, update, lockedMemberId }: Props) {
   const text = (key: keyof Form) => ({
     id: key,
     className: 'input',
@@ -21,6 +22,11 @@ export default function ApplicantSection({ form, update }: Props) {
   return (
     <FormSection title="Applicant">
       <div className="space-y-4">
+        {lockedMemberId ? (
+          <Field id="memberId" label="Member ID">
+            <input id="memberId" className="input bg-brand-50 sm:w-48" value={lockedMemberId} readOnly />
+          </Field>
+        ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_12rem]">
           <Field id="memberPicker" label="Member (optional)" hint="Picking a member fills in their name, history and UEDI balances.">
             <select
@@ -43,6 +49,7 @@ export default function ApplicantSection({ form, update }: Props) {
               onChange={(e) => update({ memberId: e.target.value })} />
           </Field>
         </div>
+        )}
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_1fr_6rem]">
           <Field id="lastName" label="Last Name">

@@ -5,7 +5,9 @@ import PageHeader from '../components/PageHeader'
 import StatCard from '../components/StatCard'
 import StatusBadge from '../components/StatusBadge'
 import ProgressBar from '../components/ProgressBar'
+import { useAuth } from '../context/AuthContext'
 import { api } from '../lib/api'
+import { atLeast } from '../lib/roles'
 import { loanTypeLabel } from '../lib/applications'
 import { percent } from '../lib/format'
 import { displayStatus, formatCentavos, formatDay, missedDeductionText } from '../lib/loans'
@@ -15,6 +17,9 @@ const statuses: ('All' | LoanDisplayStatus | 'Missed deductions')[] = ['All', 'F
 
 export default function LoansPage() {
   const navigate = useNavigate()
+  const { session } = useAuth()
+  // Members get only their own loans from the API; staff see everyone's.
+  const staffView = atLeast(session?.role, 'loan_officer')
   const [loans, setLoans] = useState<Loan[] | null>(null)
   const [error, setError] = useState('')
   const [status, setStatus] = useState<(typeof statuses)[number]>('All')
@@ -47,10 +52,18 @@ export default function LoansPage() {
   return (
     <>
       <PageHeader
-        title="Loans"
-        subtitle="Approved Mutual Assistance loans: releases, payments and balances."
-        actions={<Link to="/loans/apply" className="btn-primary"><FilePlus2 className="h-4 w-4" /> New application</Link>}
+        title={staffView ? 'Loans' : 'My Loans'}
+        subtitle={staffView
+          ? 'Approved Mutual Assistance loans: releases, payments and balances.'
+          : 'Your Mutual Assistance loans, payments and balances.'}
+        actions={<Link to="/loans/apply" className="btn-primary"><FilePlus2 className="h-4 w-4" /> {staffView ? 'New application' : 'Apply for a loan'}</Link>}
       />
+
+      {!staffView && !session?.memberId && (
+        <p className="mb-4 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800" role="status">
+          Your account isn't linked to a member record yet, so no loans are shown. Ask the UEDI office to link it.
+        </p>
+      )}
 
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard icon={HandCoins} label="Open loans" value={String(open.length)} hint={`${all.filter((l) => l.status === 'for_release').length} waiting for release`} />

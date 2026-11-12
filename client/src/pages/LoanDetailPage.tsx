@@ -31,7 +31,7 @@ export default function LoanDetailPage() {
   }, [id])
 
   const back = (
-    <Link to="/loans" className="btn-ghost"><ArrowLeft className="h-4 w-4" /> All loans</Link>
+    <Link to="/loans" className="btn-ghost"><ArrowLeft className="h-4 w-4" /> Back to loans</Link>
   )
 
   if (!loan) {

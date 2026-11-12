@@ -23,7 +23,7 @@ export default function RegisterPage() {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
-  if (session) return <Navigate to="/members" replace />
+  if (session) return <Navigate to="/dashboard" replace />
 
   const set = (k: keyof typeof form) => (e: { target: { value: string } }) =>
     setForm((f) => ({ ...f, [k]: e.target.value }))

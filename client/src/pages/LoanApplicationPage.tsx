@@ -12,12 +12,20 @@ import { DEFAULT_RATE, applicantOf, buildPayload, emptyForm, validateForm } from
 import type { Form } from '../components/loan-application/applicationForm'
 import { useMemberLedger } from '../components/loan-application/useMemberLedger'
 import { useSupportingDocuments } from '../components/loan-application/useSupportingDocuments'
+import { useAuth } from '../context/AuthContext'
 import { api } from '../lib/api'
+import { atLeast } from '../lib/roles'
 import type { LoanApplication, LoanType } from '../lib/applications'
 import { documentType } from '../lib/ocr/documentTypes'
 
 export default function LoanApplicationPage() {
-  const [form, setForm] = useState<Form>(emptyForm)
+  const { session } = useAuth()
+  // Staff take in applications for anyone; a member applies for themselves under their linked member ID,
+  // and the Bookkeeper fills that section when signing.
+  const staffView = atLeast(session?.role, 'loan_officer')
+  const ownMemberId = staffView ? '' : session?.memberId ?? ''
+  const freshForm = () => ({ ...emptyForm(), memberId: ownMemberId })
+  const [form, setForm] = useState<Form>(freshForm)
   const [error, setError] = useState('')
   const [confirming, setConfirming] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -34,7 +42,7 @@ export default function LoanApplicationPage() {
     setForm((f) => ({ ...f, ...patch }))
     setError('')
   }
-  const ledger = useMemberLedger(form.memberId, (books) => setForm((f) => ({ ...f, ...books })))
+  const ledger = useMemberLedger(staffView ? form.memberId : '', (books) => setForm((f) => ({ ...f, ...books })))
 
   const changeLoanType = (loanType: LoanType) => {
     setForm((f) => ({ ...f, loanType, monthlyRate: f.rateEdited ? f.monthlyRate : DEFAULT_RATE[loanType] }))
@@ -78,33 +86,48 @@ export default function LoanApplicationPage() {
 
   const reset = () => {
     documents.clear()
-    setForm(emptyForm())
+    setForm(freshForm())
     setError('')
     setSubmitted(null)
   }
 
-  if (submitted) return <SubmittedCard application={submitted} onNew={reset} />
+  if (submitted) return <SubmittedCard application={submitted} onNew={reset} staffView={staffView} />
+
+  if (!staffView && !ownMemberId) {
+    return (
+      <div className="mx-auto max-w-xl">
+        <PageHeader title="Apply for a Loan" subtitle="Mutual Assistance Application Form, United DNSC Employees, Inc." />
+        <p className="card p-5 text-sm text-amber-800">
+          Your account isn't linked to a member record yet. Ask the UEDI office to link it, then you can apply here.
+        </p>
+      </div>
+    )
+  }
 
   const mismatchCount = documents.mismatched.length
 
   return (
     <form onSubmit={submit} noValidate className="mx-auto max-w-4xl min-w-0">
       <PageHeader
-        title="Loan Application"
+        title={staffView ? 'Loan Application' : 'Apply for a Loan'}
         subtitle="Mutual Assistance Application Form, United DNSC Employees, Inc. Supporting documents are read and checked against the form."
       />
 
       <div className="grid min-w-0 grid-cols-1 gap-6">
-        <ApplicantSection form={form} update={update} />
+        <ApplicantSection form={form} update={update} lockedMemberId={staffView ? undefined : ownMemberId} />
         <AgreementSection form={form} update={update} onLoanTypeChange={changeLoanType} />
-        <BookkeeperSection form={form} update={update} ledger={ledger} />
+        {staffView && <BookkeeperSection form={form} update={update} ledger={ledger} />}
         <DocumentsSection loanType={form.loanType} documents={documents} />
 
         <section className="card min-w-0 p-4 sm:p-5">
           {error && <p className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{error}</p>}
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-xs text-brand-500">
-              {documents.reading ? 'Reading documents…' : 'Submitting sends the form and document checks to Pending Loans.'}
+              {documents.reading
+                ? 'Reading documents…'
+                : staffView
+                  ? 'Submitting sends the form and document checks to Pending Loans.'
+                  : 'Submitting sends your application to UEDI for review.'}
             </p>
             <button type="submit" className="btn-accent px-5" disabled={saving}>
               <Send className="h-4 w-4" /> {saving ? 'Submitting…' : 'Submit application'}

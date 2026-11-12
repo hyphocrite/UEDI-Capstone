@@ -5,6 +5,7 @@ import PageHeader from '../components/PageHeader'
 import StatCard from '../components/StatCard'
 import StatusBadge from '../components/StatusBadge'
 import Modal from '../components/Modal'
+import AccountLinksSection from '../components/members/AccountLinksSection'
 import { branches, loans, members as seedMembers, retirementPlans } from '../data/mock'
 import type { Member } from '../data/mock'
 import { formatDate } from '../lib/format'
@@ -100,6 +101,8 @@ export default function MembersPage() {
           </table>
         </div>
       </div>
+
+      <AccountLinksSection />
 
       <AddMemberModal
         open={adding}

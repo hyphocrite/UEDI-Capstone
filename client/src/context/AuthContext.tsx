@@ -9,6 +9,8 @@ export type Session = {
   email: string
   role: Role
   branch: string | null
+  /** The member record this account is linked to; members see the loans filed under it. */
+  memberId: string | null
 }
 
 export type RegisterInput = {
@@ -29,6 +31,8 @@ type AuthValue = {
   verifyEmail: (email: string, code: string) => Promise<void>
   resendVerification: (email: string) => Promise<void>
   logout: () => Promise<void>
+  /** Replaces the session after the profile is edited. */
+  updateSession: (session: Session) => void
 }
 
 const AuthContext = createContext<AuthValue | null>(null)
@@ -78,7 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const value = useMemo(
-    () => ({ session, loading, login, register, verifyEmail, resendVerification, logout }),
+    () => ({ session, loading, login, register, verifyEmail, resendVerification, logout, updateSession: setSession }),
     [session, loading, login, register, verifyEmail, resendVerification, logout],
   )
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

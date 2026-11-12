@@ -5,6 +5,7 @@ const Loan = require("../models/Loan");
 const Payment = require("../models/Payment");
 const loans = require("../services/loans");
 const { requireAuth, requireRole } = require("../middleware/auth");
+const { seesAllLoans } = require("../config/access");
 
 // Every amount in this API is an integer number of centavos (₱1 = 100).
 const router = express.Router();
@@ -39,6 +40,8 @@ async function findLoan(id) {
   return Loan.findById(id);
 }
 
+/** Members see only loans under their linked member ID; an unlinked member sees none. */
+const canSee = (user, loan) => seesAllLoans(user) || (!!user.memberId && loan.memberId === user.memberId);
 
 /** Runs a handler and turns LoanError into its HTTP status. */
 const handle = (fn) => async (req, res, next) => {
@@ -55,6 +58,10 @@ router.get(
   handle(async (req, res) => {
     const status = FILTERS.includes(req.query.status) ? req.query.status : undefined;
     const filter = {};
+    if (!seesAllLoans(req.user)) {
+      if (!req.user.memberId) return res.json({ loans: [] });
+      filter.memberId = req.user.memberId;
+    }
     if (status === "missed_deduction") filter["lastDeduction.result"] = { $in: ["missed", "partial"] };
     else if (status) filter.status = status === "past_due" ? "active" : status;
     const q = typeof req.query.q === "string" ? req.query.q.trim().slice(0, 60) : "";
@@ -75,6 +82,9 @@ router.get(
   handle(async (req, res) => {
     const memberId = typeof req.query.memberId === "string" ? req.query.memberId.trim().slice(0, 32) : "";
     if (!memberId) return res.status(400).json({ error: "Give a member ID." });
+    if (!seesAllLoans(req.user) && memberId !== req.user.memberId) {
+      return res.status(403).json({ error: "You can only look up your own balances." });
+    }
     res.json({ balances: await loans.balancesFor(memberId) });
   }),
 );
@@ -83,7 +93,7 @@ router.get(
   "/:id",
   handle(async (req, res) => {
     const loan = await findLoan(req.params.id);
-    if (!loan) return res.status(404).json({ error: "Loan not found." });
+    if (!loan || !canSee(req.user, loan)) return res.status(404).json({ error: "Loan not found." });
     const payments = await Payment.find({ loan: loan._id }).sort({ paidAt: -1, createdAt: -1 });
     const otherActiveLoans = loan.status === "for_release" ? await loans.otherActiveLoans(loan) : undefined;
     res.json({ loan: loans.present(loan), payments, otherActiveLoans });

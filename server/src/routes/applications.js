@@ -1,14 +1,35 @@
 const express = require("express");
+const mongoose = require("mongoose");
 const { z } = require("zod");
 const Application = require("../models/Application");
 const { EMPLOYMENT_STATUSES, LOAN_TYPES, PAYMENT_FREQUENCIES } = require("../models/Application");
 const ml = require("../services/mlClient");
 const loans = require("../services/loans");
 const { STEPS, STEP_LABELS, currentStepOf, nextStep, followsSuggestion } = require("../services/approvals");
-const { requireAuth } = require("../middleware/auth");
+const { requireAuth, requireLevel } = require("../middleware/auth");
+const { seesAllLoans } = require("../config/access");
 
 const router = express.Router();
 router.use(requireAuth);
+
+/** A member's own applications: filed for their member ID, or submitted from their account. */
+const ownApplications = (user) => ({
+  $or: [{ submittedBy: user._id }, ...(user.memberId ? [{ "applicant.memberId": user.memberId }] : [])],
+});
+
+/** What this user may see of an application: members don't get the internal ML scores. */
+function forViewer(user, app) {
+  if (seesAllLoans(user)) return app;
+  const { assessment, assessmentError, ...rest } = app.toObject();
+  return rest;
+}
+
+/** The application if this user may see it, else null. */
+async function findVisible(req) {
+  if (!mongoose.isValidObjectId(req.params.id)) return null;
+  const filter = { _id: req.params.id, ...(seesAllLoans(req.user) ? {} : ownApplications(req.user)) };
+  return Application.findOne(filter);
+}
 
 const money = z.coerce.number().min(0).max(100_000_000);
 
@@ -121,6 +142,14 @@ router.post("/", async (req, res, next) => {
   try {
     const parsed = createSchema.safeParse(req.body || {});
     if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0].message });
+    // Members apply only for themselves, and the Bookkeeper section is the Bookkeeper's to fill.
+    if (!seesAllLoans(req.user)) {
+      if (!req.user.memberId) {
+        return res.status(403).json({ error: "Your account isn't linked to a member record yet. Ask the UEDI office to link it." });
+      }
+      parsed.data.applicant.memberId = req.user.memberId;
+      parsed.data.bookkeeper = { longTermBalance: 0, shortTermBalance: 0, monthlyPayment: 0 };
+    }
     const bookkeeper = await bookkeeperFor(parsed.data.applicant.memberId, parsed.data.bookkeeper);
 
     let app;
@@ -141,7 +170,7 @@ router.post("/", async (req, res, next) => {
       }
     }
     await runAssessment(app);
-    res.status(201).json({ application: app });
+    res.status(201).json({ application: forViewer(req.user, app) });
   } catch (err) {
     next(err);
   }
@@ -158,14 +187,15 @@ router.get("/", async (req, res, next) => {
       const atStep = role === STEPS[0] ? { $or: [{ currentStep: role }, { currentStep: { $exists: false } }, { currentStep: null }] } : { currentStep: role };
       filter = { status: "pending", ...atStep, "approvals.signedBy": { $ne: req.user._id } };
     }
+    if (!seesAllLoans(req.user)) filter = { $and: [filter, ownApplications(req.user)] };
     const apps = await Application.find(filter).sort({ createdAt: -1 }).limit(200);
-    res.json({ applications: apps });
+    res.json({ applications: apps.map((a) => forViewer(req.user, a)) });
   } catch (err) {
     next(err);
   }
 });
 
-router.get("/model", async (_req, res) => {
+router.get("/model", requireLevel("loan_officer"), async (_req, res) => {
   try {
     res.json({ model: await ml.modelInfo() });
   } catch (err) {
@@ -174,7 +204,7 @@ router.get("/model", async (_req, res) => {
 });
 
 // The 8-classifier benchmark behind the Credit Model page.
-router.get("/model/benchmark", async (_req, res) => {
+router.get("/model/benchmark", requireLevel("admin"), async (_req, res) => {
   try {
     res.json(await ml.benchmark());
   } catch (err) {
@@ -184,15 +214,15 @@ router.get("/model/benchmark", async (_req, res) => {
 
 router.get("/:id", async (req, res, next) => {
   try {
-    const app = await Application.findById(req.params.id).catch(() => null);
+    const app = await findVisible(req);
     if (!app) return res.status(404).json({ error: "Application not found." });
-    res.json({ application: app });
+    res.json({ application: forViewer(req.user, app) });
   } catch (err) {
     next(err);
   }
 });
 
-router.post("/:id/assess", async (req, res, next) => {
+router.post("/:id/assess", requireLevel("loan_officer"), async (req, res, next) => {
   try {
     const app = await Application.findById(req.params.id).catch(() => null);
     if (!app) return res.status(404).json({ error: "Application not found." });

@@ -10,6 +10,7 @@ const {
   signSession,
   requireAuth,
   requireRole,
+  requireLevel,
 } = require("../middleware/auth");
 const { rateLimit } = require("../middleware/rateLimit");
 const verification = require("../services/emailVerification");
@@ -153,11 +154,81 @@ router.get("/me", (req, res) => {
   res.json({ session: req.user ? req.user.toSession() : null });
 });
 
-router.get("/users", requireAuth, async (_req, res, next) => {
+const profileSchema = z.object({
+  fullName: z.string().trim().min(2, "Enter your full name.").max(120),
+  branch: z.string().trim().max(120).optional(),
+});
+
+const passwordSchema = z.object({
+  currentPassword: z.string().min(1, "Enter your current password.").max(128),
+  newPassword: registerSchema.shape.password,
+});
+
+const memberLinkSchema = z.object({
+  // Empty or null unlinks the account.
+  memberId: z.preprocess(
+    (v) => (typeof v === "string" ? v.trim() || null : v ?? null),
+    z.string().max(32, "Member IDs are at most 32 characters.").regex(/^[A-Za-z0-9-]+$/, "Use letters, numbers and dashes only.").nullable(),
+  ),
+});
+
+// Members edit their own name and branch. Email stays fixed because it was verified.
+router.patch("/profile", requireAuth, async (req, res, next) => {
+  try {
+    const parsed = profileSchema.safeParse(req.body || {});
+    if (!parsed.success) return res.status(400).json({ error: firstIssue(parsed) });
+    req.user.fullName = parsed.data.fullName;
+    req.user.branch = parsed.data.branch || undefined;
+    await req.user.save();
+    res.json({ session: req.user.toSession() });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post("/password", requireAuth, loginLimit, async (req, res, next) => {
+  try {
+    const parsed = passwordSchema.safeParse(req.body || {});
+    if (!parsed.success) return res.status(400).json({ error: firstIssue(parsed) });
+    const user = await User.findById(req.user._id).select("+passwordHash");
+    if (!(await bcrypt.compare(parsed.data.currentPassword, user.passwordHash))) {
+      return res.status(400).json({ error: "Your current password is not correct." });
+    }
+    user.passwordHash = await bcrypt.hash(parsed.data.newPassword, 12);
+    await user.save();
+    startSession(res, user);
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Loan Officers link accounts to member records, so the list is open to them as well as admins.
+router.get("/users", requireLevel("loan_officer"), async (_req, res, next) => {
   try {
     const users = await User.find().sort({ createdAt: -1 }).limit(200);
     res.json({ users: users.map((u) => ({ ...u.toSession(), createdAt: u.createdAt })) });
   } catch (err) {
+    next(err);
+  }
+});
+
+router.patch("/users/:id/member", requireLevel("loan_officer"), async (req, res, next) => {
+  try {
+    const parsed = memberLinkSchema.safeParse(req.body || {});
+    if (!parsed.success) return res.status(400).json({ error: firstIssue(parsed) });
+    const { memberId } = parsed.data;
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ error: "User not found." });
+    if (memberId && (await User.exists({ memberId, _id: { $ne: req.params.id } }))) {
+      return res.status(409).json({ error: "Another account is already linked to that member ID." });
+    }
+
+    const update = memberId ? { $set: { memberId } } : { $unset: { memberId: 1 } };
+    const user = await User.findByIdAndUpdate(req.params.id, update, { returnDocument: "after" });
+    if (!user) return res.status(404).json({ error: "User not found." });
+    res.json({ user: { ...user.toSession(), createdAt: user.createdAt } });
+  } catch (err) {
+    if (err?.code === 11000) return res.status(409).json({ error: "Another account is already linked to that member ID." });
     next(err);
   }
 });
