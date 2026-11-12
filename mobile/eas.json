@@ -4,7 +4,7 @@
     "preview": {
       "distribution": "internal",
       "android": { "buildType": "apk" },
-      "env": { "EXPO_PUBLIC_API_URL": "https://udei-api.onrender.com/api" }
+      "env": { "EXPO_PUBLIC_API_URL": "https://uedi-capstone-1-api.onrender.com/api" }
     }
   }
 }
