@@ -2,6 +2,8 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import Modal from '../Modal'
 import { api } from '../../lib/api'
+import AddressFields from '../AddressFields'
+import { useConfirm } from '../../context/ConfirmContext'
 import { employmentStatusLabel } from '../../lib/applications'
 import type { EmploymentStatus } from '../../lib/applications'
 import type { Member, MemberStatus } from '../../lib/members'
@@ -24,6 +26,22 @@ type Fields = {
 
 const day = (iso?: string) => (iso ? iso.slice(0, 10) : '')
 
+/** Names for the confirmation, which lists each field that changes. */
+const FIELD_LABELS: Record<Exclude<keyof Fields, 'memberId'>, string> = {
+  lastName: 'Last name',
+  firstName: 'First name',
+  middleInitial: 'Middle initial',
+  phone: 'Mobile number',
+  email: 'Email',
+  branch: 'Branch or office',
+  residenceAddress: 'Residence address',
+  employer: 'Employer',
+  employmentStatus: 'Employment status',
+  joinedAt: 'Member since',
+  status: 'Status',
+  remarks: 'Remarks',
+}
+
 const fieldsOf = (m: Member | null, branch: string): Fields => ({
   memberId: m?.memberId ?? '',
   lastName: m?.lastName ?? '',
@@ -41,8 +59,8 @@ const fieldsOf = (m: Member | null, branch: string): Fields => ({
 })
 
 /**
- * Adds a member (member = null) or edits one. Edits ask for confirmation before saving, as the
- * panel asked: nothing in a member record changes without a second look.
+ * Adds a member (member = null) or edits one. Both ask for confirmation first, listing what changes, as
+ * the panel asked: nothing in a member record changes without a second look.
  */
 export default function MemberForm({ member, nextMemberId, branches, open, onClose, onSaved }: {
   member: Member | null
@@ -53,15 +71,14 @@ export default function MemberForm({ member, nextMemberId, branches, open, onClo
   onSaved: (m: Member) => void
 }) {
   const editing = !!member
+  const confirm = useConfirm()
   const [form, setForm] = useState<Fields>(() => fieldsOf(member, branches[0] ?? ''))
   const [error, setError] = useState('')
-  const [confirming, setConfirming] = useState(false)
   const [saving, setSaving] = useState(false)
 
   const set = (key: keyof Fields) => (e: { target: { value: string } }) => {
     setForm((f) => ({ ...f, [key]: e.target.value }))
     setError('')
-    setConfirming(false)
   }
 
   const check = () => {
@@ -84,7 +101,6 @@ export default function MemberForm({ member, nextMemberId, branches, open, onClo
       onClose()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save the member.')
-      setConfirming(false)
     } finally {
       setSaving(false)
     }
@@ -94,8 +110,26 @@ export default function MemberForm({ member, nextMemberId, branches, open, onClo
     e.preventDefault()
     const problem = check()
     if (problem) return setError(problem)
-    if (editing && !confirming) return setConfirming(true)
-    void save()
+    const was = fieldsOf(member, branches[0] ?? '')
+    const changed = (Object.keys(FIELD_LABELS) as (keyof typeof FIELD_LABELS)[]).filter((k) => String(form[k] ?? '') !== String(was[k] ?? ''))
+    if (editing && !changed.length) return setError('Nothing has changed.')
+    const show = (v: unknown) => (v === '' || v == null ? 'not set' : String(v))
+    void confirm({
+      title: editing ? `Save changes to ${member.fullName}?` : 'Add this member?',
+      message: editing ? (
+        <ul className="list-disc space-y-1 pl-5">
+          {changed.map((k) => <li key={k}>{FIELD_LABELS[k]}: {show(was[k])} → <b>{show(form[k])}</b></li>)}
+        </ul>
+      ) : (
+        <p>
+          Add <b>{[form.firstName, form.lastName].filter(Boolean).join(' ') || 'a member with no name yet'}</b> as member no.{' '}
+          <b>{form.memberId || nextMemberId}</b>. The member number can't be changed later.
+        </p>
+      ),
+      confirmLabel: editing ? 'Yes, save' : 'Yes, add',
+    }).then((ok) => {
+      if (ok) void save()
+    })
   }
 
   const input = (key: keyof Fields, label: string, props: Record<string, unknown> = {}) => (
@@ -133,7 +167,10 @@ export default function MemberForm({ member, nextMemberId, branches, open, onClo
           </div>
           {input('joinedAt', 'Member since', { type: 'date' })}
         </div>
-        {input('residenceAddress', 'Residence address', { maxLength: 300 })}
+        <fieldset className="min-w-0">
+          <legend className="mb-2 text-sm font-medium text-brand-800">Residence address</legend>
+          <AddressFields idPrefix="m-address" value={form.residenceAddress} onChange={(residenceAddress) => { setForm((f) => ({ ...f, residenceAddress })); setError('') }} />
+        </fieldset>
         <div className="grid gap-4 sm:grid-cols-2">
           {input('employer', 'Employer', { maxLength: 120 })}
           <div>
@@ -156,15 +193,10 @@ export default function MemberForm({ member, nextMemberId, branches, open, onClo
         </div>
 
         {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{error}</p>}
-        {confirming && (
-          <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800" role="status">
-            Save these changes to {member?.fullName}'s record? Press Save again to confirm.
-          </p>
-        )}
         <div className="flex justify-end gap-2">
           <button type="button" className="btn-ghost" onClick={onClose}>Cancel</button>
           <button type="submit" className="btn-primary" disabled={saving}>
-            {saving ? 'Saving…' : editing ? (confirming ? 'Yes, save' : 'Save') : 'Add member'}
+            {saving ? 'Saving…' : editing ? 'Save' : 'Add member'}
           </button>
         </div>
       </form>

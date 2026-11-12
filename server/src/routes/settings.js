@@ -1,6 +1,7 @@
 const express = require("express");
 const { z } = require("zod");
 const settings = require("../services/settings");
+const { auditNote } = require("../middleware/audit");
 const { requireLevel } = require("../middleware/auth");
 
 const router = express.Router();
@@ -37,6 +38,13 @@ router.put("/", requireLevel("crecom_chair"), async (req, res, next) => {
   try {
     const parsed = saveSchema.safeParse(req.body || {});
     if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0].message });
+    const before = await settings.get();
+    auditNote(res, { target: "Loan Settings", before });
+    // Interest rates are fixed by the Administrator; CreCom and the President set the other rules.
+    const rateChanged = Object.keys(before.products).some((t) => parsed.data.products?.[t] && parsed.data.products[t].monthlyRate !== before.products[t].monthlyRate);
+    if (rateChanged && req.user.role !== "admin") {
+      return res.status(403).json({ error: "Only the Administrator can change interest rates." });
+    }
     res.json({ settings: await settings.save(parsed.data, req.user) });
   } catch (err) {
     next(err);

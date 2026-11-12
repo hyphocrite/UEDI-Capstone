@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, FileText } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import StatusBadge from '../components/StatusBadge'
 import { PaymentForm, ReleaseForm } from '../components/loans/LoanForms'
@@ -53,7 +53,14 @@ export default function LoanDetailPage() {
       <PageHeader
         title={loan.loanNo}
         subtitle={`${loan.borrowerName} · ${loanTypeLabel[loan.loanType]}${loan.applicationNo ? ` · from ${loan.applicationNo}` : ''}`}
-        actions={back}
+        actions={
+          <>
+            {loan.status !== 'for_release' && (
+              <Link to={`/loans/${loan._id}/statement`} className="btn-ghost"><FileText className="h-4 w-4" /> Statement of account</Link>
+            )}
+            {back}
+          </>
+        }
       />
 
       {loan.collectFrom?.source === 'final_pay' && (

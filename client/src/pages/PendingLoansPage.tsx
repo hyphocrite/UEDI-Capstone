@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { AlertTriangle, CheckCircle2, Cpu, FilePlus2 } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Clock, Cpu, FilePlus2 } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import StatusBadge from '../components/StatusBadge'
 import ApplicationDetail from '../components/pending-loans/ApplicationDetail'
@@ -13,6 +13,19 @@ import { formatDate, formatPeso } from '../lib/format'
 import { isSigner, stepShortLabel } from '../lib/roles'
 
 type Tab = 'awaiting' | 'pending' | 'decided'
+
+const HOUR = 60 * 60 * 1000
+/** Applications waiting longer than this at one step are called out. */
+const OVERDUE_HOURS = 48
+
+/** When the application reached its current step: the last signature, or when it was filed. */
+const waitingSince = (a: LoanApplication) => new Date(a.approvals.at(-1)?.signedAt ?? a.createdAt).getTime()
+
+const waitedText = (hours: number) =>
+  hours < 1 ? 'less than an hour' : hours < 24 ? `${Math.floor(hours)} hour${Math.floor(hours) === 1 ? '' : 's'}` : `${Math.floor(hours / 24)} day${Math.floor(hours / 24) === 1 ? '' : 's'}`
+
+/** Amber after a day, red after two. */
+const waitTone = (hours: number) => (hours >= OVERDUE_HOURS ? 'text-red-700' : hours >= 24 ? 'text-amber-700' : 'text-brand-600')
 
 /** Pending, at the caller's step, and not already signed by them (same rule as GET /api/applications?awaiting=me). */
 const awaitingUser = (a: LoanApplication, role: string | undefined, userId: string | undefined) =>
@@ -28,6 +41,13 @@ export default function PendingLoansPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  // Waiting times are counted from this, refreshed every minute.
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 60_000)
+    return () => clearInterval(id)
+  }, [])
+  const hoursWaiting = (a: LoanApplication) => (now - waitingSince(a)) / HOUR
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -51,9 +71,11 @@ export default function PendingLoansPage() {
   }, [load])
 
   const isAwaiting = (a: LoanApplication) => awaitingUser(a, session?.role, session?.id)
-  const visible = apps.filter((a) =>
-    tab === 'awaiting' ? isAwaiting(a) : tab === 'pending' ? a.status === 'pending' : a.status !== 'pending',
-  )
+  const visible = apps
+    .filter((a) => (tab === 'awaiting' ? isAwaiting(a) : tab === 'pending' ? a.status === 'pending' : a.status !== 'pending'))
+    // Waiting applications: longest wait first, so nothing sits forgotten. Decided: newest first, as listed.
+    .sort((a, b) => (tab === 'decided' ? 0 : waitingSince(a) - waitingSince(b)))
+  const overdue = tab === 'decided' ? [] : visible.filter((a) => hoursWaiting(a) >= OVERDUE_HOURS)
   const selected = visible.find((a) => a._id === selectedId) ?? visible[0] ?? null
   const pendingCount = apps.filter((a) => a.status === 'pending').length
   const awaitingCount = apps.filter(isAwaiting).length
@@ -103,6 +125,15 @@ export default function PendingLoansPage() {
         </p>
       )}
       {error && <p className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{error}</p>}
+      {overdue.length > 0 && (
+        <p className="mb-4 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" role="status">
+          <Clock className="h-4 w-4 shrink-0" />
+          <span>
+            <b>{overdue.length} application{overdue.length === 1 ? '' : 's'}</b> waiting more than {OVERDUE_HOURS} hours at one step
+            {tab === 'pending' ? `: ${[...new Set(overdue.map((a) => (a.currentStep !== 'none' ? stepShortLabel[a.currentStep] : '')))].filter(Boolean).join(', ')}` : ''}. Oldest first.
+          </span>
+        </p>
+      )}
 
       {loading && apps.length === 0 ? (
         <p className="py-10 text-center text-sm text-brand-500">Loading applications…</p>
@@ -133,12 +164,24 @@ export default function PendingLoansPage() {
                         <span className="text-xs text-brand-400">Not scored</span>
                       )}
                     </div>
+                    <p className="mt-1 flex items-baseline gap-2">
+                      <span className="text-base font-bold text-brand-800">{formatPeso(a.loan.amount)}</span>
+                      <span className="text-xs text-brand-500">{loanTypeLabel[a.loan.loanType]}</span>
+                    </p>
+                    <p className={`truncate text-sm ${a.loan.purpose ? 'text-brand-700' : 'text-brand-400 italic'}`} title={a.loan.purpose || undefined}>
+                      {a.loan.purpose ? `“${a.loan.purpose}”` : 'No reason given'}
+                    </p>
                     <p className="mt-0.5 text-xs text-brand-500">
-                      {a.applicationNo} · {formatPeso(a.loan.amount)} · {loanTypeLabel[a.loan.loanType]}
+                      {a.applicationNo}
                       {s && ` · ${Math.round(s.defaultProbability * 100)}% risk`}
                     </p>
                     {a.status === 'pending' && a.currentStep !== 'none' && (
-                      <p className="mt-0.5 text-xs font-medium text-brand-700">At {stepShortLabel[a.currentStep]} · {a.approvals.length} of 4 signed</p>
+                      <>
+                        <p className="mt-0.5 text-xs font-medium text-brand-700">At {stepShortLabel[a.currentStep]} · {a.approvals.length} of 4 signed</p>
+                        <p className={`mt-0.5 flex items-center gap-1 text-xs font-semibold ${waitTone(hoursWaiting(a))}`}>
+                          <Clock className="h-3 w-3" /> Waiting {waitedText(hoursWaiting(a))}
+                        </p>
+                      </>
                     )}
                   </button>
                 </li>

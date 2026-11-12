@@ -10,6 +10,7 @@ import type { RemittanceEdit } from '../components/deductions/RemittancePanel'
 import RunLinesTable from '../components/deductions/RunLinesTable'
 import type { LineEdit } from '../components/deductions/RunLinesTable'
 import { useAuth } from '../context/AuthContext'
+import { useConfirm } from '../context/ConfirmContext'
 import { api } from '../lib/api'
 import { formatCutoff, lineResult, runStatusLabel } from '../lib/deductions'
 import type { DeductionRun, ImportResult, RunLine } from '../lib/deductions'
@@ -29,6 +30,7 @@ type Prompt = { kind: 'remove'; line: RunLine } | { kind: 'unpost' }
 export default function DeductionRunPage() {
   const { id } = useParams()
   const { session } = useAuth()
+  const confirm = useConfirm()
   const canWrite = session?.role === 'bookkeeper' || session?.role === 'treasurer'
   const [run, setRunState] = useState<DeductionRun | null>(null)
   const [edits, setEdits] = useState<Record<string, LineEdit>>({})
@@ -96,7 +98,19 @@ export default function DeductionRunPage() {
   }
 
   const path = `/api/deductions/${run._id}`
-  const patchLine = (line: RunLine, body: object) => act('line', () => api(`${path}/lines/${line._id}`, { method: 'PATCH', body: JSON.stringify(body) }))
+  const cutoffName = formatCutoff(run.cutoff)
+  const patchLine = async (line: RunLine, body: { expected?: number; remove?: boolean; removedReason?: string }) => {
+    const who = <b>{line.loanNo} · {line.borrowerName}</b>
+    const ok = await confirm(
+      body.remove
+        ? { title: 'Remove this line?', message: <p>Take {who} off the {cutoffName} list. Payroll won't deduct for this loan this cutoff. Reason: “{body.removedReason}”.</p>, confirmLabel: 'Yes, remove', danger: true }
+        : body.remove === false
+          ? { title: 'Put this line back?', message: <p>Put {who} back on the {cutoffName} list.</p>, confirmLabel: 'Yes, put back' }
+          : { title: 'Change the amount?', message: <p>Ask payroll to deduct <b>{formatCentavos(body.expected ?? 0)}</b> instead of {formatCentavos(line.expected)} from {who} on {cutoffName}.</p>, confirmLabel: 'Yes, change it' },
+    )
+    if (!ok) return false
+    return act('line', () => api(`${path}/lines/${line._id}`, { method: 'PATCH', body: JSON.stringify(body) }))
+  }
 
   const missingReason = run.lines.find((l) => {
     const e = edits[l._id]
@@ -104,11 +118,16 @@ export default function DeductionRunPage() {
     const r = toCentavos(e.remitted || 0)
     return (r < l.expected && !e.reason) || (e.reason === 'other' && !e.reasonNote.trim())
   })
-  const save = () => {
+  const save = async (askFirst = true) => {
     if (missingReason) {
       setError(`${missingReason.loanNo} (${missingReason.borrowerName}): less than the amount sent was deducted. Choose a reason.`)
-      return Promise.resolve(false)
+      return false
     }
+    if (askFirst && !(await confirm({
+      title: 'Save the remitted amounts?',
+      message: <p>Save what payroll remitted for the {cutoffName} run: {formatCentavos(live?.remitted ?? 0)} in total. Nothing is posted to the loans until you post the run.</p>,
+      confirmLabel: 'Yes, save',
+    }))) return false
     return act('save', () =>
       api(`${path}/remittance`, {
         method: 'PUT',
@@ -123,7 +142,17 @@ export default function DeductionRunPage() {
       }), 'Saved.')
   }
   const post = async () => {
-    if (!(await save())) return
+    const ok = await confirm({
+      title: 'Post this run to the ledger?',
+      message: (
+        <>
+          <p>Each remitted amount on the {cutoffName} run becomes a payroll payment on its loan ({formatCentavos(live?.remitted ?? 0)} in total), and missed or partial deductions are flagged on the loans.</p>
+          <p>Only the Treasurer can undo this, by unposting the run.</p>
+        </>
+      ),
+      confirmLabel: 'Yes, post',
+    })
+    if (!ok || !(await save(false))) return
     await act('post', () => api(`${path}/post`, { method: 'POST' }), 'Posted. Each remitted amount is now a payroll payment on its loan.')
   }
   const applyImport = (updates: ImportResult['updates']) =>
@@ -136,6 +165,12 @@ export default function DeductionRunPage() {
   const confirmPrompt = async () => {
     if (!prompt) return
     if (reason.trim().length < 3) return setError('Give a reason.')
+    if (prompt.kind !== 'remove' && !(await confirm({
+      title: 'Unpost this run?',
+      message: <p>Every payment this run posted is voided and the loan balances go back up, so the {cutoffName} lines can be corrected and posted again. Reason: “{reason.trim()}”.</p>,
+      confirmLabel: 'Yes, unpost',
+      danger: true,
+    }))) return
     const ok = prompt.kind === 'remove'
       ? await patchLine(prompt.line, { remove: true, removedReason: reason.trim() })
       : await act('unpost', () => api(`${path}/unpost`, { method: 'POST', body: JSON.stringify({ reason: reason.trim() }) }), 'Unposted. The run’s payments were voided; correct the lines and post again.')
@@ -206,7 +241,14 @@ export default function DeductionRunPage() {
           {canWrite && run.status === 'draft' && (
             <div className="flex flex-wrap items-center justify-end gap-3">
               <p className="text-xs text-brand-500">Sending locks the amounts. Then download the CSV or print the list for the Payroll Officer.</p>
-              <button className="btn-primary" disabled={busy !== null} onClick={() => act('send', () => api(`${path}/send`, { method: 'POST' }), 'Sent. Download the CSV or print the list for DNSC payroll.')}>
+              <button className="btn-primary" disabled={busy !== null} onClick={async () => {
+                if (!(await confirm({
+                  title: 'Send this run to payroll?',
+                  message: <p>Lock the {cutoffName} list: {run.lines.filter((l) => !l.removed).length} lines, {formatCentavos(t.expected)} to deduct. The amounts can't be changed after this.</p>,
+                  confirmLabel: 'Yes, send',
+                }))) return
+                await act('send', () => api(`${path}/send`, { method: 'POST' }), 'Sent. Download the CSV or print the list for DNSC payroll.')
+              }}>
                 <Send className="h-4 w-4" /> {busy === 'send' ? 'Sending…' : 'Send'}
               </button>
             </div>

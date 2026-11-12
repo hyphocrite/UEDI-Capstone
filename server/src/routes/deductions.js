@@ -5,6 +5,7 @@ const DeductionRun = require("../models/DeductionRun");
 const d = require("../services/deductions");
 const runs = require("../services/deductionRuns");
 const ledger = require("../services/ledger");
+const { auditNote } = require("../middleware/audit");
 const { requireAuth, requireRole } = require("../middleware/auth");
 
 // Payroll deduction runs. Amounts are integer centavos.
@@ -63,6 +64,7 @@ const parse = (schema, req, res) => {
 async function findRun(req, res) {
   const run = mongoose.isValidObjectId(req.params.id) ? await DeductionRun.findById(req.params.id) : null;
   if (!run) res.status(404).json({ error: "Run not found." });
+  else auditNote(res, { target: `Run for ${ledger.calendarDay(run.cutoffDate).toISOString().slice(0, 10)} cutoff` });
   return run;
 }
 

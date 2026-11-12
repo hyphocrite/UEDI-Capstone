@@ -159,3 +159,19 @@ test("the Bookkeeper sets a payroll deduction on a carried-over balance; runs th
   const run = (await t.call("/deductions", { method: "POST", cookie: bk, body: { cutoffDate: "2026-10-15" } })).json.run;
   assert.equal(run.lines.find((l) => l.loanNo === "LEDGER-D-1")?.expected, 1_500_00);
 });
+
+test("a linked member gets their own record to fill in the loan form, and nobody else's", { skip }, async () => {
+  const Member = require("../src/models/Member");
+  await Member.create({ memberId: "F-1", lastName: "Garcia", firstName: "Paolo", residenceAddress: "Purok 1, Tagum City", employer: "DNSC", employmentStatus: "permanent", joinedAt: new Date("2015-03-01") });
+  const member = await t.register("Paolo Garcia", "paolo@uedi.test");
+  assert.deepEqual((await t.call("/members/mine", { cookie: member.cookie })).json, { member: null }, "not linked yet");
+  await link(staff.officer.cookie, member.id, "F-1");
+  await t.call("/applications", { method: "POST", cookie: member.cookie, body: application(0, { applicant: { monthlySalary: 41000, netTakeHomePay: 27000 } }) });
+
+  const mine = (await t.call("/members/mine", { cookie: member.cookie })).json;
+  assert.equal(mine.member.memberId, "F-1");
+  assert.equal(mine.member.residenceAddress, "Purok 1, Tagum City");
+  assert.ok(mine.history.yearsAsMember >= 11);
+  assert.equal(mine.lastApplication.monthlySalary, 41000);
+  assert.equal((await t.call("/members/F-1", { cookie: member.cookie })).status, 403, "still can't read member records");
+});

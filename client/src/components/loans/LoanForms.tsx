@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Banknote, Send } from 'lucide-react'
 import { api } from '../../lib/api'
+import { useConfirm } from '../../context/ConfirmContext'
 import { loanTypeLabel } from '../../lib/applications'
 import { MANUAL_METHODS, formatCentavos, paymentMethodLabel, toCentavos, todayInput } from '../../lib/loans'
 import type { Loan, OtherActiveLoan, Payment, PaymentMethod } from '../../lib/loans'
@@ -13,6 +14,7 @@ const errorText = (err: unknown, fallback: string) => (err instanceof Error ? er
  * from the proceeds; loans of the same type (the usual renewal) start checked.
  */
 export function ReleaseForm({ loan, otherLoans, onDone }: { loan: Loan; otherLoans: OtherActiveLoan[]; onDone: (loan: Loan) => void }) {
+  const confirm = useConfirm()
   const [releasedAt, setReleasedAt] = useState(todayInput)
   const [voucherNo, setVoucherNo] = useState('')
   const [offset, setOffset] = useState(() => new Set(otherLoans.filter((o) => o.suggested).map((o) => o._id)))
@@ -34,6 +36,17 @@ export function ReleaseForm({ loan, otherLoans, onDone }: { loan: Loan; otherLoa
     e.preventDefault()
     if (!voucherNo.trim()) return setError('Enter the voucher number.')
     if (net < 0) return setError('The old balances are more than this loan. Deduct fewer loans.')
+    const ok = await confirm({
+      title: 'Release this loan?',
+      message: (
+        <>
+          <p>Release <b>{loan.loanNo}</b> to <b>{loan.borrowerName}</b> under voucher <b>{voucherNo.trim()}</b>, dated {releasedAt}.</p>
+          <p>Net proceeds: <b>{formatCentavos(net)}</b>{offsets.length ? `, after paying off ${offsets.map((o) => o.loanNo).join(', ')}` : ''}. The payment schedule starts from this date.</p>
+        </>
+      ),
+      confirmLabel: 'Yes, release',
+    })
+    if (!ok) return
     setBusy(true)
     setError('')
     try {
@@ -95,6 +108,7 @@ export function ReleaseForm({ loan, otherLoans, onDone }: { loan: Loan; otherLoa
 
 /** Bookkeeper or Treasurer, while the loan is active. Amounts are typed in pesos and sent in centavos. */
 export function PaymentForm({ loan, onDone }: { loan: Loan; onDone: (loan: Loan, payment: Payment) => void }) {
+  const confirm = useConfirm()
   const [amount, setAmount] = useState(() => (loan.nextDue ? String(loan.nextDue.amount / 100) : ''))
   const [paidAt, setPaidAt] = useState(todayInput)
   const [method, setMethod] = useState<PaymentMethod>('payroll')
@@ -108,6 +122,12 @@ export function PaymentForm({ loan, onDone }: { loan: Loan; onDone: (loan: Loan,
     const centavos = toCentavos(amount)
     if (!(centavos > 0)) return setError('Enter the amount paid.')
     if (centavos > loan.balance) return setError(`That is more than the remaining balance of ${formatCentavos(loan.balance)}.`)
+    const ok = await confirm({
+      title: 'Record this payment?',
+      message: <p>Record <b>{formatCentavos(centavos)}</b> ({paymentMethodLabel[method]}, paid {paidAt}) on <b>{loan.loanNo}</b> for {loan.borrowerName}. The balance goes down to {formatCentavos(loan.balance - centavos)}.</p>,
+      confirmLabel: 'Yes, record it',
+    })
+    if (!ok) return
     setBusy(true)
     setError('')
     setDone('')

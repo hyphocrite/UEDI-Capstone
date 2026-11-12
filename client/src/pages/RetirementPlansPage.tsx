@@ -6,6 +6,7 @@ import PageHeader from '../components/PageHeader'
 import StatCard from '../components/StatCard'
 import StatusBadge from '../components/StatusBadge'
 import { useAuth } from '../context/AuthContext'
+import { useConfirm } from '../context/ConfirmContext'
 import { api } from '../lib/api'
 import { formatDate } from '../lib/format'
 import { formatCentavos, toCentavos } from '../lib/loans'
@@ -119,6 +120,7 @@ export default function RetirementPlansPage() {
 }
 
 function PlanDetail({ plan, canWrite, onChange }: { plan: RetirementPlan; canWrite: boolean; onChange: (p: RetirementPlan) => void }) {
+  const confirm = useConfirm()
   const [form, setForm] = useState({
     month: plan.missedMonths[0] ?? thisMonth(),
     amount: String(plan.planShare / 100),
@@ -133,6 +135,12 @@ function PlanDetail({ plan, canWrite, onChange }: { plan: RetirementPlan; canWri
 
   const record = async (e: FormEvent) => {
     e.preventDefault()
+    const ok = await confirm({
+      title: 'Record this contribution?',
+      message: <p>Record <b>{monthLabel(form.month)}</b> for <b>{plan.memberName}</b>: {formatCentavos(toCentavos(form.amount || 0))} to the plan and {formatCentavos(toCentavos(form.dues || 0))} dues, paid {form.paidAt}.</p>,
+      confirmLabel: 'Yes, record it',
+    })
+    if (!ok) return
     setSaving(true)
     setMessage(null)
     try {
@@ -152,6 +160,19 @@ function PlanDetail({ plan, canWrite, onChange }: { plan: RetirementPlan; canWri
 
   const voidEntry = async () => {
     if (!voiding) return
+    const entry = plan.contributions.find((c) => c._id === voiding.id)
+    const ok = await confirm({
+      title: 'Void this contribution?',
+      message: (
+        <p>
+          Void {entry ? <><b>{monthLabel(entry.month)}</b> ({formatCentavos(entry.amount)}) </> : 'this contribution '}for <b>{plan.memberName}</b>. The plan
+          balance goes down by that amount and the month shows as unpaid. Reason: “{voiding.reason}”.
+        </p>
+      ),
+      confirmLabel: 'Yes, void it',
+      danger: true,
+    })
+    if (!ok) return
     try {
       const { plan: next } = await api<{ plan: RetirementPlan }>(`/api/retirement-plans/${plan._id}/contributions/${voiding.id}/void`, {
         method: 'POST',
@@ -251,6 +272,7 @@ function PlanDetail({ plan, canWrite, onChange }: { plan: RetirementPlan; canWri
 }
 
 function EnrollModal({ onClose, onSaved }: { onClose: () => void; onSaved: (p: RetirementPlan) => void }) {
+  const confirm = useConfirm()
   const [members, setMembers] = useState<Member[]>([])
   const [form, setForm] = useState({ memberId: '', startDate: today(), monthlyContribution: '500', planShare: '400', openingBalance: '0' })
   const [error, setError] = useState('')
@@ -260,6 +282,13 @@ function EnrollModal({ onClose, onSaved }: { onClose: () => void; onSaved: (p: R
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
+    const who = members.find((m) => m.memberId === form.memberId)
+    const ok = await confirm({
+      title: 'Enroll this member?',
+      message: <p>Open a retirement plan for <b>{who ? who.fullName : `member ${form.memberId}`}</b> from {form.startDate}: {formatCentavos(toCentavos(form.monthlyContribution || 0))} a month, of which {formatCentavos(toCentavos(form.planShare || 0))} goes to the plan.</p>,
+      confirmLabel: 'Yes, enroll',
+    })
+    if (!ok) return
     try {
       const { plan } = await api<{ plan: RetirementPlan }>('/api/retirement-plans', {
         method: 'POST',

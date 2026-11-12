@@ -2,16 +2,56 @@ const express = require("express");
 const { z } = require("zod");
 const Member = require("../models/Member");
 const { MEMBER_STATUSES } = require("../models/Member");
+const Application = require("../models/Application");
 const { EMPLOYMENT_STATUSES } = require("../models/Application");
 const Loan = require("../models/Loan");
 const RetirementPlan = require("../models/RetirementPlan");
 const loans = require("../services/loans");
 const plans = require("../services/retirementPlans");
 const ledger = require("../services/ledger");
+const { auditNote } = require("../middleware/audit");
 const { requireStaff, requireLevel, requireRole } = require("../middleware/auth");
 
-// UDEI's member records. Loan Officers and everyone above them can see and edit them.
 const router = express.Router();
+
+/**
+ * A signed-in member's own record, to fill in the loan form: what UDEI has on file, their history
+ * with UDEI, and the salary details from their last application. Only the member's linked record.
+ */
+router.get("/mine", requireStaff, async (req, res, next) => {
+  try {
+    if (!req.user.memberId) return res.json({ member: null });
+    const member = await Member.findOne({ memberId: req.user.memberId });
+    const last = await Application.findOne({ "applicant.memberId": req.user.memberId }).sort({ createdAt: -1 }).lean();
+    const a = last?.applicant;
+    res.json({
+      member: member
+        ? {
+            memberId: member.memberId,
+            lastName: member.lastName,
+            firstName: member.firstName,
+            middleInitial: member.middleInitial,
+            residenceAddress: member.residenceAddress,
+            employer: member.employer,
+            employmentStatus: member.employmentStatus,
+            dateOfBirth: member.dateOfBirth,
+          }
+        : null,
+      history: member ? await historyOf(member) : null,
+      lastApplication: a
+        ? {
+            lastName: a.lastName, firstName: a.firstName, middleInitial: a.middleInitial, residenceAddress: a.residenceAddress,
+            employer: a.employer, employmentStatus: a.employmentStatus, dateOfBirth: a.dateOfBirth,
+            monthlySalary: a.monthlySalary, netTakeHomePay: a.netTakeHomePay, filedAt: last.createdAt,
+          }
+        : null,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Everything below: UDEI's member records. Loan Officers and everyone above them can see and edit them.
 router.use(requireStaff, requireLevel("loan_officer"));
 
 const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -152,6 +192,7 @@ router.post("/", async (req, res, next) => {
         if (data.memberId) return res.status(409).json({ error: `Member ID ${data.memberId} is already used.` });
       }
     }
+    auditNote(res, { target: `No. ${member.memberId} · ${member.fullName}` });
     res.status(201).json({ member: member.toJSON() });
   } catch (err) {
     next(err);
@@ -172,6 +213,7 @@ router.post("/:memberId/payroll-deduction", requireRole("bookkeeper", "treasurer
     if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0].message });
     const member = await Member.findOne({ memberId: String(req.params.memberId).slice(0, 32) });
     if (!member) return res.status(404).json({ error: "Member not found." });
+    auditNote(res, { target: `No. ${member.memberId} · ${member.fullName}`, before: { carriedBalance: member.openingLoan?.balance ?? 0 } });
     const loan = await loans.fromCarriedBalance(member, parsed.data, req.user);
     res.status(201).json({ loan: loans.present(loan) });
   } catch (err) {
@@ -187,6 +229,13 @@ router.patch("/:memberId", async (req, res, next) => {
     if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0].message });
     const member = await Member.findOne({ memberId: String(req.params.memberId).slice(0, 32) });
     if (!member) return res.status(404).json({ error: "Member not found." });
+    // Only the fields that actually change, before and after.
+    const changed = Object.keys(fields).filter((k) => String(member.get(k) ?? "") !== String(parsed.data[k] ?? ""));
+    auditNote(res, {
+      target: `No. ${member.memberId} · ${member.fullName}`,
+      before: Object.fromEntries(changed.map((k) => [k, member.get(k) ?? null])),
+      details: Object.fromEntries(changed.map((k) => [k, parsed.data[k] ?? null])),
+    });
     for (const key of Object.keys(fields)) member.set(key, parsed.data[key]);
     member.updatedByName = req.user.fullName;
     await member.save();

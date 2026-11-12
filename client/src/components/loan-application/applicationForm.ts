@@ -39,9 +39,8 @@ export type Form = {
   purpose: string
   period: string
   periodUnit: PeriodUnit
+  /** Always the Loan Settings rate for the loan type: shown, not typed. The server sets it too. */
   monthlyRate: string
-  /** True once the user types a rate, so switching loan type no longer resets it. */
-  rateEdited: boolean
   paymentFrequency: PaymentFrequency
 
   longTermBalance: string
@@ -56,6 +55,9 @@ export type Form = {
 }
 
 export const MAX_TERM_MONTHS = 120
+
+/** The loan amounts UDEI offers, in pesos. Keep in step with mobile/src/screens/ApplyScreen.tsx. */
+export const LOAN_AMOUNTS = [25000, 50000, 75000, 100000]
 
 /** The rate on the Settings page for a loan type, as the form's string. */
 export const rateFor = (settings: LoanSettings, t: LoanType) => String(settings.products[t].monthlyRate)
@@ -88,7 +90,6 @@ export const emptyForm = (): Form => ({
   period: '1',
   periodUnit: 'years',
   monthlyRate: rateFor(FALLBACK_SETTINGS, 'long_term'),
-  rateEdited: false,
   paymentFrequency: 'quincenal',
 
   longTermBalance: '0',
@@ -188,6 +189,40 @@ export function memberHistory(m: Member, h: MemberHistory, hasSystemLoans: boole
   }
 }
 
+/** GET /api/members/mine: a linked member's own record, history and last application. */
+export type OwnRecord = {
+  member: { lastName?: string; firstName?: string; middleInitial?: string; residenceAddress?: string; employer?: string; employmentStatus?: EmploymentStatus; dateOfBirth?: string } | null
+  history: MemberHistory | null
+  lastApplication: { lastName?: string; firstName?: string; middleInitial?: string; residenceAddress?: string; employer?: string; employmentStatus?: EmploymentStatus; dateOfBirth?: string; monthlySalary?: number; netTakeHomePay?: number; filedAt: string } | null
+}
+
+/** The applicant fields a linked member's form starts with: their record first, then their last application. */
+export function fromOwnRecord(r: OwnRecord): Partial<Form> {
+  const m = r.member ?? {}
+  const last = r.lastApplication ?? { filedAt: '' }
+  const pick = <K extends keyof typeof m & keyof typeof last>(k: K) => (m[k] || last[k] || undefined) as (typeof m)[K] | undefined
+  const patch: Partial<Form> = {}
+  const set = <K extends keyof Form>(k: K, v: Form[K] | undefined) => {
+    if (v !== undefined && v !== '') patch[k] = v
+  }
+  set('lastName', pick('lastName'))
+  set('firstName', pick('firstName'))
+  set('middleInitial', pick('middleInitial'))
+  set('residenceAddress', pick('residenceAddress'))
+  set('employer', pick('employer'))
+  set('employmentStatus', pick('employmentStatus'))
+  const dob = pick('dateOfBirth')
+  set('dateOfBirth', dob ? dob.slice(0, 10) : undefined)
+  set('monthlySalary', last.monthlySalary ? String(last.monthlySalary) : undefined)
+  set('netTakeHomePay', last.netTakeHomePay ? String(last.netTakeHomePay) : undefined)
+  if (r.history) {
+    patch.yearsAsMember = String(r.history.yearsAsMember)
+    patch.priorLoans = String(r.history.priorLoans)
+    patch.priorLatePayments = String(r.history.priorLatePayments)
+  }
+  return patch
+}
+
 export type ApplicantFields = Pick<Form, 'lastName' | 'firstName' | 'middleInitial' | 'residenceAddress' | 'employer' | 'monthlySalary' | 'netTakeHomePay'>
 
 /** What analyzeDocument compares each document against. */
@@ -218,10 +253,10 @@ export function validateForm(f: Form, settings: LoanSettings = FALLBACK_SETTINGS
   if (salary < settings.minMonthlySalary) return `UDEI requires a monthly salary of at least ₱${settings.minMonthlySalary.toLocaleString('en-PH')}.`
   if (num(f.priorLatePayments) > num(f.priorLoans)) return 'Late payments cannot be more than past loans.'
   if (!f.applicationDate) return 'Enter the application date.'
-  if (num(f.amount) <= 0) return 'Enter the loan amount.'
+  if (num(f.amount) <= 0) return 'Choose the loan amount.'
   const maxTerm = Math.min(MAX_TERM_MONTHS, settings.products[f.loanType].maxTermMonths)
   if (term < 1 || term > maxTerm) return `${settings.products[f.loanType].label} loans run 1 to ${maxTerm} months.`
-  if (f.monthlyRate.trim() === '' || !Number.isFinite(rate) || rate < 0 || rate > 10) return 'Enter a rate from 0 to 10% per month.'
+  if (f.monthlyRate.trim() === '' || !Number.isFinite(rate) || rate < 0 || rate > 10) return 'The interest rate could not be loaded. Reload the page.'
   if (!f.payrollDeduction) return 'The applicant must authorize payroll deduction.'
   if (!f.autoRestructure) return 'The applicant must agree to automatic re-structuring.'
   return ''

@@ -24,7 +24,7 @@ const rules = (overrides = {}) => ({
   ...overrides,
 });
 
-test("settings are public to read, saved by CreCom and above, and enforced on applications", { skip }, async () => {
+test("settings are public to read, saved by CreCom and above (rates by the Administrator only), and enforced on applications", { skip }, async () => {
   const before = await t.call("/settings");
   assert.equal(before.status, 200);
   assert.equal(before.json.settings.minMonthlySalary, 10000, "panel's PHP 10,000 default");
@@ -33,7 +33,12 @@ test("settings are public to read, saved by CreCom and above, and enforced on ap
   assert.equal(denied.status, 403);
   const bad = await t.call("/settings", { method: "PUT", cookie: staff.signer.crecom_chair.cookie, body: rules({ branches: [] }) });
   assert.equal(bad.status, 400);
-  const saved = await t.call("/settings", { method: "PUT", cookie: staff.signer.crecom_chair.cookie, body: rules() });
+  const rateByChair = await t.call("/settings", { method: "PUT", cookie: staff.signer.crecom_chair.cookie, body: rules() });
+  assert.equal(rateByChair.status, 403, "only the Administrator changes interest rates");
+  assert.match(rateByChair.json.error, /Administrator/);
+  const sameRates = rules({ products: { long_term: { label: "Long term", monthlyRate: 1, maxTermMonths: 36 }, emergency: { label: "Emergency", monthlyRate: 1.5, maxTermMonths: 6 } } });
+  assert.equal((await t.call("/settings", { method: "PUT", cookie: staff.signer.crecom_chair.cookie, body: sameRates })).status, 200, "the chair still sets terms, salary and branches");
+  const saved = await t.call("/settings", { method: "PUT", cookie: staff.admin.cookie, body: rules() });
   assert.equal(saved.status, 200, saved.json.error);
   assert.equal(saved.json.settings.products.long_term.monthlyRate, 1.5);
   assert.deepEqual((await t.call("/settings")).json.settings.branches, ["Main Office", "Panabo Campus"]);
@@ -44,11 +49,12 @@ test("settings are public to read, saved by CreCom and above, and enforced on ap
   const long = await t.call("/applications", { method: "POST", cookie: staff.officer.cookie, body: application(0, { loan: { termMonths: 48 } }) });
   assert.equal(long.status, 400);
   assert.match(long.json.error, /at most 36 months/);
-  const ok = await t.call("/applications", { method: "POST", cookie: staff.officer.cookie, body: application(0, { loan: { termMonths: 12 } }) });
+  const ok = await t.call("/applications", { method: "POST", cookie: staff.officer.cookie, body: application(0, { loan: { termMonths: 12, monthlyRate: 0.1 } }) });
   assert.equal(ok.status, 201, ok.json.error);
+  assert.equal(ok.json.application.loan.monthlyRate, 1.5, "the rate from Settings, not the one sent");
 
   // Back to the defaults for the other tests.
-  await t.call("/settings", { method: "PUT", cookie: staff.signer.crecom_chair.cookie, body: rules({ minMonthlySalary: 10000, products: { long_term: { monthlyRate: 2, maxTermMonths: 12 }, emergency: { monthlyRate: 3, maxTermMonths: 6 } } }) });
+  await t.call("/settings", { method: "PUT", cookie: staff.admin.cookie, body: rules({ minMonthlySalary: 10000, products: { long_term: { label: "Long term", monthlyRate: 1, maxTermMonths: 120 }, emergency: { label: "Emergency", monthlyRate: 1.5, maxTermMonths: 12 } } }) });
 });
 
 test("members are saved, numbered, searched, edited and show their ledger history", { skip }, async () => {

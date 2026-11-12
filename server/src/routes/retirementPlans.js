@@ -5,6 +5,7 @@ const RetirementPlan = require("../models/RetirementPlan");
 const Member = require("../models/Member");
 const plans = require("../services/retirementPlans");
 const ledger = require("../services/ledger");
+const { auditNote } = require("../middleware/audit");
 const { requireStaff, requireLevel, requireRole } = require("../middleware/auth");
 
 // Retirement plans. Amounts are integer centavos, like /api/loans.
@@ -55,6 +56,7 @@ router.get("/:id", async (req, res, next) => {
   try {
     const plan = await find(req.params.id);
     if (!plan) return res.status(404).json({ error: "Plan not found." });
+    auditNote(res, { target: `No. ${plan.memberId} · ${plan.memberName}` });
     res.json({ plan: plans.present(plan) });
   } catch (err) {
     next(err);
@@ -68,6 +70,7 @@ router.post("/", canWrite, async (req, res, next) => {
     const data = parsed.data;
     const member = await Member.findOne({ memberId: data.memberId });
     if (!member) return res.status(404).json({ error: "No member with that ID. Add them on the Members page first." });
+    auditNote(res, { target: `No. ${member.memberId} · ${member.fullName}` });
     if (await RetirementPlan.exists({ memberId: data.memberId })) {
       return res.status(409).json({ error: `${member.fullName} already has a retirement plan.` });
     }
@@ -111,6 +114,7 @@ router.post("/:id/contributions/:contributionId/void", canWrite, async (req, res
     if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0].message });
     const plan = await find(req.params.id);
     const entry = plan && mongoose.isValidObjectId(req.params.contributionId) ? plan.contributions.id(req.params.contributionId) : null;
+    if (plan) auditNote(res, { target: `No. ${plan.memberId} · ${plan.memberName}` });
     if (!entry) return res.status(404).json({ error: "Contribution not found." });
     if (entry.voided) return res.status(409).json({ error: "This contribution was already voided." });
     Object.assign(entry, { voided: true, voidReason: parsed.data.reason, voidedByName: req.user.fullName, voidedAt: new Date() });

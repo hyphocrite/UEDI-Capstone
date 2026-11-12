@@ -3,6 +3,7 @@ import { Building2, Percent, Plus, RotateCcw, Save, Wallet, X } from 'lucide-rea
 import PageHeader from '../components/PageHeader'
 import UsersSection from '../components/settings/UsersSection'
 import { useAuth } from '../context/AuthContext'
+import { useConfirm } from '../context/ConfirmContext'
 import { api } from '../lib/api'
 import { monthlyInstallment } from '../lib/applications'
 import type { LoanType } from '../lib/applications'
@@ -29,13 +30,15 @@ const LOAN_TYPES: LoanType[] = ['long_term', 'emergency']
 
 export default function SettingsPage() {
   const { session } = useAuth()
+  const confirm = useConfirm()
+  // Interest rates are set by the Administrator only; the server refuses rate changes from anyone else.
+  const canSetRates = session?.role === 'admin'
   const { settings } = useSettings()
   const [saved, setSaved] = useState<LoanSettings | null>(null)
   const current = saved ?? settings
   const [draft, setDraft] = useState<Draft>(() => toDraft(settings))
   const [newBranch, setNewBranch] = useState('')
   const [sample, setSample] = useState(50000)
-  const [confirming, setConfirming] = useState(false)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<{ tone: 'ok' | 'error'; text: string } | null>(null)
 
@@ -44,10 +47,7 @@ export default function SettingsPage() {
     fetchSettings().then((s) => setDraft(toDraft(s))).catch(() => {})
   }, [])
 
-  const touch = () => {
-    setConfirming(false)
-    setMessage(null)
-  }
+  const touch = () => setMessage(null)
   const setProduct = (t: LoanType, key: 'monthlyRate' | 'maxTermMonths', value: string) => {
     touch()
     setDraft((d) => ({ ...d, products: { ...d.products, [t]: { ...d.products[t], [key]: value } } }))
@@ -60,8 +60,39 @@ export default function SettingsPage() {
     setNewBranch('')
   }
 
+  /** Each rule that differs from what is saved, as "what: old → new". */
+  const changes = () => {
+    const list: string[] = []
+    for (const t of LOAN_TYPES) {
+      const was = current.products[t]
+      const now = draft.products[t]
+      if (Number(now.monthlyRate) !== was.monthlyRate) list.push(`${was.label} rate: ${was.monthlyRate}% → ${now.monthlyRate}% a month`)
+      if (Number(now.maxTermMonths) !== was.maxTermMonths) list.push(`${was.label} longest term: ${was.maxTermMonths} → ${now.maxTermMonths} months`)
+    }
+    if (Number(draft.minMonthlySalary) !== current.minMonthlySalary) {
+      list.push(`Minimum monthly salary: ${formatPeso(current.minMonthlySalary)} → ${formatPeso(Number(draft.minMonthlySalary))}`)
+    }
+    const added = draft.branches.filter((b) => !current.branches.includes(b))
+    const removed = current.branches.filter((b) => !draft.branches.includes(b))
+    if (added.length) list.push(`Branches added: ${added.join(', ')}`)
+    if (removed.length) list.push(`Branches removed: ${removed.join(', ')}`)
+    return list
+  }
+
   const save = async () => {
-    if (!confirming) return setConfirming(true)
+    const list = changes()
+    if (!list.length) return setMessage({ tone: 'ok', text: 'Nothing has changed.' })
+    const ok = await confirm({
+      title: 'Save these loan rules?',
+      message: (
+        <>
+          <ul className="list-disc space-y-1 pl-5">{list.map((c) => <li key={c}>{c}</li>)}</ul>
+          <p>They apply to every new application from now on, on the web and in the member app. Applications already filed keep their terms.</p>
+        </>
+      ),
+      confirmLabel: 'Yes, save',
+    })
+    if (!ok) return
     setSaving(true)
     try {
       const body = {
@@ -78,7 +109,6 @@ export default function SettingsPage() {
       setMessage({ tone: 'error', text: err instanceof Error ? err.message : 'Could not save the settings.' })
     } finally {
       setSaving(false)
-      setConfirming(false)
     }
   }
 
@@ -93,17 +123,12 @@ export default function SettingsPage() {
           <>
             <button className="btn-ghost" onClick={() => { touch(); setDraft(toDraft(current)) }}><RotateCcw className="h-4 w-4" /> Undo changes</button>
             <button className="btn-primary" onClick={save} disabled={saving}>
-              <Save className="h-4 w-4" /> {saving ? 'Saving…' : confirming ? 'Yes, save' : 'Save changes'}
+              <Save className="h-4 w-4" /> {saving ? 'Saving…' : 'Save changes'}
             </button>
           </>
         }
       />
 
-      {confirming && (
-        <p className="mb-4 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800" role="status">
-          These rules apply to every new application from now on. Press <strong>Yes, save</strong> to confirm.
-        </p>
-      )}
       {message && (
         <p className={`mb-4 rounded-lg px-4 py-3 text-sm ${message.tone === 'ok' ? 'bg-emerald-50 text-emerald-800' : 'bg-red-50 text-red-700'}`} role={message.tone === 'ok' ? 'status' : 'alert'}>
           {message.text}
@@ -115,7 +140,7 @@ export default function SettingsPage() {
           <thead className="table-head">
             <tr>
               <th className="px-4 py-3">Loan type</th>
-              <th className="px-4 py-3">Interest (% per month)</th>
+              <th className="px-4 py-3">Interest (% per month){canSetRates ? '' : <span className="block font-normal normal-case">Administrator only</span>}</th>
               <th className="px-4 py-3">Longest term (months)</th>
               <th className="px-4 py-3 text-right">Monthly installment on {formatPeso(sample)}, longest term</th>
             </tr>
@@ -131,7 +156,8 @@ export default function SettingsPage() {
                     <span className="flex items-center gap-2"><Percent className="h-4 w-4 text-accent" />{p.label}</span>
                   </td>
                   <td className="px-4 py-3">
-                    <input type="number" min={0} max={10} step={0.25} className="input w-28" value={p.monthlyRate}
+                    <input type="number" min={0} max={10} step={0.25} className={`input w-28 ${canSetRates ? '' : 'cursor-not-allowed bg-brand-50'}`} value={p.monthlyRate}
+                      readOnly={!canSetRates} title={canSetRates ? undefined : 'Only the Administrator can change interest rates.'}
                       onChange={(e) => setProduct(t, 'monthlyRate', e.target.value)} aria-label={`${p.label} interest rate`} />
                   </td>
                   <td className="px-4 py-3">

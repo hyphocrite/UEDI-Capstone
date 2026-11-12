@@ -58,7 +58,7 @@ test("a member registers, applies and follows the application to a loan", { skip
   const created = await as(token, "/member/applications", { method: "POST", body: apply() });
   assert.equal(created.status, 201, created.json.error);
   assert.equal(created.json.application.waitingFor, "Bookkeeper");
-  assert.equal(created.json.application.loan.monthlyRate, 2, "the long-term rate from Settings");
+  assert.equal(created.json.application.loan.monthlyRate, 1, "the long-term rate from Settings");
   assert.equal(created.json.application.assessment, undefined, "members do not see model scores");
 
   const again = await as(token, "/member/applications", { method: "POST", body: apply() });

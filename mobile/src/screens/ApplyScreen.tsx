@@ -3,6 +3,7 @@ import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-na
 import { api } from '../api'
 import type { LoanSettings } from '../api'
 import { useAuth } from '../auth'
+import { confirmAction } from '../confirm'
 import { pesos } from '../format'
 import { colors } from '../theme'
 import { Button, Card, Check, Choice, ErrorText, Field, Header, Row, s } from '../ui'
@@ -28,6 +29,9 @@ function splitName(full = '') {
 }
 
 const num = (v: string) => Number(v.replace(/[,\s₱]/g, ''))
+
+// The amounts UDEI offers, in pesos. Keep in step with LOAN_AMOUNTS in client/src/components/loan-application/applicationForm.ts.
+const LOAN_AMOUNTS = [25000, 50000, 75000, 100000]
 
 export default function ApplyScreen({ onDone }: { onDone: () => void }) {
   const { session } = useAuth()
@@ -68,6 +72,13 @@ export default function ApplyScreen({ onDone }: { onDone: () => void }) {
 
   const submit = async () => {
     setError(null)
+    const kind = f.loanType === 'long_term' ? 'Long term' : 'Emergency'
+    const ok = await confirmAction(
+      'Submit this application?',
+      `${kind} loan of ${pesos(amount)} over ${num(f.termMonths)} months. It then goes to the Bookkeeper, Treasurer, CreCom Chairman and President to sign, and can't be edited after this.`,
+      'Yes, submit',
+    )
+    if (!ok) return
     setBusy(true)
     try {
       await api.apply({
@@ -134,7 +145,12 @@ export default function ApplyScreen({ onDone }: { onDone: () => void }) {
                 { value: 'emergency', label: 'Emergency' },
               ]}
             />
-            <Field label="Amount (₱)" value={f.amount} onChangeText={set('amount')} keyboardType="numeric" placeholder="0.00" />
+            <Choice
+              label="Amount"
+              value={f.amount}
+              options={LOAN_AMOUNTS.map((a) => ({ value: String(a), label: `₱${a.toLocaleString('en-PH')}` }))}
+              onChange={set('amount')}
+            />
             <Field
               label="Term (months)"
               value={f.termMonths}

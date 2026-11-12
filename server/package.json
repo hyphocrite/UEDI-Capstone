@@ -21,6 +21,7 @@
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.10.2",
     "nodemailer": "^10.5.0",
+    "psgc-areas": "1.0.0",
     "zod": "^4.6.5"
   },
   "devDependencies": {

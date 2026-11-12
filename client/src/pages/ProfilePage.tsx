@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { KeyRound, Save } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import { useAuth } from '../context/AuthContext'
+import { useConfirm } from '../context/ConfirmContext'
 import type { Session } from '../context/AuthContext'
 import { useSettings } from '../lib/settings'
 import { api } from '../lib/api'
@@ -23,6 +24,7 @@ function Notice({ message }: { message: Message }) {
 export default function ProfilePage() {
   const { branches } = useSettings().settings
   const { session, updateSession } = useAuth()
+  const confirm = useConfirm()
   const [details, setDetails] = useState({ fullName: session?.fullName ?? '', branch: session?.branch ?? '' })
   const [detailsMsg, setDetailsMsg] = useState<Message>(null)
   const [savingDetails, setSavingDetails] = useState(false)
@@ -36,6 +38,12 @@ export default function ProfilePage() {
   const saveDetails = async (e: FormEvent) => {
     e.preventDefault()
     if (details.fullName.trim().length < 2) return setDetailsMsg({ tone: 'error', text: 'Enter your full name.' })
+    const ok = await confirm({
+      title: 'Save your profile?',
+      message: <p>Your name becomes <b>{details.fullName.trim()}</b>{details.branch ? <> and your branch <b>{details.branch}</b></> : ''}. New signatures and records will show this name.</p>,
+      confirmLabel: 'Yes, save',
+    })
+    if (!ok) return
     setSavingDetails(true)
     setDetailsMsg(null)
     try {
@@ -57,6 +65,12 @@ export default function ProfilePage() {
     if (pw.newPassword.length < 8 || !/[A-Za-z]/.test(pw.newPassword) || !/[0-9]/.test(pw.newPassword))
       return setPwMsg({ tone: 'error', text: 'The new password needs at least 8 characters, with a letter and a number.' })
     if (pw.newPassword !== pw.confirm) return setPwMsg({ tone: 'error', text: 'The new passwords do not match.' })
+    const ok = await confirm({
+      title: 'Change your password?',
+      message: <p>From now on you sign in with the new password. Other devices stay signed in until their session ends.</p>,
+      confirmLabel: 'Yes, change it',
+    })
+    if (!ok) return
     setSavingPw(true)
     setPwMsg(null)
     try {

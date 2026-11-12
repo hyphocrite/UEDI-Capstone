@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import Field, { FormSection } from './Field'
+import AddressFields from '../AddressFields'
 import { memberHistory } from './applicationForm'
 import type { Form } from './applicationForm'
 import { api } from '../../lib/api'
@@ -84,9 +85,10 @@ export default function ApplicantSection({ form, update, lockedMemberId }: Props
           </Field>
         </div>
 
-        <Field id="residenceAddress" label="Residence Address">
-          <input {...text('residenceAddress')} autoComplete="street-address" placeholder="Purok, barangay, city or municipality" />
-        </Field>
+        <fieldset className="min-w-0">
+          <legend className="mb-2 text-sm font-semibold text-brand-800">Residence address</legend>
+          <AddressFields idPrefix="residence" value={form.residenceAddress} onChange={(residenceAddress) => update({ residenceAddress })} />
+        </fieldset>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field id="employer" label="Employer">

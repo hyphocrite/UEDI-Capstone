@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { UserCog } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { api } from '../../lib/api'
+import { useConfirm } from '../../context/ConfirmContext'
 import { ROLES, roleLabel } from '../../lib/roles'
 import type { Role } from '../../lib/roles'
 
@@ -10,6 +11,7 @@ type UserRow = { id: string; fullName: string; email: string; role: Role; create
 /** Admins assign roles here. Shown on the Settings page to admins only. */
 export default function UsersSection() {
   const { session } = useAuth()
+  const confirm = useConfirm()
   const [users, setUsers] = useState<UserRow[] | null>(null)
   const [savingId, setSavingId] = useState<string | null>(null)
   const [message, setMessage] = useState<{ tone: 'ok' | 'error'; text: string } | null>(null)
@@ -24,6 +26,13 @@ export default function UsersSection() {
   }, [])
 
   const changeRole = async (u: UserRow, role: Role) => {
+    const ok = await confirm({
+      title: 'Change this role?',
+      message: <p>Make <b>{u.fullName}</b> ({u.email}) <b>{roleLabel[role]}</b> instead of {roleLabel[u.role]}. They get the pages and permissions of the new role the next time a page loads.</p>,
+      confirmLabel: 'Yes, change role',
+      danger: true,
+    })
+    if (!ok) return
     setSavingId(u.id)
     setMessage(null)
     try {

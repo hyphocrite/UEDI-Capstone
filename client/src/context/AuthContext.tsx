@@ -32,6 +32,10 @@ type AuthValue = {
   verifyEmail: (email: string, code: string) => Promise<void>
   resendVerification: (email: string) => Promise<void>
   logout: () => Promise<void>
+  /** When the current session ends unless renewed (ISO date), or null. */
+  expiresAt: string | null
+  /** "Stay signed in": a fresh session. */
+  refresh: () => Promise<void>
   /** Replaces the session after the profile is edited. */
   updateSession: (session: Session) => void
 }
@@ -40,21 +44,26 @@ const AuthContext = createContext<AuthValue | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
+  const [expiresAt, setExpiresAt] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    api<{ session: Session | null }>('/api/auth/me')
-      .then((d) => setSession(d.session))
+    api<{ session: Session | null; expiresAt?: string | null }>('/api/auth/me')
+      .then((d) => {
+        setSession(d.session)
+        setExpiresAt(d.expiresAt ?? null)
+      })
       .catch(() => setSession(null))
       .finally(() => setLoading(false))
   }, [])
 
   const login = useCallback(async (email: string, password: string) => {
-    const d = await api<{ session: Session }>('/api/auth/login', {
+    const d = await api<{ session: Session; expiresAt?: string }>('/api/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     })
     setSession(d.session)
+    setExpiresAt(d.expiresAt ?? null)
   }, [])
 
   const register = useCallback(async (input: RegisterInput) => {
@@ -66,11 +75,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const verifyEmail = useCallback(async (email: string, code: string) => {
-    const d = await api<{ session: Session }>('/api/auth/verify-email', {
+    const d = await api<{ session: Session; expiresAt?: string }>('/api/auth/verify-email', {
       method: 'POST',
       body: JSON.stringify({ email, code }),
     })
     setSession(d.session)
+    setExpiresAt(d.expiresAt ?? null)
   }, [])
 
   const resendVerification = useCallback(async (email: string) => {
@@ -81,11 +91,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await api('/api/auth/logout', { method: 'POST' }).catch(() => undefined)
     clearAllDrafts()
     setSession(null)
+    setExpiresAt(null)
+  }, [])
+
+  const refresh = useCallback(async () => {
+    const d = await api<{ session: Session; expiresAt: string }>('/api/auth/refresh', { method: 'POST' })
+    setSession(d.session)
+    setExpiresAt(d.expiresAt)
   }, [])
 
   const value = useMemo(
-    () => ({ session, loading, login, register, verifyEmail, resendVerification, logout, updateSession: setSession }),
-    [session, loading, login, register, verifyEmail, resendVerification, logout],
+    () => ({ session, loading, login, register, verifyEmail, resendVerification, logout, updateSession: setSession, expiresAt, refresh }),
+    [session, loading, login, register, verifyEmail, resendVerification, logout, expiresAt, refresh],
   )
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

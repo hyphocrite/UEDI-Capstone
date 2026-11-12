@@ -2,22 +2,23 @@ import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Send } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
-import Modal from '../components/Modal'
 import AgreementSection from '../components/loan-application/AgreementSection'
 import ApplicantSection from '../components/loan-application/ApplicantSection'
 import BookkeeperSection from '../components/loan-application/BookkeeperSection'
 import DocumentsSection from '../components/loan-application/DocumentsSection'
 import SubmittedCard from '../components/loan-application/SubmittedCard'
-import { applicantOf, buildPayload, emptyForm, rateFor, validateForm } from '../components/loan-application/applicationForm'
-import type { Form } from '../components/loan-application/applicationForm'
+import { applicantOf, buildPayload, emptyForm, fromOwnRecord, rateFor, validateForm } from '../components/loan-application/applicationForm'
+import type { Form, OwnRecord } from '../components/loan-application/applicationForm'
 import { useMemberLedger } from '../components/loan-application/useMemberLedger'
 import { useSupportingDocuments } from '../components/loan-application/useSupportingDocuments'
 import { useAuth } from '../context/AuthContext'
+import { useConfirm } from '../context/ConfirmContext'
 import { api } from '../lib/api'
 import { clearDraft, draftKey, loadDraft, saveDraft } from '../lib/drafts'
 import { formatDateTime } from '../lib/format'
 import { atLeast } from '../lib/roles'
 import { fetchSettings, useSettings } from '../lib/settings'
+import { loanTypeLabel } from '../lib/applications'
 import type { LoanApplication, LoanType } from '../lib/applications'
 
 export default function LoanApplicationPage() {
@@ -34,15 +35,39 @@ export default function LoanApplicationPage() {
   // A member's own ID always comes from their account, never from the draft.
   const [form, setForm] = useState<Form>(() => ({ ...freshForm(), ...restored?.values, ...(staffView ? {} : { memberId: ownMemberId }) }))
   const [error, setError] = useState('')
-  const [confirming, setConfirming] = useState(false)
+  const confirm = useConfirm()
   const [saving, setSaving] = useState(false)
   const [submitted, setSubmitted] = useState<LoanApplication | null>(null)
+  // Documents whose file couldn't be uploaded after filing (the checks were still saved).
+  const [notUploaded, setNotUploaded] = useState<string[]>([])
   const { settings } = useSettings()
 
-  // Start from the rate on the Settings page once it arrives, unless someone already typed one.
+  // A linked member's form starts filled in from their UDEI record and last application.
+  const [prefilled, setPrefilled] = useState<{ fromLast: string | null } | null>(null)
+  // What was filled in, so an untouched filled-in form isn't kept as a draft.
+  const [filledPatch, setFilledPatch] = useState<Partial<Form>>({})
+  const fillFromRecord = () => {
+    if (staffView || !ownMemberId) return
+    api<OwnRecord>('/api/members/mine')
+      .then((r) => {
+        const patch = fromOwnRecord(r)
+        if (!Object.keys(patch).length) return
+        setForm((f) => ({ ...f, ...patch }))
+        setFilledPatch(patch)
+        setPrefilled({ fromLast: r.lastApplication?.filedAt ?? null })
+      })
+      .catch(() => {})
+  }
+  useEffect(() => {
+    // A restored draft already holds what they typed.
+    if (!restored) fillFromRecord()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // The rate always comes from Loan Settings; it can't be typed.
   useEffect(() => {
     fetchSettings()
-      .then((s) => setForm((f) => (f.rateEdited ? f : { ...f, monthlyRate: rateFor(s, f.loanType) })))
+      .then((s) => setForm((f) => ({ ...f, monthlyRate: rateFor(s, f.loanType) })))
       .catch(() => {})
   }, [])
 
@@ -56,12 +81,12 @@ export default function LoanApplicationPage() {
   useEffect(() => {
     if (submitted) return
     // Nothing typed yet (the date and the rate from Settings fill themselves in): don't keep a draft.
-    const blank = JSON.stringify(form) === JSON.stringify({ ...freshForm(), applicationDate: form.applicationDate, monthlyRate: form.monthlyRate, rateEdited: form.rateEdited })
+    const blank = JSON.stringify(form) === JSON.stringify({ ...freshForm(), ...filledPatch, applicationDate: form.applicationDate, monthlyRate: form.monthlyRate })
     if (blank) clearDraft(key)
     else saveDraft(key, form)
     // freshForm only depends on ownMemberId, which comes from the session like key.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, form, submitted])
+  }, [key, form, submitted, filledPatch])
 
   const update = (patch: Partial<Form>) => {
     setForm((f) => ({ ...f, ...patch }))
@@ -70,7 +95,7 @@ export default function LoanApplicationPage() {
   const ledger = useMemberLedger(staffView ? form.memberId : '', (books) => setForm((f) => ({ ...f, ...books })))
 
   const changeLoanType = (loanType: LoanType) => {
-    setForm((f) => ({ ...f, loanType, monthlyRate: f.rateEdited ? f.monthlyRate : rateFor(settings, loanType) }))
+    setForm((f) => ({ ...f, loanType, monthlyRate: rateFor(settings, loanType) }))
     setError('')
     documents.changeLoanType(loanType)
   }
@@ -84,13 +109,25 @@ export default function LoanApplicationPage() {
   }
 
   const send = async () => {
-    setConfirming(false)
     setSaving(true)
     try {
       const { application } = await api<{ application: LoanApplication }>('/api/applications', {
         method: 'POST',
         body: JSON.stringify(buildPayload(form, documents.payload())),
       })
+      // Then the files themselves, so signers can open them next to the form.
+      const failed: string[] = []
+      const files = documents.files()
+      for (let i = 0; i < files.length; i++) {
+        const { file, hash } = files[i]
+        if (!hash) continue // unreadable files were never fingerprinted
+        try {
+          await api(`/api/applications/${application._id}/documents/${i}`, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } })
+        } catch {
+          failed.push(file.name)
+        }
+      }
+      setNotUploaded(failed)
       clearDraft(key)
       setSubmitted(application)
       window.scrollTo({ top: 0 })
@@ -105,8 +142,31 @@ export default function LoanApplicationPage() {
     e.preventDefault()
     const problem = validate()
     if (problem) return setError(problem)
-    if (documents.mismatched.length) return setConfirming(true)
-    void send()
+    const name = [form.firstName, form.lastName].filter(Boolean).join(' ')
+    const count = documents.payload().length
+    void confirm({
+      title: 'Submit this application?',
+      message: (
+        <>
+          <p>
+            {staffView ? <>Submit for <b>{name}</b>{form.memberId ? ` (member ${form.memberId})` : ''}: </> : 'Apply for '}
+            <b>{loanTypeLabel[form.loanType]}</b> loan of <b>₱{Number(form.amount).toLocaleString('en-PH')}</b> over {form.period} {form.periodUnit},{' '}
+            with {count ? `${count} supporting document${count === 1 ? '' : 's'}` : 'no supporting documents'}.
+          </p>
+          {documents.mismatched.length > 0 && (
+            <div className="rounded-lg bg-amber-50 p-3 text-amber-900">
+              <p>These don’t match what was typed on the form:</p>
+              <ul className="mt-1 list-disc pl-5">{documents.mismatched.map((d) => <li key={d.key} className="break-words">{d.file.name}</li>)}</ul>
+              <p className="mt-1">Loan officers will see this on Pending Loans.</p>
+            </div>
+          )}
+          <p>It then goes to the Bookkeeper, Treasurer, CreCom Chairman and President to sign. It can't be edited after this.</p>
+        </>
+      ),
+      confirmLabel: documents.mismatched.length ? 'Submit anyway' : 'Yes, submit',
+    }).then((ok) => {
+      if (ok) void send()
+    })
   }
 
   const reset = () => {
@@ -115,10 +175,26 @@ export default function LoanApplicationPage() {
     setForm({ ...freshForm(), monthlyRate: rateFor(settings, 'long_term') })
     setError('')
     setRestoredNotice(false)
+    setPrefilled(null)
+    setFilledPatch({})
+    setNotUploaded([])
     setSubmitted(null)
+    fillFromRecord()
   }
 
-  if (submitted) return <SubmittedCard application={submitted} onNew={reset} staffView={staffView} />
+  if (submitted) {
+    return (
+      <>
+        {notUploaded.length > 0 && (
+          <p className="mx-auto mb-4 max-w-xl rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800" role="status">
+            The application was filed, but {notUploaded.length === 1 ? 'this file' : 'these files'} could not be uploaded: {notUploaded.join(', ')}.
+            Their checks were saved; bring the originals to the UDEI office.
+          </p>
+        )}
+        <SubmittedCard application={submitted} onNew={reset} staffView={staffView} />
+      </>
+    )
+  }
 
   if (!staffView && !ownMemberId) {
     return (
@@ -131,7 +207,6 @@ export default function LoanApplicationPage() {
     )
   }
 
-  const mismatchCount = documents.mismatched.length
 
   return (
     <form onSubmit={submit} noValidate className="mx-auto max-w-4xl min-w-0">
@@ -139,6 +214,16 @@ export default function LoanApplicationPage() {
         title={staffView ? 'Loan Application' : 'Apply for a Loan'}
         subtitle="Mutual Assistance Application Form, United DNSC Employees, Inc. Supporting documents are read and checked against the form."
       />
+
+      {prefilled && !restoredNotice && (
+        <div className="mb-4 flex flex-col gap-2 rounded-lg bg-sky-50 px-4 py-3 text-sm text-sky-900 sm:flex-row sm:items-center" role="status">
+          <p className="flex-1">
+            Filled in from your UDEI member record{prefilled.fromLast ? ` and your last application (${formatDateTime(prefilled.fromLast)})` : ''}.
+            Check that everything is still correct, especially your salary and take-home pay.
+          </p>
+          <button type="button" className="btn-ghost px-3 py-1.5" onClick={() => setPrefilled(null)}>OK</button>
+        </div>
+      )}
 
       {restoredNotice && restored && (
         <div className="mb-4 flex flex-col gap-2 rounded-lg bg-sky-50 px-4 py-3 text-sm text-sky-900 sm:flex-row sm:items-center" role="status">
@@ -175,26 +260,6 @@ export default function LoanApplicationPage() {
           </div>
         </section>
       </div>
-
-      <Modal
-        title={`Submit with ${mismatchCount} document${mismatchCount === 1 ? '' : 's'} that ${mismatchCount === 1 ? 'doesn’t' : 'don’t'} match?`}
-        open={confirming}
-        onClose={() => setConfirming(false)}
-      >
-        <p className="text-sm text-brand-700">These don’t match what was typed on the form:</p>
-        <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-ink">
-          {documents.mismatched.map((d) => (
-            <li key={d.key} className="break-words">{d.file.name}</li>
-          ))}
-        </ul>
-        <p className="mt-3 text-sm text-brand-700">
-          Loan officers will still see these documents and what didn’t match on Pending Loans.
-        </p>
-        <div className="mt-5 flex flex-wrap justify-end gap-2">
-          <button type="button" className="btn-ghost" onClick={() => setConfirming(false)}>Go back</button>
-          <button type="button" className="btn-primary" onClick={() => void send()}>Submit anyway</button>
-        </div>
-      </Modal>
     </form>
   )
 }

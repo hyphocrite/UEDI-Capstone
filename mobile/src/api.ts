@@ -11,6 +11,8 @@ export type Application = {
   waitingFor: string | null
   signed: { step: string; decision: 'approved' | 'denied'; signedAt: string }[]
   denialNote: string | null
+  /** Once denied: what counted against it and what helps, in plain words. */
+  reasons: { against: { feature: string; text: string }[]; tips: string[] } | null
   loan: { loanType: string; amount: number; termMonths: number; monthlyRate: number; paymentFrequency: string; purpose?: string }
   loanId: string | null
   loanNo: string | null
@@ -93,6 +95,8 @@ export const api = {
     request<{ token: string; session: Session }>('/member/verify-email', { method: 'POST', body: { email, code } }),
   resendVerification: (email: string) => request<{ ok: true }>('/member/resend-verification', { method: 'POST', body: { email } }),
   me: () => request<{ session: Session }>('/member/me'),
+  /** Ends this session on the server, so the token stops working even if it was copied. */
+  logout: () => request<{ ok: true }>('/auth/logout', { method: 'POST' }),
   applications: () => request<{ applications: Application[] }>('/member/applications'),
   apply: (body: Record<string, unknown>) =>
     request<{ application: Application }>('/member/applications', { method: 'POST', body }),

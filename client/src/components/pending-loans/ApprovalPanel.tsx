@@ -4,6 +4,7 @@ import { ArrowRight, Hourglass, ThumbsDown, ThumbsUp } from 'lucide-react'
 import BookkeeperBalances from './BookkeeperBalances'
 import { useAuth } from '../../context/AuthContext'
 import { api } from '../../lib/api'
+import { useConfirm } from '../../context/ConfirmContext'
 import type { LoanApplication } from '../../lib/applications'
 import { formatDate } from '../../lib/format'
 import { roleLabel } from '../../lib/roles'
@@ -90,6 +91,7 @@ function SignForm({ app, step, onChange }: { app: LoanApplication; step: Approva
   })
   // Ledger figures are refreshed by the server when the Bookkeeper signs; only typed ones can be corrected.
   const editableBooks = step === 'bookkeeper' && books?.source !== 'ledger'
+  const confirm = useConfirm()
   const [busy, setBusy] = useState<'approved' | 'denied' | null>(null)
   const [error, setError] = useState('')
   const suggestion = app.assessment?.ensemble.suggestion
@@ -102,6 +104,28 @@ function SignForm({ app, step, onChange }: { app: LoanApplication; step: Approva
     const short = Number(balances.shortTermBalance)
     const perMonth = Number(balances.monthlyPayment)
     if (editableBooks && (!(long >= 0) || !(short >= 0) || !(perMonth >= 0))) return setError('Balances must be 0 or more.')
+    const last = step === 'president'
+    const ok = await confirm({
+      title: decision === 'approved' ? 'Approve this application?' : 'Deny this application?',
+      message: (
+        <>
+          <p>
+            You are signing <b>{app.applicationNo}</b> for <b>{app.applicant.fullName}</b> (₱{app.loan.amount.toLocaleString('en-PH')}) as {roleLabel[step]}.
+          </p>
+          <p>
+            {decision === 'denied'
+              ? 'Denying ends the application: no one else signs it, and the applicant is told it was denied.'
+              : last
+                ? 'This is the final signature: the loan is created and goes to the Treasurer for release.'
+                : 'It then goes to the next signer.'}
+            {against ? ' This goes against the ML suggestion.' : ''} Your signature can't be taken back.
+          </p>
+        </>
+      ),
+      confirmLabel: decision === 'approved' ? 'Yes, approve' : 'Yes, deny',
+      danger: decision === 'denied',
+    })
+    if (!ok) return
     setBusy(decision)
     setError('')
     try {

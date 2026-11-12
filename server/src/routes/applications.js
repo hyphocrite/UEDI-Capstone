@@ -8,6 +8,9 @@ const loans = require("../services/loans");
 const { STEPS, STEP_LABELS, currentStepOf, nextStep, followsSuggestion } = require("../services/approvals");
 const { requireStaff, requireLevel } = require("../middleware/auth");
 const { seesAllLoans } = require("../config/access");
+const { auditNote } = require("../middleware/audit");
+const { explain } = require("../services/explain");
+const documentFiles = require("../services/documentFiles");
 const settings = require("../services/settings");
 
 const router = express.Router();
@@ -18,11 +21,20 @@ const ownApplications = (user) => ({
   $or: [{ submittedBy: user._id }, ...(user.memberId ? [{ "applicant.memberId": user.memberId }] : [])],
 });
 
-/** What this user may see of an application: members don't get the internal ML scores. */
+/**
+ * What this user may see of an application. Staff get the scores and the plain-language
+ * explanation. Members never get the scores; once denied, they get the explanation (reasons and
+ * what they can do), without numbers.
+ */
 function forViewer(user, app) {
-  if (seesAllLoans(user)) return app;
-  const { assessment, assessmentError, ...rest } = app.toObject();
-  return rest;
+  // toJSON, like a plain res.json: it fills in currentStep for applications from before the chain.
+  const out = app.toJSON();
+  const explanation = explain(out.assessment);
+  if (seesAllLoans(user)) return { ...out, explanation };
+  delete out.assessment;
+  delete out.assessmentError;
+  if (out.status === "denied" && explanation) out.explanation = { against: explanation.against, tips: explanation.tips };
+  return out;
 }
 
 /** The application if this user may see it, else null. */
@@ -166,7 +178,11 @@ router.post("/", async (req, res, next) => {
   try {
     const parsed = createSchema.safeParse(req.body || {});
     if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0].message });
-    const ruleError = settings.checkApplication(await settings.get(), {
+    const rules = await settings.get();
+    // The rate is always the one in Loan Settings, whatever the form sent.
+    const product = rules.products[parsed.data.loan.loanType];
+    if (product) parsed.data.loan.monthlyRate = product.monthlyRate;
+    const ruleError = settings.checkApplication(rules, {
       monthlySalary: parsed.data.applicant.monthlySalary,
       loanType: parsed.data.loan.loanType,
       termMonths: parsed.data.loan.termMonths,
@@ -181,6 +197,7 @@ router.post("/", async (req, res, next) => {
       parsed.data.bookkeeper = { longTermBalance: 0, shortTermBalance: 0, monthlyPayment: 0 };
     }
     const app = await createApplication(parsed.data, req.user);
+    auditNote(res, { target: `${app.applicationNo} · ${app.applicant.fullName} · ₱${app.loan.amount.toLocaleString("en-PH")}` });
     res.status(201).json({ application: forViewer(req.user, app) });
   } catch (err) {
     next(err);
@@ -233,13 +250,70 @@ router.get("/:id", async (req, res, next) => {
   }
 });
 
+// The applicant's browser uploads each supporting document after filing. Only the person who
+// filed it, only into an empty slot, and only the exact file that was checked (same SHA-256).
+router.put(
+  "/:id/documents/:index",
+  express.raw({ type: [...documentFiles.TYPES], limit: documentFiles.MAX_BYTES }),
+  async (req, res, next) => {
+    try {
+      if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ error: "Application not found." });
+      const app = await Application.findById(req.params.id);
+      if (!app) return res.status(404).json({ error: "Application not found." });
+      auditNote(res, { target: `${app.applicationNo} · ${app.applicant.fullName}` });
+      if (!app.submittedBy?.equals(req.user._id)) return res.status(403).json({ error: "Only the person who filed the application can upload its documents." });
+      const index = Number(req.params.index);
+      const doc = app.documents[index];
+      if (!doc) return res.status(404).json({ error: "That document is not on the application." });
+      if (doc.fileId) return res.status(409).json({ error: "This document was already uploaded." });
+      const type = req.get("content-type")?.split(";")[0];
+      if (!Buffer.isBuffer(req.body) || !documentFiles.TYPES.has(type)) {
+        return res.status(415).json({ error: "Upload a JPEG, PNG, WebP or PDF file." });
+      }
+      if (!doc.sha256 || documentFiles.sha256(req.body) !== doc.sha256) {
+        return res.status(400).json({ error: "This is not the file that was checked when the application was filed." });
+      }
+      const fileId = await documentFiles.save(req.body, { fileName: doc.fileName, contentType: type, applicationId: app._id, index });
+      // Set only if still empty, in case two uploads of the same slot raced.
+      const saved = await Application.updateOne(
+        { _id: app._id, [`documents.${index}.fileId`]: { $exists: false } },
+        { $set: { [`documents.${index}.fileId`]: fileId, [`documents.${index}.contentType`]: type, [`documents.${index}.size`]: req.body.length } },
+      );
+      if (!saved.modifiedCount) return res.status(409).json({ error: "This document was already uploaded." });
+      res.json({ ok: true });
+    } catch (err) {
+      if (err?.type === "entity.too.large") return res.status(413).json({ error: "Files can be at most 10 MB." });
+      next(err);
+    }
+  },
+);
+
+// The stored file, shown in the document viewer. Staff, and the applicant for their own application.
+router.get("/:id/documents/:index/file", async (req, res, next) => {
+  try {
+    const app = await findVisible(req);
+    const doc = app?.documents[Number(req.params.index)];
+    if (!doc?.fileId) return res.status(404).json({ error: "This document's file was not uploaded." });
+    res.setHeader("Content-Type", doc.contentType || "application/octet-stream");
+    res.setHeader("Content-Disposition", `inline; filename="${encodeURIComponent(doc.fileName)}"`);
+    // The viewer fetches it into the page; opened directly, a file still can't run scripts.
+    res.setHeader("Content-Security-Policy", "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; sandbox");
+    const stream = documentFiles.open(doc.fileId);
+    stream.on("error", (err) => (res.headersSent ? res.destroy(err) : next(err)));
+    stream.pipe(res);
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.post("/:id/assess", requireLevel("loan_officer"), async (req, res, next) => {
   try {
     const app = await Application.findById(req.params.id).catch(() => null);
     if (!app) return res.status(404).json({ error: "Application not found." });
+    auditNote(res, { target: `${app.applicationNo} · ${app.applicant.fullName}` });
     await runAssessment(app);
-    if (app.assessmentError) return res.status(503).json({ error: app.assessmentError, application: app });
-    res.json({ application: app });
+    if (app.assessmentError) return res.status(503).json({ error: app.assessmentError, application: forViewer(req.user, app) });
+    res.json({ application: forViewer(req.user, app) });
   } catch (err) {
     next(err);
   }
@@ -259,9 +333,14 @@ router.post("/:id/approvals", async (req, res, next) => {
 
     const app = await Application.findById(req.params.id).catch(() => null);
     if (!app) return res.status(404).json({ error: "Application not found." });
+    const step = currentStepOf(app);
+    auditNote(res, {
+      action: decision === "approved" ? "Application approved" : "Application denied",
+      target: `${app.applicationNo} · ${app.applicant.fullName} · ${STEP_LABELS[step] || step}'s step`,
+      before: { status: app.status, currentStep: step },
+    });
     if (app.status !== "pending") return res.status(409).json({ error: `This application was already ${app.status}.` });
 
-    const step = currentStepOf(app);
     if (req.user.role !== step) {
       return res.status(403).json({ error: `It is the ${STEP_LABELS[step]}'s turn to sign this application.` });
     }
@@ -328,7 +407,11 @@ router.post("/:id/approvals", async (req, res, next) => {
       updated.loanId = loan._id;
       updated.loanNo = loan.loanNo;
     }
-    res.json({ application: updated });
+    auditNote(res, {
+      action: decision === "denied" ? "Application denied" : updated.status === "approved" ? "Application approved (final, loan created)" : "Application approved",
+      details: { decision, note, step: STEP_LABELS[step], result: updated.status, nextStep: updated.status === "pending" ? STEP_LABELS[updated.currentStep] : undefined, loanNo: updated.loanNo, balancesCorrected: !!booksChanged },
+    });
+    res.json({ application: forViewer(req.user, updated) });
   } catch (err) {
     next(err);
   }

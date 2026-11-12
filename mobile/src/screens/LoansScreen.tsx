@@ -60,6 +60,14 @@ export default function LoansScreen({ loans, applications, loading, onRefresh, o
             <Row label="Submitted" value={date(a.createdAt)} />
             <Steps app={a} />
             {a.denialNote ? <Text style={{ color: colors.danger, marginTop: 8 }}>Reason: {a.denialNote}</Text> : null}
+            {a.reasons?.against.length ? (
+              <View style={{ marginTop: 8 }}>
+                <Text style={{ color: colors.text, fontWeight: '600' }}>What counted against it</Text>
+                {a.reasons.against.map((r) => <Text key={r.feature} style={{ color: colors.text, marginTop: 2 }}>• {r.text}</Text>)}
+                {a.reasons.tips.length ? <Text style={{ color: colors.text, fontWeight: '600', marginTop: 6 }}>What can help next time</Text> : null}
+                {a.reasons.tips.map((t) => <Text key={t} style={{ color: colors.text, marginTop: 2 }}>• {t}</Text>)}
+              </View>
+            ) : null}
           </Card>
         ))}
       </ScrollView>

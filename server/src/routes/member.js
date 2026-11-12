@@ -14,6 +14,8 @@ const { createSchema, createApplication } = require("./applications");
 const { signSession, requireAuth } = require("../middleware/auth");
 const { rateLimit } = require("../middleware/rateLimit");
 const verification = require("../services/emailVerification");
+const { auditNote } = require("../middleware/audit");
+const { explain } = require("../services/explain");
 const settings = require("../services/settings");
 
 const router = express.Router();
@@ -79,7 +81,10 @@ function requireMember(req, res, next) {
   next();
 }
 
-const reply = (user) => ({ token: signSession(user), session: user.toSession() });
+const reply = (user, res) => {
+  auditNote(res, { user });
+  return { token: signSession(user), session: user.toSession() };
+};
 
 // Creates the member account and emails a 6-digit code. The app gets no token until the code is entered.
 router.post("/register", registerLimit, async (req, res, next) => {
@@ -117,7 +122,7 @@ router.post("/verify-email", verifyLimit, async (req, res, next) => {
     }
     // Verified either way; staff then sign in on the web app.
     if (user.role !== "member") return res.status(403).json({ error: "Staff accounts sign in on the UDEI office web app." });
-    res.json(reply(user));
+    res.json(reply(user, res));
   } catch (err) {
     next(err);
   }
@@ -151,7 +156,7 @@ router.post("/login", loginLimit, async (req, res, next) => {
     }
     user.lastLoginAt = new Date();
     await user.save();
-    res.json(reply(user));
+    res.json(reply(user, res));
   } catch (err) {
     next(err);
   }
@@ -172,6 +177,8 @@ function memberView(app) {
     signed: (app.approvals || []).map((a) => ({ step: STEP_LABELS[a.step] || a.step, decision: a.decision, signedAt: a.signedAt })),
     // Members are told why a loan was denied; other signers' notes stay internal.
     denialNote: app.status === "denied" ? (app.approvals || []).find((a) => a.decision === "denied")?.note || null : null,
+    // Plain-language reasons and tips once denied; never the scores.
+    reasons: app.status === "denied" ? (({ against, tips } = {}) => (against ? { against, tips } : null))(explain(app.assessment) ?? undefined) : null,
     loan: app.loan,
     loanId: app.loanId || null,
     loanNo: app.loanNo || null,

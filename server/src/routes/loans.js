@@ -7,6 +7,7 @@ const Member = require("../models/Member");
 const loans = require("../services/loans");
 const { requireStaff, requireRole } = require("../middleware/auth");
 const { seesAllLoans } = require("../config/access");
+const { auditNote } = require("../middleware/audit");
 
 // Every amount in this API is an integer number of centavos (₱1 = 100).
 const router = express.Router();
@@ -129,6 +130,7 @@ router.post(
     if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0].message });
     const loan = await findLoan(req.params.id);
     if (!loan) return res.status(404).json({ error: "Loan not found." });
+    auditNote(res, { target: `${loan.loanNo} · ${loan.borrowerName}` });
     const released = await loans.release(loan, parsed.data, req.user);
     res.json({ loan: loans.present(released) });
   }),
@@ -142,6 +144,7 @@ router.post(
     if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0].message });
     const loan = await findLoan(req.params.id);
     if (!loan) return res.status(404).json({ error: "Loan not found." });
+    auditNote(res, { target: `${loan.loanNo} · ${loan.borrowerName}` });
     const { loan: updated, payment } = await loans.recordPayment(loan, parsed.data, req.user);
     res.status(201).json({ loan: loans.present(updated), payment });
   }),
@@ -155,6 +158,7 @@ router.post(
     if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0].message });
     const loan = await findLoan(req.params.id);
     if (!loan) return res.status(404).json({ error: "Loan not found." });
+    auditNote(res, { target: `${loan.loanNo} · ${loan.borrowerName}` });
     if (!mongoose.isValidObjectId(req.params.paymentId)) return res.status(404).json({ error: "Payment not found." });
     const { loan: updated, payment } = await loans.voidPayment(loan, req.params.paymentId, parsed.data.reason, req.user);
     res.json({ loan: loans.present(updated), payment });
