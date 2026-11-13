@@ -31,16 +31,23 @@ function toFeatures(app) {
   return features;
 }
 
+// Under the ~30 s that the Vercel /api proxy waits, so staff see this message instead of a proxy error.
+const ML_TIMEOUT_MS = 25_000;
+
 async function call(path, init = {}) {
   let res;
   try {
     res = await fetch(`${env.mlServiceUrl}${path}`, {
       ...init,
       headers: { "Content-Type": "application/json", ...(init.headers || {}) },
-      signal: AbortSignal.timeout(15000),
+      // Render's free tier sleeps: waking the ML service can take up to a minute.
+      signal: AbortSignal.timeout(ML_TIMEOUT_MS),
     });
-  } catch {
-    throw new Error("The ML service is not running. Start it with `npm run ml`.");
+  } catch (err) {
+    if (err?.name === "TimeoutError") {
+      throw new Error("The ML service took too long to answer. It may be waking up; try Run models again in a minute.");
+    }
+    throw new Error(`The ML service is not reachable at ${env.mlServiceUrl}. Check ML_SERVICE_URL, or start it with \`npm run ml\`.`);
   }
   const body = await res.json().catch(() => ({}));
   if (!res.ok) {
