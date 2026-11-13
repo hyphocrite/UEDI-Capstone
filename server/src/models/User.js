@@ -26,6 +26,8 @@ const userSchema = new mongoose.Schema(
     memberNo: { type: String, trim: true, maxlength: 32 },
     phone: { type: String, trim: true, maxlength: 20 },
     lastLoginAt: { type: Date },
+    // Sessions started before this (a password change) no longer work.
+    sessionsValidAfter: { type: Date },
     // false until the emailed code is entered. Accounts made before verification existed have no
     // value and are treated as verified.
     emailVerified: { type: Boolean },

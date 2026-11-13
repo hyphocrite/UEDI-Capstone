@@ -27,7 +27,11 @@ function toFeatures(app) {
     employmentStatus: a.employmentStatus || "permanent",
     documentsFlagged: (app.documents || []).filter((d) => d.verdict && d.verdict !== "verified").length,
   };
-  if (a.dateOfBirth) features.age = ageOn(a.dateOfBirth);
+  // The model only knows working ages; a mistyped birth date (e.g. this year) is left out instead of failing.
+  if (a.dateOfBirth) {
+    const age = ageOn(a.dateOfBirth);
+    if (Number.isFinite(age) && age >= 18 && age <= 100) features.age = age;
+  }
   return features;
 }
 
@@ -51,7 +55,11 @@ async function call(path, init = {}) {
   }
   const body = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const detail = typeof body.detail === "string" ? body.detail : `ML service error (${res.status}).`;
+    let detail = typeof body.detail === "string" ? body.detail : `ML service error (${res.status}).`;
+    // FastAPI lists the fields it rejected; name them so staff know what to correct.
+    if (Array.isArray(body.detail) && body.detail.length) {
+      detail = "The ML service rejected: " + body.detail.map((d) => `${(d.loc || []).filter((x) => x !== "body").join(".")} (${d.msg})`).join("; ");
+    }
     throw new Error(detail);
   }
   return body;

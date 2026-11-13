@@ -15,6 +15,10 @@ const documentSchema = new mongoose.Schema(
     verdict: { type: String, enum: ["verified", "review", "mismatch", "unreadable"] },
     sha256: { type: String, maxlength: 64 },
     notes: [{ type: String, maxlength: 300 }],
+    // The stored file (services/documentFiles.js), once the applicant's browser has uploaded it.
+    fileId: { type: mongoose.Schema.Types.ObjectId },
+    contentType: String,
+    size: Number,
   },
   { _id: false },
 );

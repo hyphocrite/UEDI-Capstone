@@ -1,10 +1,12 @@
 import { useState } from 'react'
-import { AlertTriangle, CheckCircle2, RefreshCw, XCircle } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Eye, HandCoins, MessageSquareText, RefreshCw, XCircle } from 'lucide-react'
 import ApprovalPanel from './ApprovalPanel'
 import BookkeeperBalances from './BookkeeperBalances'
 import ApprovalTracker from './ApprovalTracker'
 import ModelCard from './ModelCard'
+import DocumentViewer from './DocumentViewer'
 import { api } from '../../lib/api'
+import { useConfirm } from '../../context/ConfirmContext'
 import { employmentStatusLabel, loanTypeLabel, monthlyInstallment } from '../../lib/applications'
 import type { LoanApplication, Suggestion } from '../../lib/applications'
 import { formatDate, formatPeso } from '../../lib/format'
@@ -18,7 +20,9 @@ const suggestionText: Record<Suggestion, string> = {
 }
 
 export default function ApplicationDetail({ app, onChange }: { app: LoanApplication; onChange: (a: LoanApplication) => void }) {
+  const confirm = useConfirm()
   const [busy, setBusy] = useState<'rescore' | null>(null)
+  const [viewing, setViewing] = useState<number | null>(null)
   const [error, setError] = useState('')
 
   const a = app.applicant
@@ -31,6 +35,12 @@ export default function ApplicationDetail({ app, onChange }: { app: LoanApplicat
   const agree = app.assessment ? app.assessment.models.filter((m) => m.suggestion === e?.suggestion).length : 0
 
   const rescore = async () => {
+    const ok = await confirm({
+      title: 'Run the models again?',
+      message: <p>The suggestion for <b>{app.applicationNo}</b> will be replaced by a new score from the current form and balances. Signatures already given stay.</p>,
+      confirmLabel: 'Yes, run again',
+    })
+    if (!ok) return
     setBusy('rescore')
     setError('')
     try {
@@ -50,10 +60,6 @@ export default function ApplicationDetail({ app, onChange }: { app: LoanApplicat
           <div className="min-w-0">
             <p className="text-xs font-semibold tracking-wide text-brand-500 uppercase">{app.applicationNo}</p>
             <h2 className="text-xl font-bold break-words text-brand-800">{a.fullName}</h2>
-            <p className="text-sm text-brand-600">
-              {formatPeso(app.loan.amount)} {loanTypeLabel[app.loan.loanType].toLowerCase()} loan over {app.loan.termMonths} months
-              {app.loan.purpose && ` for ${app.loan.purpose.toLowerCase()}`}
-            </p>
             <p className="mt-1 text-xs text-brand-500">
               Submitted {formatDate(app.createdAt)}{app.submittedByName && ` by ${app.submittedByName}`}
             </p>
@@ -65,6 +71,30 @@ export default function ApplicationDetail({ app, onChange }: { app: LoanApplicat
           )}
         </div>
         {error && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{error}</p>}
+
+        {/* What is being asked for and why: the first thing a signer reads. */}
+        <div className="mt-4 grid min-w-0 gap-3 sm:grid-cols-[minmax(0,15rem)_1fr]">
+          <div className="rounded-xl border-2 border-accent/40 bg-emerald-50/60 p-4">
+            <p className="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-brand-600 uppercase">
+              <HandCoins className="h-4 w-4 text-accent" /> Loan amount
+            </p>
+            <p className="mt-1 text-3xl font-bold text-brand-800">{formatPeso(app.loan.amount)}</p>
+            <p className="mt-1 text-sm text-brand-700">
+              {loanTypeLabel[app.loan.loanType]} · {app.loan.termMonths} months · {app.loan.monthlyRate}%/month
+            </p>
+            <p className="text-xs text-brand-500">{app.loan.paymentFrequency === 'quincenal' ? 'Deducted every payday' : 'Deducted monthly'}</p>
+          </div>
+          <div className={`min-w-0 rounded-xl border-2 p-4 ${app.loan.purpose ? 'border-brand-200 bg-white' : 'border-dashed border-amber-300 bg-amber-50/60'}`}>
+            <p className="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-brand-600 uppercase">
+              <MessageSquareText className="h-4 w-4 text-accent" /> Reason for the loan
+            </p>
+            {app.loan.purpose ? (
+              <p className="mt-1 text-lg font-semibold break-words text-ink">“{app.loan.purpose}”</p>
+            ) : (
+              <p className="mt-1 text-sm font-medium text-amber-800">No reason given. Ask the applicant before signing if it matters.</p>
+            )}
+          </div>
+        </div>
 
         {e ? (
           <div className="mt-5 rounded-xl bg-[#0B422A] p-5 text-white">
@@ -78,6 +108,27 @@ export default function ApplicationDetail({ app, onChange }: { app: LoanApplicat
               {agree} of 3 models agree. The final score combines XGBoost, Random Forest and Logistic Regression
               (stacked ensemble{e.cvMetrics ? `, tested AUC ${e.cvMetrics.aucRoc.toFixed(2)}` : ''}). It is a suggestion; the four signers decide.
             </p>
+            {app.explanation && (app.explanation.against.length > 0 || (app.explanation.inFavor?.length ?? 0) > 0) && (
+              <div className="mt-4 grid gap-4 border-t border-white/15 pt-4 sm:grid-cols-2">
+                <div>
+                  <p className="text-xs font-semibold tracking-wide text-brand-200 uppercase">In plain words: against</p>
+                  <ul className="mt-1 space-y-1 text-sm">
+                    {app.explanation.against.length ? app.explanation.against.map((r) => <li key={r.feature}>• {r.text}</li>) : <li className="text-brand-200">Nothing stood out.</li>}
+                  </ul>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold tracking-wide text-brand-200 uppercase">In favor</p>
+                  <ul className="mt-1 space-y-1 text-sm">
+                    {app.explanation.inFavor?.length ? app.explanation.inFavor.map((r) => <li key={r.feature}>• {r.text}</li>) : <li className="text-brand-200">Nothing stood out.</li>}
+                  </ul>
+                </div>
+                {app.explanation.tips.length > 0 && (
+                  <p className="text-sm text-brand-100 sm:col-span-2">
+                    <span className="font-semibold text-white">What would help: </span>{app.explanation.tips.join(' ')}
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         ) : (
           <p className="mt-5 flex items-center gap-2 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800">
@@ -128,6 +179,13 @@ export default function ApplicationDetail({ app, onChange }: { app: LoanApplicat
                   <span className="text-brand-500"> · {d.fileName}</span>
                   {d.notes?.map((n) => <span key={n} className="block text-xs text-brand-600">{n}</span>)}
                 </span>
+                {d.fileId ? (
+                  <button className="btn-ghost ml-auto shrink-0 px-2.5 py-1 text-xs" onClick={() => setViewing(i)}>
+                    <Eye className="h-3.5 w-3.5" /> View beside the form
+                  </button>
+                ) : (
+                  <span className="ml-auto shrink-0 text-xs text-brand-400">File not stored</span>
+                )}
               </li>
             ))}
           </ul>
@@ -137,6 +195,10 @@ export default function ApplicationDetail({ app, onChange }: { app: LoanApplicat
       <section className="card p-4 sm:p-5">
         <ApprovalPanel app={app} onChange={onChange} />
       </section>
+
+      {viewing !== null && app.documents[viewing] && (
+        <DocumentViewer app={app} index={viewing} onIndex={setViewing} onClose={() => setViewing(null)} />
+      )}
     </div>
   )
 }

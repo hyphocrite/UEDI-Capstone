@@ -42,9 +42,10 @@ async function setup() {
   await mongoose.connection.dropDatabase();
   // UDEI's real limits are 12 months (long term) and 6 (emergency); most tests use longer terms,
   // so they start with roomier limits. test/realdata.test.js checks the limits themselves.
+  // Applications always get the rate set here (1% long term, 1.5% emergency), whatever they send.
   await require("../src/models/Setting").create({
     key: "loan",
-    products: { long_term: { label: "Long term", monthlyRate: 2, maxTermMonths: 120 }, emergency: { label: "Emergency", monthlyRate: 3, maxTermMonths: 12 } },
+    products: { long_term: { label: "Long term", monthlyRate: 1, maxTermMonths: 120 }, emergency: { label: "Emergency", monthlyRate: 1.5, maxTermMonths: 12 } },
     minMonthlySalary: 10000,
     branches: ["Main Office"],
   });

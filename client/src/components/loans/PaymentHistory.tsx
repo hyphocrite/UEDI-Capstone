@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Ban } from 'lucide-react'
 import Modal from '../Modal'
 import { api } from '../../lib/api'
+import { useConfirm } from '../../context/ConfirmContext'
 import { formatCentavos, formatDay, paymentMethodLabel } from '../../lib/loans'
 import type { Loan, Payment } from '../../lib/loans'
 
@@ -14,6 +15,7 @@ type Props = {
 
 /** Payments, newest first. Voided ones stay listed, struck through, with the reason. */
 export default function PaymentHistory({ loan, payments, canVoid, onChange }: Props) {
+  const confirm = useConfirm()
   const [voiding, setVoiding] = useState<Payment | null>(null)
   const [reason, setReason] = useState('')
   const [busy, setBusy] = useState(false)
@@ -28,6 +30,18 @@ export default function PaymentHistory({ loan, payments, canVoid, onChange }: Pr
   const confirmVoid = async () => {
     if (!voiding) return
     if (reason.trim().length < 3) return setError('Give a reason for voiding this payment.')
+    const ok = await confirm({
+      title: 'Void this payment?',
+      message: (
+        <>
+          <p>Void the <b>{formatCentavos(voiding.amount)}</b> payment of {formatDay(voiding.paidAt)} on <b>{loan.loanNo}</b>. The balance goes back up by that amount.</p>
+          <p>The payment stays listed, struck through, with your reason: “{reason.trim()}”.</p>
+        </>
+      ),
+      confirmLabel: 'Yes, void it',
+      danger: true,
+    })
+    if (!ok) return
     setBusy(true)
     setError('')
     try {

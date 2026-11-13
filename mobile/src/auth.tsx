@@ -19,7 +19,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [ready, setReady] = useState(false)
 
-  const signOut = useCallback(async () => {
+  // revoke: end the session on the server too. Not when the server already refused the token.
+  const signOut = useCallback(async (revoke = true) => {
+    if (revoke) await api.logout().catch(() => {})
     setToken(null)
     setSession(null)
     await saveToken(null)
@@ -27,7 +29,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   useEffect(() => {
-    setUnauthorizedHandler(() => void signOut())
+    setUnauthorizedHandler(() => void signOut(false))
     ;(async () => {
       const saved = await loadToken()
       if (saved) {

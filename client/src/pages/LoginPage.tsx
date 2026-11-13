@@ -11,6 +11,7 @@ export default function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const from = (location.state as { from?: string } | null)?.from || '/dashboard'
+  const signedOut = (location.state as { signedOut?: 'idle' | 'expired' } | null)?.signedOut
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -50,6 +51,11 @@ export default function LoginPage() {
       }
     >
       <form onSubmit={onSubmit} className="space-y-4" noValidate>
+        {signedOut && (
+          <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800" role="status">
+            {signedOut === 'idle' ? 'You were signed out after 30 minutes without activity.' : 'Your session ended after 8 hours.'} Sign in again to continue.
+          </p>
+        )}
         <div>
           <label className="label" htmlFor="email">Email</label>
           <input id="email" type="email" autoComplete="email" className="input" value={email}

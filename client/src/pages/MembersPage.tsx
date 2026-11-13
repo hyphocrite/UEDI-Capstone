@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { HandCoins, Pencil, PiggyBank, Plus, ReceiptText, Search, UserCheck, Users } from 'lucide-react'
+import { HandCoins, Link2, Pencil, PiggyBank, Plus, ReceiptText, Search, UserCheck, Users } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import StatCard from '../components/StatCard'
 import StatusBadge from '../components/StatusBadge'
-import AccountLinksSection from '../components/members/AccountLinksSection'
 import MemberForm from '../components/members/MemberForm'
 import CarriedDeductionForm from '../components/members/CarriedDeductionForm'
 import { useAuth } from '../context/AuthContext'
@@ -73,9 +72,12 @@ export default function MembersPage() {
         title="Members"
         subtitle="Everyone enrolled with UDEI, their Mutual Assistance balance and retirement plan."
         actions={
-          <button className="btn-primary" onClick={() => setEditing('new')}>
-            <Plus className="h-4 w-4" /> Add member
-          </button>
+          <>
+            <Link to="/member-accounts" className="btn-ghost"><Link2 className="h-4 w-4" /> Link accounts</Link>
+            <button className="btn-primary" onClick={() => setEditing('new')}>
+              <Plus className="h-4 w-4" /> Add member
+            </button>
+          </>
         }
       />
 
@@ -184,7 +186,6 @@ export default function MembersPage() {
         </p>
       </div>
 
-      <AccountLinksSection />
 
       {deducting && (
         <CarriedDeductionForm

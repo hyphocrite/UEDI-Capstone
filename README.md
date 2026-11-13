@@ -45,10 +45,10 @@ the roles below it see, except Payroll Deductions, which only the Bookkeeper, Tr
 | Role | Adds |
 | --- | --- |
 | Member | My Loans, Apply for a Loan, Profile |
-| Loan Officer, Bookkeeper | Pending Loans, Members, Retirement Plans (Bookkeeper also: Payroll Deductions) |
+| Loan Officer, Bookkeeper | Pending Loans, Members, Member Accounts, Retirement Plans (Bookkeeper also: Payroll Deductions) |
 | Treasurer | Reports, Payroll Deductions |
-| CreCom Chairman, President | Loan Settings |
-| Administrator | Credit Model, user roles, Payroll Deductions |
+| CreCom Chairman, President | Loan Settings (terms, minimum salary, branches) |
+| Administrator | Interest rates, Credit Model, user roles, Audit Log, Payroll Deductions |
 
 The first account created becomes the administrator. Every account after that starts as a Member, and
 an administrator gives staff their role. A member sees loans only after a Loan Officer links their
@@ -58,6 +58,16 @@ members' records.
 **Mobile app.** Members sign up with their member number, verify their email, apply, follow their
 application through the four signers, see their schedule and payments, and get due-date reminders.
 See [mobile/README.md](mobile/README.md).
+
+### Documents, sessions and addresses
+
+- **Supporting documents** are stored in MongoDB (GridFS, bucket `applicationDocuments`), so no other
+  storage service is needed. Atlas's free tier holds 512 MB in total; at a few hundred KB per photo that
+  is a few thousand documents, so plan a paid tier or cleanup before then.
+- **Sessions** end after 30 minutes without activity (with a one-minute warning) or after 8 hours.
+  Logging out revokes the token; changing the password ends every other session.
+- **Addresses** use the official PSGC list (`psgc-areas` package): province, city or municipality,
+  barangay, then house, street or purok. They are still stored as one line of text.
 
 ## Project layout
 
@@ -173,8 +183,9 @@ Officer and every role above it.
 | POST | `/verify-email` | Anyone | Enter the code; signs the account in |
 | POST | `/resend-verification` | Anyone | Email a new code (once a minute) |
 | POST | `/login` | Anyone | Log in (403 `EMAIL_NOT_VERIFIED` until the email is verified) |
-| POST | `/logout` | Anyone | Log out |
-| GET | `/me` | Anyone | Current session |
+| POST | `/logout` | Anyone | Log out; the session token stops working even if it was copied |
+| GET | `/me` | Anyone | Current session and when it expires |
+| POST | `/refresh` | Signed in | "Stay signed in": a fresh session; the old token stops working |
 | PATCH | `/profile` | Signed in | Change own name and branch |
 | POST | `/password` | Signed in | Change own password |
 | GET | `/users` | Officer+ | List accounts |
@@ -190,6 +201,8 @@ Officer and every role above it.
 | GET | `/:id` | Signed in | One application (members don't get model scores) |
 | POST | `/:id/approvals` | Signer whose turn it is | Approve or deny `{ decision, note, bookkeeper }` |
 | POST | `/:id/assess` | Officer+ | Run the models again |
+| PUT | `/:id/documents/:index` | Whoever filed it | Upload a supporting document's file (must be the file that was checked) |
+| GET | `/:id/documents/:index/file` | Staff, and the applicant | The stored file, for the side-by-side viewer |
 | GET | `/model` | Officer+ | Model version and cross-validation results |
 | GET | `/model/benchmark` | Admin | Comparison of eight classifiers (Credit Model page) |
 
@@ -234,7 +247,10 @@ Officer and every role above it.
 | POST | `/api/retirement-plans/:id/contributions/:contributionId/void` | Bookkeeper, Treasurer | Void a contribution |
 | GET | `/api/reports?period=` | Treasurer+ | Collections, releases and applications per period |
 | GET | `/api/settings` | Anyone | Loan Settings |
-| PUT | `/api/settings` | CreCom Chairman+ | Save Loan Settings |
+| PUT | `/api/settings` | CreCom Chairman+ (interest rates: Admin only) | Save Loan Settings |
+| GET | `/api/members/mine` | Signed in | A linked member's own record, history and last application, to fill in their loan form |
+| GET | `/api/audit` | Admin | The audit log (`?q=`, `?action=`, `?outcome=`, `?from=`, `?to=`, `?page=`) |
+| GET | `/api/locations/provinces`, `/towns?province=`, `/barangays?town=`, `/parse?address=` | Signed in | Address dropdowns from the PSGC list, and splitting a typed address into them |
 | GET | `/api/health` | Anyone | Server and database status |
 
 **Mobile app** (`/api/member`): `register`, `verify-email`, `resend-verification` and `login`, then, for

@@ -5,6 +5,12 @@ export type Suggestion = 'approve' | 'review' | 'deny'
 
 export type Factor = { feature: string; label: string; value: number; impact: number; direction: string }
 
+export type Explanation = {
+  against: { feature: string; text: string }[]
+  inFavor?: { feature: string; text: string }[]
+  tips: string[]
+}
+
 export type CvMetrics = { name: string; aucRoc: number; accuracy: number; precision: number; recall: number; f1: number }
 
 export type ModelScore = {
@@ -70,8 +76,11 @@ export type LoanApplication = {
     shortTermDueDate?: string
   }
   agreement: { payrollDeduction: boolean; autoRestructure: boolean; applicationDate: string }
-  documents: { fileName: string; type?: string; verdict?: 'verified' | 'review' | 'mismatch' | 'unreadable'; notes?: string[] }[]
+  /** fileId is set once the file itself was uploaded and can be opened in the viewer. */
+  documents: { fileName: string; type?: string; verdict?: 'verified' | 'review' | 'mismatch' | 'unreadable'; notes?: string[]; fileId?: string; contentType?: string; size?: number }[]
   status: 'pending' | 'approved' | 'denied'
+  /** The models' reasons in plain words. Staff always; members only once denied (no inFavor). */
+  explanation?: Explanation | null
   /** Signatures so far, in order. */
   approvals: Approval[]
   /** The step waiting to be signed, or 'none' once decided. */

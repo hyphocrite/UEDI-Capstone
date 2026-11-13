@@ -5,6 +5,7 @@ import PageHeader from '../components/PageHeader'
 import StatCard from '../components/StatCard'
 import StatusBadge from '../components/StatusBadge'
 import ProgressBar from '../components/ProgressBar'
+import MyApplications from '../components/loans/MyApplications'
 import { useAuth } from '../context/AuthContext'
 import { api } from '../lib/api'
 import { atLeast } from '../lib/roles'
@@ -91,6 +92,8 @@ export default function LoansPage() {
           Your account isn't linked to a member record yet, so no loans are shown. Ask the UDEI office to link it.
         </p>
       )}
+
+      {!staffView && <MyApplications />}
 
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard icon={HandCoins} label="Open loans" value={String(open.length + carriedOpen)}

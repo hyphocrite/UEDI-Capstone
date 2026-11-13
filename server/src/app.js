@@ -4,6 +4,7 @@ const cookieParser = require("cookie-parser");
 const mongoose = require("mongoose");
 const env = require("./config/env");
 const { loadUser } = require("./middleware/auth");
+const { audit } = require("./middleware/audit");
 const authRoutes = require("./routes/auth");
 const applicationRoutes = require("./routes/applications");
 const loanRoutes = require("./routes/loans");
@@ -13,6 +14,8 @@ const membersRoutes = require("./routes/members");
 const planRoutes = require("./routes/retirementPlans");
 const reportRoutes = require("./routes/reports");
 const settingsRoutes = require("./routes/settings");
+const auditRoutes = require("./routes/audit");
+const locationRoutes = require("./routes/locations");
 
 function createApp() {
   const app = express();
@@ -30,6 +33,7 @@ function createApp() {
   app.use(express.json({ limit: "1mb" }));
   app.use(cookieParser());
   app.use(loadUser);
+  app.use(audit);
 
   app.get("/api/health", (_req, res) => {
     res.json({ ok: true, db: mongoose.connection.readyState === 1 ? "connected" : "disconnected" });
@@ -44,6 +48,8 @@ function createApp() {
   app.use("/api/retirement-plans", planRoutes);
   app.use("/api/reports", reportRoutes);
   app.use("/api/settings", settingsRoutes);
+  app.use("/api/audit", auditRoutes);
+  app.use("/api/locations", locationRoutes);
 
   app.use("/api", (_req, res) => res.status(404).json({ error: "Not found." }));
 

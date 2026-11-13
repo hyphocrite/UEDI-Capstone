@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import Modal from '../Modal'
 import { api } from '../../lib/api'
+import { useConfirm } from '../../context/ConfirmContext'
 import { formatCentavos, formatDay, todayKey, toCentavos } from '../../lib/loans'
 import type { Loan } from '../../lib/loans'
 import type { Member } from '../../lib/members'
@@ -27,6 +28,7 @@ export default function CarriedDeductionForm({ member, onClose, onSaved }: {
   onClose: () => void
   onSaved: (loan: Loan) => void
 }) {
+  const confirm = useConfirm()
   const opening = member.openingLoan!
   const [frequency, setFrequency] = useState<Frequency>('quincenal')
   const [amount, setAmount] = useState('')
@@ -47,6 +49,17 @@ export default function CarriedDeductionForm({ member, onClose, onSaved }: {
   const submit = async (e: FormEvent) => {
     e.preventDefault()
     if (!(perCutoff >= 100)) return setError('Enter the amount to deduct each cutoff.')
+    const ok = await confirm({
+      title: 'Set up this payroll deduction?',
+      message: (
+        <>
+          <p>Payroll will deduct <b>{formatCentavos(perCutoff)}</b> {frequency === 'quincenal' ? 'every payday' : 'once a month'} from <b>{member.fullName}</b>, starting {formatDay(firstDueDate)}, until the {formatCentavos(opening.balance)} balance is paid ({cutoffs} deductions).</p>
+          <p>The balance becomes loan LEDGER-{member.memberId}. This can only be set up once per member.</p>
+        </>
+      ),
+      confirmLabel: 'Yes, set it up',
+    })
+    if (!ok) return
     setSaving(true)
     try {
       const { loan } = await api<{ loan: Loan }>(`/api/members/${encodeURIComponent(member.memberId)}/payroll-deduction`, {

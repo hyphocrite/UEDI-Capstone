@@ -6,6 +6,7 @@ import Modal from '../components/Modal'
 import PageHeader from '../components/PageHeader'
 import StatusBadge from '../components/StatusBadge'
 import { useAuth } from '../context/AuthContext'
+import { useConfirm } from '../context/ConfirmContext'
 import { api } from '../lib/api'
 import { formatCutoff, runStatusLabel } from '../lib/deductions'
 import type { DeductionRun, RunSummary } from '../lib/deductions'
@@ -13,6 +14,7 @@ import { formatCentavos } from '../lib/loans'
 
 /** One payroll deduction run per cutoff (the 15th and the month-end). */
 export default function DeductionsPage() {
+  const confirm = useConfirm()
   const { session } = useAuth()
   const navigate = useNavigate()
   const canCreate = session?.role === 'bookkeeper' || session?.role === 'treasurer'
@@ -44,6 +46,12 @@ export default function DeductionsPage() {
 
   const create = async (e: FormEvent) => {
     e.preventDefault()
+    const ok = await confirm({
+      title: 'Start this deduction run?',
+      message: <p>Build the payroll deduction list for the <b>{formatCutoff(cutoff)}</b> cutoff from every loan with an installment due that day. There can only be one run per cutoff.</p>,
+      confirmLabel: 'Yes, start it',
+    })
+    if (!ok) return
     setBusy(true)
     setFormError('')
     try {

@@ -104,7 +104,8 @@ test("submit, score and list applications", { skip: !uri && "TEST_MONGODB_URI no
   assert.deepEqual(
     { ...lastFeatures, age: undefined },
     {
-      loanType: "long_term", loanAmount: 60000, termMonths: 12, monthlyRate: 1, monthlySalary: 38000, netTakeHomePay: 24000,
+      // monthlyRate: the Loan Settings default (2%), not the 1% the form sent.
+      loanType: "long_term", loanAmount: 60000, termMonths: 12, monthlyRate: 2, monthlySalary: 38000, netTakeHomePay: 24000,
       longTermBalance: 12000, shortTermBalance: 0, yearsAsMember: 5, priorLoans: 3, priorLatePayments: 0,
       employmentStatus: "permanent", documentsFlagged: 1, age: undefined,
     },

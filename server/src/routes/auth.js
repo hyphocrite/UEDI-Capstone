@@ -8,12 +8,15 @@ const {
   COOKIE_NAME,
   cookieOptions,
   signSession,
+  expiryOf,
+  revokeSession,
   requireAuth,
   requireRole,
   requireLevel,
 } = require("../middleware/auth");
 const { rateLimit } = require("../middleware/rateLimit");
 const verification = require("../services/emailVerification");
+const { auditNote } = require("../middleware/audit");
 
 const router = express.Router();
 
@@ -56,8 +59,12 @@ function firstIssue(result) {
   return result.error.issues[0]?.message || "Invalid input.";
 }
 
+/** Signs the user in with a new session cookie. Returns when that session expires. */
 function startSession(res, user) {
-  res.cookie(COOKIE_NAME, signSession(user), cookieOptions());
+  auditNote(res, { user });
+  const token = signSession(user);
+  res.cookie(COOKIE_NAME, token, cookieOptions());
+  return expiryOf(token);
 }
 
 // Creates the account and emails a verification code. No session until the code is entered.
@@ -75,6 +82,7 @@ router.post("/register", registerLimit, async (req, res, next) => {
     const role = (await User.estimatedDocumentCount()) === 0 ? "admin" : "staff";
     const passwordHash = await bcrypt.hash(password, 12);
     const user = await User.create({ fullName, email, passwordHash, role, branch, emailVerified: false });
+    auditNote(res, { user, target: `${user.fullName} <${user.email}> as ${role}` });
 
     let emailSent = true;
     try {
@@ -101,8 +109,8 @@ router.post("/verify-email", verifyLimit, async (req, res, next) => {
     if (result === "expired") {
       return res.status(400).json({ error: "This code has expired or was tried too many times. Request a new code." });
     }
-    startSession(res, user);
-    res.json({ session: user.toSession() });
+    const expiresAt = startSession(res, user);
+    res.json({ session: user.toSession(), expiresAt });
   } catch (err) {
     next(err);
   }
@@ -141,20 +149,40 @@ router.post("/login", loginLimit, async (req, res, next) => {
     user.lastLoginAt = new Date();
     await user.save();
 
-    startSession(res, user);
-    res.json({ session: user.toSession() });
+    const expiresAt = startSession(res, user);
+    res.json({ session: user.toSession(), expiresAt });
   } catch (err) {
     next(err);
   }
 });
 
-router.post("/logout", (_req, res) => {
-  res.clearCookie(COOKIE_NAME, { ...cookieOptions(), maxAge: undefined });
-  res.json({ ok: true });
+// Ends this session for good (the token stops working even if someone copied it), then clears the cookie.
+router.post("/logout", async (req, res, next) => {
+  try {
+    await revokeSession(req);
+    res.clearCookie(COOKIE_NAME, { ...cookieOptions(), maxAge: undefined });
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
 });
 
 router.get("/me", (req, res) => {
-  res.json({ session: req.user ? req.user.toSession() : null });
+  res.json({
+    session: req.user ? req.user.toSession() : null,
+    expiresAt: req.sessionToken ? new Date(req.sessionToken.exp * 1000).toISOString() : null,
+  });
+});
+
+// "Stay signed in": swaps this session for a fresh one, ending the old token.
+router.post("/refresh", requireAuth, async (req, res, next) => {
+  try {
+    await revokeSession(req);
+    const expiresAt = startSession(res, req.user);
+    res.json({ session: req.user.toSession(), expiresAt });
+  } catch (err) {
+    next(err);
+  }
 });
 
 const profileSchema = z.object({
@@ -180,6 +208,7 @@ router.patch("/profile", requireAuth, async (req, res, next) => {
   try {
     const parsed = profileSchema.safeParse(req.body || {});
     if (!parsed.success) return res.status(400).json({ error: firstIssue(parsed) });
+    auditNote(res, { target: `${req.user.fullName} <${req.user.email}>`, before: { fullName: req.user.fullName, branch: req.user.branch ?? null } });
     req.user.fullName = parsed.data.fullName;
     req.user.branch = parsed.data.branch || undefined;
     await req.user.save();
@@ -193,14 +222,18 @@ router.post("/password", requireAuth, loginLimit, async (req, res, next) => {
   try {
     const parsed = passwordSchema.safeParse(req.body || {});
     if (!parsed.success) return res.status(400).json({ error: firstIssue(parsed) });
+    auditNote(res, { target: `${req.user.fullName} <${req.user.email}>` });
     const user = await User.findById(req.user._id).select("+passwordHash");
     if (!(await bcrypt.compare(parsed.data.currentPassword, user.passwordHash))) {
       return res.status(400).json({ error: "Your current password is not correct." });
     }
     user.passwordHash = await bcrypt.hash(parsed.data.newPassword, 12);
+    // Every other session (other browsers, phones) ends; this one gets a fresh token. Whole seconds,
+    // because tokens record their start time in seconds.
+    user.sessionsValidAfter = new Date(Math.floor(Date.now() / 1000) * 1000);
     await user.save();
-    startSession(res, user);
-    res.json({ ok: true });
+    const expiresAt = startSession(res, user);
+    res.json({ ok: true, expiresAt });
   } catch (err) {
     next(err);
   }
@@ -227,8 +260,10 @@ router.patch("/users/:id/member", requireLevel("loan_officer"), async (req, res,
     }
 
     const update = memberId ? { $set: { memberId } } : { $unset: { memberId: 1 } };
+    const old = await User.findById(req.params.id);
     const user = await User.findByIdAndUpdate(req.params.id, update, { returnDocument: "after" });
     if (!user) return res.status(404).json({ error: "User not found." });
+    auditNote(res, { action: memberId ? "Account linked to member" : "Account unlinked from member", target: `${user.fullName} <${user.email}>`, before: { memberId: old?.memberId ?? null } });
     res.json({ user: { ...user.toSession(), createdAt: user.createdAt } });
   } catch (err) {
     if (err?.code === 11000) return res.status(409).json({ error: "Another account is already linked to that member ID." });
@@ -251,6 +286,7 @@ router.patch("/users/:id/role", requireRole("admin"), async (req, res, next) => 
 
     const before = await User.findByIdAndUpdate(req.params.id, { $set: { role } });
     if (!before) return res.status(404).json({ error: "User not found." });
+    auditNote(res, { target: `${before.fullName} <${before.email}>`, before: { role: before.role } });
     // Checked after the change so two admins demoting each other at once can't both succeed.
     if (before.role === "admin" && role !== "admin" && (await User.countDocuments({ role: "admin" })) === 0) {
       await User.updateOne({ _id: before._id }, { $set: { role: "admin" } });

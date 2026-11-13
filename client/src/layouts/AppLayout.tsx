@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { BarChart3, BrainCircuit, ClipboardCheck, FilePlus2, HandCoins, LogOut, Menu, PiggyBank, ReceiptText, Settings, UserRound, Users, X } from 'lucide-react'
+import { BarChart3, BrainCircuit, History, Link2, ClipboardCheck, FilePlus2, HandCoins, LogOut, Menu, PiggyBank, ReceiptText, Settings, UserRound, Users, X } from 'lucide-react'
 import BrandLogo from '../components/BrandLogo'
+import SessionTimeout from '../components/SessionTimeout'
 import { useAuth } from '../context/AuthContext'
 import { atLeast, homePath, roleLabel } from '../lib/roles'
 import type { Role } from '../lib/roles'
@@ -10,6 +11,7 @@ import type { Role } from '../lib/roles'
 // Must match the route guards in App.tsx.
 const nav: { to: string; label: string; icon: typeof Users; end?: boolean; min?: Role; roles?: Role[] }[] = [
   { to: '/members', label: 'Members', icon: Users, min: 'loan_officer' },
+  { to: '/member-accounts', label: 'Member Accounts', icon: Link2, min: 'loan_officer' },
   { to: '/loans', label: 'Loans', icon: HandCoins, end: true },
   { to: '/loans/apply', label: 'Apply for a Loan', icon: FilePlus2 },
   { to: '/loans/pending', label: 'Pending Loans', icon: ClipboardCheck, min: 'loan_officer' },
@@ -18,6 +20,7 @@ const nav: { to: string; label: string; icon: typeof Users; end?: boolean; min?:
   { to: '/reports', label: 'Reports', icon: BarChart3, min: 'treasurer' },
   { to: '/settings', label: 'Loan Settings', icon: Settings, min: 'crecom_chair' },
   { to: '/credit-model', label: 'Credit Model', icon: BrainCircuit, min: 'admin' },
+  { to: '/audit-log', label: 'Audit Log', icon: History, min: 'admin' },
 ]
 
 export default function AppLayout() {
@@ -145,6 +148,7 @@ export default function AppLayout() {
 
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 print:max-w-none print:p-0">
         <Outlet />
+        <SessionTimeout />
       </main>
       </div>
     </div>

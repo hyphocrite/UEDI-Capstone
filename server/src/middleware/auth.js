@@ -1,6 +1,8 @@
+const crypto = require("node:crypto");
 const jwt = require("jsonwebtoken");
 const env = require("../config/env");
 const User = require("../models/User");
+const RevokedToken = require("../models/RevokedToken");
 const { atLeast } = require("../config/access");
 
 const COOKIE_NAME = "uedi_session";
@@ -15,10 +17,22 @@ function cookieOptions() {
   };
 }
 
+/** A session token with its own id (jti), so it can be ended on logout before it expires. */
 function signSession(user) {
   return jwt.sign({ sub: user._id.toString(), role: user.role }, env.jwtSecret, {
     expiresIn: env.jwtExpiresIn,
+    jwtid: crypto.randomUUID(),
   });
+}
+
+/** When a token from signSession() expires, as an ISO date. */
+const expiryOf = (token) => new Date(jwt.decode(token).exp * 1000).toISOString();
+
+/** Ends the request's session token: it stops working right away, on every device that has it. */
+async function revokeSession(req) {
+  const t = req.sessionToken;
+  if (!t?.jti) return;
+  await RevokedToken.updateOne({ jti: t.jti }, { $setOnInsert: { jti: t.jti, expiresAt: new Date(t.exp * 1000) } }, { upsert: true });
 }
 
 /** The web app sends a cookie; the mobile app sends "Authorization: Bearer <token>". */
@@ -33,8 +47,15 @@ async function loadUser(req, _res, next) {
   if (!token) return next();
   try {
     const payload = jwt.verify(token, env.jwtSecret, { algorithms: ["HS256"] });
+    if (payload.jti && (await RevokedToken.exists({ jti: payload.jti }))) {
+      req.user = null;
+      return next();
+    }
     const user = await User.findById(payload.sub);
-    req.user = user && user.emailVerified !== false ? user : null;
+    // A password change ends the sessions started before it.
+    const stale = user?.sessionsValidAfter && payload.iat * 1000 < user.sessionsValidAfter.getTime();
+    req.user = user && user.emailVerified !== false && !stale ? user : null;
+    if (req.user) req.sessionToken = { jti: payload.jti, exp: payload.exp };
   } catch {
     req.user = null;
   }
@@ -74,4 +95,4 @@ function requireLevel(minRole) {
   };
 }
 
-module.exports = { COOKIE_NAME, cookieOptions, signSession, loadUser, requireAuth, requireStaff, requireRole, requireLevel };
+module.exports = { COOKIE_NAME, cookieOptions, signSession, expiryOf, revokeSession, loadUser, requireAuth, requireStaff, requireRole, requireLevel };

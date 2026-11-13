@@ -8,6 +8,7 @@ import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import VerifyEmailPage from './pages/VerifyEmailPage'
 import MembersPage from './pages/MembersPage'
+import MemberAccountsPage from './pages/MemberAccountsPage'
 import LoansPage from './pages/LoansPage'
 import LoanDetailPage from './pages/LoanDetailPage'
 import DeductionsPage from './pages/DeductionsPage'
@@ -17,6 +18,8 @@ import SettingsPage from './pages/SettingsPage'
 import ReportsPage from './pages/ReportsPage'
 import PendingLoansPage from './pages/PendingLoansPage'
 import CreditModelPage from './pages/CreditModelPage'
+import AuditLogPage from './pages/AuditLogPage'
+import StatementPage from './pages/StatementPage'
 import ProfilePage from './pages/ProfilePage'
 import NotFoundPage from './pages/NotFoundPage'
 
@@ -43,11 +46,13 @@ export default function App() {
               </Suspense>
             } />
           <Route path="/loans/:id" element={<LoanDetailPage />} />
+          <Route path="/loans/:id/statement" element={<StatementPage />} />
           <Route path="/profile" element={<ProfilePage />} />
 
           <Route element={<RequireLevel min="loan_officer" />}>
             <Route path="/loans/pending" element={<PendingLoansPage />} />
             <Route path="/members" element={<MembersPage />} />
+            <Route path="/member-accounts" element={<MemberAccountsPage />} />
             <Route path="/retirement-plans" element={<RetirementPlansPage />} />
           </Route>
           <Route element={<RequireLevel roles={['bookkeeper', 'treasurer', 'admin']} />}>
@@ -62,6 +67,7 @@ export default function App() {
           </Route>
           <Route element={<RequireLevel min="admin" />}>
             <Route path="/credit-model" element={<CreditModelPage />} />
+            <Route path="/audit-log" element={<AuditLogPage />} />
           </Route>
         </Route>
       </Route>

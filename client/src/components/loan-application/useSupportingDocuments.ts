@@ -154,10 +154,13 @@ export function useSupportingDocuments(applicant: Applicant, loanType: LoanType)
       }
     })
 
+  /** The files themselves, in the same order as payload(), for uploading once the application is filed. */
+  const files = () => docs.map((d) => ({ file: d.file, hash: d.hash ?? null }))
+
   const clear = () => {
     docsRef.current.forEach((d) => d.previewUrl && URL.revokeObjectURL(d.previewUrl))
     setDocs([])
   }
 
-  return { docs, analyses, duplicates, required, checklist, reading, mismatched, addFiles, removeDoc, setType, changeLoanType, payload, clear }
+  return { docs, analyses, duplicates, required, checklist, reading, mismatched, addFiles, removeDoc, setType, changeLoanType, payload, files, clear }
 }

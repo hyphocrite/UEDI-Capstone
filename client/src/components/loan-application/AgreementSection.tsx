@@ -1,7 +1,7 @@
 import { AlertTriangle } from 'lucide-react'
 import Field, { FormSection } from './Field'
 import { useSettings } from '../../lib/settings'
-import { AUTO_RESTRUCTURE_TEXT, PAYROLL_DEDUCTION_TEXT, affordabilityNote, installmentOf, termMonthsOf } from './applicationForm'
+import { AUTO_RESTRUCTURE_TEXT, LOAN_AMOUNTS, PAYROLL_DEDUCTION_TEXT, affordabilityNote, installmentOf, termMonthsOf } from './applicationForm'
 import type { Form, PaymentFrequency, PeriodUnit } from './applicationForm'
 import { loanTypeLabel } from '../../lib/applications'
 import type { LoanType } from '../../lib/applications'
@@ -71,7 +71,12 @@ export default function AgreementSection({ form, update, onLoanTypeChange }: Pro
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field id="amount" label="Amount (₱)">
-            <input id="amount" type="number" min={0} step={1000} inputMode="decimal" className="input" value={form.amount} onChange={(e) => update({ amount: e.target.value })} />
+            <select id="amount" className="input" value={form.amount} onChange={(e) => update({ amount: e.target.value })}>
+              <option value="">Choose an amount</option>
+              {/* An amount from an older draft that isn't offered any more stays visible so it can be changed. */}
+              {form.amount && !LOAN_AMOUNTS.includes(Number(form.amount)) && <option value={form.amount}>{formatPeso(Number(form.amount))}</option>}
+              {LOAN_AMOUNTS.map((a) => <option key={a} value={String(a)}>{formatPeso(a)}</option>)}
+            </select>
           </Field>
           <Field id="purpose" label="Purpose (optional)">
             <input id="purpose" className="input" maxLength={300} value={form.purpose} onChange={(e) => update({ purpose: e.target.value })} placeholder="e.g. tuition, house repair" />
@@ -97,17 +102,13 @@ export default function AgreementSection({ form, update, onLoanTypeChange }: Pro
               </select>
             </div>
           </Field>
-          <Field id="monthlyRate" label="Rate (% per month)">
+          <Field id="monthlyRate" label="Interest rate" hint="Set by UDEI in Loan Settings. Only the Administrator can change it.">
             <input
               id="monthlyRate"
-              type="number"
-              min={0}
-              max={10}
-              step={0.1}
-              inputMode="decimal"
-              className="input"
-              value={form.monthlyRate}
-              onChange={(e) => update({ monthlyRate: e.target.value, rateEdited: true })}
+              className="input cursor-not-allowed bg-brand-50"
+              value={`${form.monthlyRate}% per month`}
+              readOnly
+              aria-readonly="true"
             />
           </Field>
           <div className="min-w-0">
