@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import os
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Literal
 
@@ -21,8 +22,22 @@ MODEL_PATH = Path(os.getenv("MODEL_PATH", Path(__file__).parent / "models" / "mo
 # benchmark.py and plot_results.py write their results next to the model.
 BENCHMARKS = {"german_credit": "German Credit (1,000 real loans)", "sample_loans": "UEDI-shaped sample loans"}
 
-app = FastAPI(title="UEDI loan-risk service")
 _model: LoanRiskModel | None = None
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    # Load the model and run one prediction at startup, so the first real request isn't slow.
+    # On Render's free CPU the first SHAP call can take longer than the API is willing to wait.
+    try:
+        predict(Applicant(loanType="long_term", loanAmount=10000, termMonths=12, monthlyRate=2, monthlySalary=20000, netTakeHomePay=15000))
+        print("Model loaded and warmed up.")
+    except Exception as err:  # noqa: BLE001 - a missing model must not stop the service from starting
+        print(f"Model warm-up skipped: {err}")
+    yield
+
+
+app = FastAPI(title="UEDI loan-risk service", lifespan=lifespan)
 
 
 def get_model() -> LoanRiskModel:
@@ -57,7 +72,7 @@ class Applicant(BaseModel):
 
 @app.get("/health")
 def health():
-    return {"ok": True, "modelLoaded": MODEL_PATH.exists()}
+    return {"ok": True, "modelLoaded": _model is not None, "modelFile": MODEL_PATH.exists()}
 
 
 @app.get("/model")
