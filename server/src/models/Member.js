@@ -26,6 +26,8 @@ const memberSchema = new mongoose.Schema(
     dateOfBirth: Date,
     joinedAt: Date,
     status: { type: String, enum: MEMBER_STATUSES, default: "active", index: true },
+    // Made at sign-up with a new "N-" ID; merged into the real member when the office links the account.
+    provisional: { type: Boolean, default: false },
     // UDEI's own remark, e.g. "On Amnesty", "Separated", "In-Active - Transferred".
     remarks: { type: String, trim: true, maxlength: 120 },
     // Mutual Assistance balance carried over from UDEI's spreadsheet ledger (before this system),

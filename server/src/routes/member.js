@@ -15,6 +15,7 @@ const { signSession, requireAuth } = require("../middleware/auth");
 const { rateLimit } = require("../middleware/rateLimit");
 const verification = require("../services/emailVerification");
 const { auditNote } = require("../middleware/audit");
+const memberIds = require("../services/memberIds");
 const { explain } = require("../services/explain");
 const settings = require("../services/settings");
 
@@ -99,6 +100,9 @@ router.post("/register", registerLimit, async (req, res, next) => {
     }
     const passwordHash = await bcrypt.hash(pw, 12);
     const user = await User.create({ fullName, email, memberNo, phone, passwordHash, role: "member", emailVerified: false });
+    // Their own new member ID. The number they typed (memberNo) is only a claim until the office
+    // links the account to it, which merges the two.
+    await memberIds.ensureFor(user);
     let emailSent = true;
     try {
       await verification.issue(user);
@@ -215,7 +219,7 @@ router.post("/applications", async (req, res, next) => {
         lastName: f.lastName,
         firstName: f.firstName,
         middleInitial: f.middleInitial,
-        memberId: req.user.memberNo,
+        memberId: await memberIds.ensureFor(req.user),
         residenceAddress: f.residenceAddress,
         employer: f.employer,
         monthlySalary: f.monthlySalary,

@@ -26,16 +26,24 @@ test("a member sees only their own loans and applications", { skip }, async () =
   const theirs = await releasedLoan(t, staff, { memberId: "M-0002", loan: { amount: 30000, termMonths: 12 } });
   const member = await t.register("Maria Member", "maria.member@uedi.test");
 
-  // Not linked yet: nothing to see, and can't apply.
+  // Not linked yet: they have their own new member ID, see nothing else, and can apply under it.
+  const newId = (await t.call("/auth/me", { cookie: member.cookie })).json.session.memberId;
+  assert.match(newId, /^N-\d{4}$/);
   assert.deepEqual((await t.call("/loans", { cookie: member.cookie })).json.loans, []);
   const early = await t.call("/applications", { method: "POST", cookie: member.cookie, body: application() });
-  assert.equal(early.status, 403);
-  assert.match(early.json.error, /linked/);
+  assert.equal(early.status, 201, early.json.error);
+  assert.equal(early.json.application.applicant.memberId, newId);
 
   // Members can't link themselves; a Loan Officer can.
   assert.equal((await link(member.cookie, member.id, "M-0002")).status, 403);
-  assert.equal((await link(staff.officer.cookie, member.id, "M-0001")).status, 200);
+  const linked = await link(staff.officer.cookie, member.id, "M-0001");
+  assert.equal(linked.status, 200, linked.json.error);
+  assert.equal(linked.json.moved.applications, 1, "the application under the new ID merges into the member");
   assert.equal((await t.call("/auth/me", { cookie: member.cookie })).json.session.memberId, "M-0001");
+  const merged = await t.call(`/applications/${early.json.application._id}`, { cookie: staff.officer.cookie });
+  assert.equal(merged.json.application.applicant.memberId, "M-0001");
+  assert.equal((await t.call(`/members/${newId}`, { cookie: staff.officer.cookie })).status, 404, "the new ID's record is gone");
+  assert.equal((await link(staff.officer.cookie, member.id, newId)).status, 400, "new IDs can't be reused");
 
   const list = (await t.call("/loans", { cookie: member.cookie })).json.loans;
   assert.deepEqual(list.map((l) => l.loanNo), [mine.loanNo]);
@@ -164,7 +172,9 @@ test("a linked member gets their own record to fill in the loan form, and nobody
   const Member = require("../src/models/Member");
   await Member.create({ memberId: "F-1", lastName: "Garcia", firstName: "Paolo", residenceAddress: "Purok 1, Tagum City", employer: "DNSC", employmentStatus: "permanent", joinedAt: new Date("2015-03-01") });
   const member = await t.register("Paolo Garcia", "paolo@uedi.test");
-  assert.deepEqual((await t.call("/members/mine", { cookie: member.cookie })).json, { member: null }, "not linked yet");
+  const before = (await t.call("/members/mine", { cookie: member.cookie })).json;
+  assert.match(before.member.memberId, /^N-\d{4}$/, "not linked yet: their own new record, from their sign-up name");
+  assert.equal(before.member.firstName, "Paolo");
   await link(staff.officer.cookie, member.id, "F-1");
   await t.call("/applications", { method: "POST", cookie: member.cookie, body: application(0, { applicant: { monthlySalary: 41000, netTakeHomePay: 27000 } }) });
 

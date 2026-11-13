@@ -9,6 +9,7 @@ const { STEPS, STEP_LABELS, currentStepOf, nextStep, followsSuggestion } = requi
 const { requireStaff, requireLevel } = require("../middleware/auth");
 const { seesAllLoans } = require("../config/access");
 const { auditNote } = require("../middleware/audit");
+const memberIds = require("../services/memberIds");
 const { explain } = require("../services/explain");
 const documentFiles = require("../services/documentFiles");
 const coMakers = require("../services/coMakers");
@@ -197,10 +198,8 @@ router.post("/", async (req, res, next) => {
     if (ruleError) return res.status(400).json({ error: ruleError });
     // Members apply only for themselves, and the Bookkeeper section is the Bookkeeper's to fill.
     if (!seesAllLoans(req.user)) {
-      if (!req.user.memberId) {
-        return res.status(403).json({ error: "Your account isn't linked to a member record yet. Ask the UDEI office to link it." });
-      }
-      parsed.data.applicant.memberId = req.user.memberId;
+      // Accounts made before new member IDs existed get one now.
+      parsed.data.applicant.memberId = await memberIds.ensureFor(req.user);
       parsed.data.bookkeeper = { longTermBalance: 0, shortTermBalance: 0, monthlyPayment: 0 };
     }
     const app = await createApplication(parsed.data, req.user);
