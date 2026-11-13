@@ -12,6 +12,7 @@ const DEFAULTS = Object.freeze({
   },
   minMonthlySalary: 10000,
   branches: ["Main Office"],
+  coMakersRequired: 1,
 });
 
 function shape(doc) {
@@ -23,6 +24,7 @@ function shape(doc) {
     },
     minMonthlySalary: d.minMonthlySalary ?? DEFAULTS.minMonthlySalary,
     branches: d.branches?.length ? [...d.branches] : [...DEFAULTS.branches],
+    coMakersRequired: d.coMakersRequired ?? DEFAULTS.coMakersRequired,
     updatedAt: doc?.updatedAt ?? null,
     updatedByName: doc?.updatedByName ?? null,
   };

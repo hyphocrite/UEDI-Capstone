@@ -14,6 +14,18 @@ function startFakeMl() {
       let body = "";
       req.on("data", (c) => (body += c));
       req.on("end", () => {
+        // Early warning stand-in: each missed savings month in the last 3 adds 25 points.
+        if (req.url.startsWith("/early-warning/score")) {
+          const { loans } = JSON.parse(body || "{}");
+          const results = loans.map((s) => {
+            const p = Math.min(0.95, 0.05 + 0.25 * (s.contributions_missed_3m ?? 0));
+            const level = p >= 0.35 ? "high" : p >= 0.15 ? "watch" : "low";
+            const reasons = s.contributions_missed_3m ? [{ feature: "contributions_missed_3m", label: "Savings deposits missed", value: s.contributions_missed_3m, impact: 1, text: `Missed ${s.contributions_missed_3m} of the last 3 monthly savings deposits.` }] : [];
+            return { id: s.id, probability: p, level, reasons };
+          });
+          res.setHeader("Content-Type", "application/json");
+          return res.end(JSON.stringify({ results, version: "test-ew" }));
+        }
         const f = JSON.parse(body || "{}");
         const p = f.priorLatePayments > 1 ? 0.8 : 0.1;
         const suggestion = p >= 0.5 ? "deny" : "approve";
@@ -48,6 +60,8 @@ async function setup() {
     products: { long_term: { label: "Long term", monthlyRate: 1, maxTermMonths: 120 }, emergency: { label: "Emergency", monthlyRate: 1.5, maxTermMonths: 12 } },
     minMonthlySalary: 10000,
     branches: ["Main Office"],
+    // Most tests file applications without co-makers; test/comakers.test.js turns this on.
+    coMakersRequired: 0,
   });
   const server = createApp().listen(0);
   const base = `http://127.0.0.1:${server.address().port}/api`;

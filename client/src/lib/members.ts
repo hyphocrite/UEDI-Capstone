@@ -36,6 +36,26 @@ export type Member = {
   plan?: { id: string; balance: number; monthlyContribution: number; status: PlanStatus } | null
   /** The loan made from the carried-over balance once its payroll deduction was set up. */
   ledgerLoan?: { id: string; loanNo: string } | null
+  score?: Pick<MemberScore, 'score' | 'band' | 'coverage'>
+}
+
+export type ScoreBand = 'strong' | 'good' | 'fair' | 'weak' | 'limited'
+
+/** The member score (alternative data), server/src/services/memberScore.js. */
+export type MemberScore = {
+  score: number | null
+  band: ScoreBand
+  coverage: number
+  parts: { key: string; label: string; weight: number; value: number | null; detail: string }[]
+}
+
+export const bandLabel: Record<ScoreBand, string> = { strong: 'Strong', good: 'Good', fair: 'Fair', weak: 'Weak', limited: 'Limited data' }
+export const bandStyle: Record<ScoreBand, string> = {
+  strong: 'bg-emerald-100 text-emerald-800',
+  good: 'bg-emerald-50 text-emerald-700',
+  fair: 'bg-amber-100 text-amber-800',
+  weak: 'bg-red-100 text-red-800',
+  limited: 'bg-brand-50 text-brand-600',
 }
 
 export type MemberHistory = {

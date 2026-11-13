@@ -1,4 +1,5 @@
 const express = require("express");
+const mongoose = require("mongoose");
 const { z } = require("zod");
 const Member = require("../models/Member");
 const { MEMBER_STATUSES } = require("../models/Member");
@@ -9,6 +10,10 @@ const RetirementPlan = require("../models/RetirementPlan");
 const loans = require("../services/loans");
 const plans = require("../services/retirementPlans");
 const ledger = require("../services/ledger");
+const BillRecord = require("../models/BillRecord");
+const { BILL_KINDS, BILL_STATUSES } = require("../models/BillRecord");
+const { signalsFor } = require("../services/memberSignals");
+const { scoreOf } = require("../services/memberScore");
 const { auditNote } = require("../middleware/audit");
 const { requireStaff, requireLevel, requireRole } = require("../middleware/auth");
 
@@ -127,8 +132,17 @@ async function summaries(members) {
  * A member "On Amnesty" had fallen behind, so that counts as a late loan.
  */
 async function historyOf(member) {
+  return (await historiesFor([member])).get(member.memberId);
+}
+
+/** historyOf() for many members with one query, for the members list. */
+async function historiesFor(members) {
   // A ledger loan is the carried-over balance, already counted below as a spreadsheet loan.
-  const released = await Loan.find({ memberId: member.memberId, status: { $in: ["active", "paid"] }, source: { $ne: "ledger" } });
+  const all = await Loan.find({ memberId: { $in: members.map((m) => m.memberId) }, status: { $in: ["active", "paid"] }, source: { $ne: "ledger" } });
+  return new Map(members.map((m) => [m.memberId, historyFrom(m, all.filter((l) => l.memberId === m.memberId))]));
+}
+
+function historyFrom(member, released) {
   const lateInSystem = released.filter((l) => loans.present(l).pastDue || ["missed", "partial"].includes(l.lastDeduction?.result));
   const opening = member.openingLoan || {};
   const spreadsheetLoans = (opening.balanceStartOfYear > 0 ? 1 : 0) + (opening.loansThisYear || 0);
@@ -157,9 +171,12 @@ router.get("/", async (req, res, next) => {
     if (typeof req.query.branch === "string" && req.query.branch) filter.branch = req.query.branch;
     if (MEMBER_STATUSES.includes(req.query.status)) filter.status = req.query.status;
     const members = (await Member.find(filter).limit(5000)).sort(byMemberId);
-    const summary = await summaries(members);
+    const [summary, histories, signals] = await Promise.all([summaries(members), historiesFor(members), signalsFor(members.map((m) => m.memberId))]);
     res.json({
-      members: members.map((m) => ({ ...m.toJSON(), ...summary(m) })),
+      members: members.map((m) => {
+        const { score, band, coverage } = scoreOf(signals.get(m.memberId), histories.get(m.memberId));
+        return { ...m.toJSON(), ...summary(m), score: { score, band, coverage } };
+      }),
       nextMemberId: await nextMemberId(),
     });
   } catch (err) {
@@ -171,7 +188,8 @@ router.get("/:memberId", async (req, res, next) => {
   try {
     const member = await Member.findOne({ memberId: String(req.params.memberId).slice(0, 32) });
     if (!member) return res.status(404).json({ error: "Member not found." });
-    res.json({ member: member.toJSON(), history: await historyOf(member) });
+    const [history, signals] = await Promise.all([historyOf(member), signalsFor([member.memberId])]);
+    res.json({ member: member.toJSON(), history, score: scoreOf(signals.get(member.memberId), history) });
   } catch (err) {
     next(err);
   }
@@ -218,6 +236,55 @@ router.post("/:memberId/payroll-deduction", requireRole("bookkeeper", "treasurer
     res.status(201).json({ loan: loans.present(loan) });
   } catch (err) {
     if (err instanceof loans.LoanError) return res.status(err.status).json({ error: err.message });
+    next(err);
+  }
+});
+
+const billSchema = z.object({
+  kind: z.enum(BILL_KINDS, { message: "Choose the kind of bill." }),
+  month: z.string().regex(/^\d{4}-\d{2}$/, "Choose the billing month."),
+  status: z.enum(BILL_STATUSES, { message: "Choose on time, late or unpaid." }),
+  note: z.string().trim().max(200).optional(),
+});
+
+// Utility and load bills a member showed proof of (alternative data for the member score).
+router.get("/:memberId/bills", async (req, res, next) => {
+  try {
+    const bills = await BillRecord.find({ memberId: String(req.params.memberId).slice(0, 32) }).sort({ month: -1, createdAt: -1 }).limit(100);
+    res.json({ bills });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post("/:memberId/bills", async (req, res, next) => {
+  try {
+    const parsed = billSchema.safeParse(req.body || {});
+    if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0].message });
+    const member = await Member.findOne({ memberId: String(req.params.memberId).slice(0, 32) });
+    if (!member) return res.status(404).json({ error: "Member not found." });
+    if (parsed.data.month > ledger.todayInManila().toISOString().slice(0, 7)) return res.status(400).json({ error: "The billing month can't be in the future." });
+    auditNote(res, { target: `No. ${member.memberId} · ${member.fullName}` });
+    const bill = await BillRecord.create({ ...parsed.data, memberId: member.memberId, recordedByName: req.user.fullName });
+    res.status(201).json({ bill });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post("/:memberId/bills/:billId/void", async (req, res, next) => {
+  try {
+    const reason = typeof req.body?.reason === "string" ? req.body.reason.trim().slice(0, 300) : "";
+    if (reason.length < 3) return res.status(400).json({ error: "Give a reason for voiding this record." });
+    if (!mongoose.isValidObjectId(req.params.billId)) return res.status(404).json({ error: "Record not found." });
+    const bill = await BillRecord.findOneAndUpdate(
+      { _id: req.params.billId, memberId: String(req.params.memberId).slice(0, 32), voided: false },
+      { $set: { voided: true, voidReason: reason } },
+      { returnDocument: "after" },
+    );
+    if (!bill) return res.status(404).json({ error: "Record not found or already voided." });
+    res.json({ bill });
+  } catch (err) {
     next(err);
   }
 });

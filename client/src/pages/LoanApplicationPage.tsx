@@ -5,6 +5,7 @@ import PageHeader from '../components/PageHeader'
 import AgreementSection from '../components/loan-application/AgreementSection'
 import ApplicantSection from '../components/loan-application/ApplicantSection'
 import BookkeeperSection from '../components/loan-application/BookkeeperSection'
+import CoMakersSection from '../components/loan-application/CoMakersSection'
 import DocumentsSection from '../components/loan-application/DocumentsSection'
 import SubmittedCard from '../components/loan-application/SubmittedCard'
 import { applicantOf, buildPayload, emptyForm, fromOwnRecord, rateFor, validateForm } from '../components/loan-application/applicationForm'
@@ -241,6 +242,7 @@ export default function LoanApplicationPage() {
       <div className="grid min-w-0 grid-cols-1 gap-6">
         <ApplicantSection form={form} update={update} lockedMemberId={staffView ? undefined : ownMemberId} />
         <AgreementSection form={form} update={update} onLoanTypeChange={changeLoanType} />
+        <CoMakersSection form={form} update={update} required={settings.coMakersRequired} />
         {staffView && <BookkeeperSection form={form} update={update} ledger={ledger} />}
         <DocumentsSection loanType={form.loanType} documents={documents} />
 

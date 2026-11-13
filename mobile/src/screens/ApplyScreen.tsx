@@ -46,6 +46,8 @@ export default function ApplyScreen({ onDone }: { onDone: () => void }) {
     termMonths: '12',
     paymentFrequency: 'quincenal' as Frequency,
     purpose: '',
+    coMaker1: '',
+    coMaker2: '',
     payrollDeduction: false,
     autoRestructure: false,
   })
@@ -96,6 +98,7 @@ export default function ApplyScreen({ onDone }: { onDone: () => void }) {
         purpose: f.purpose || undefined,
         payrollDeduction: f.payrollDeduction,
         autoRestructure: f.autoRestructure,
+        coMakers: [f.coMaker1, f.coMaker2].map((c) => c.trim()).filter(Boolean),
       })
       onDone()
     } catch (e) {
@@ -168,6 +171,8 @@ export default function ApplyScreen({ onDone }: { onDone: () => void }) {
               ]}
             />
             <Field label="Purpose (optional)" value={f.purpose} onChangeText={set('purpose')} placeholder="e.g. tuition, medical" />
+            <Field label="Co-maker's member number" value={f.coMaker1} onChangeText={set('coMaker1')} placeholder="A UDEI member who vouches for you" />
+            <Field label="Second co-maker (optional)" value={f.coMaker2} onChangeText={set('coMaker2')} placeholder="Member number" />
 
             <View style={{ backgroundColor: colors.bg, borderRadius: 10, padding: 12, marginTop: 4 }}>
               <Row label="Interest rate" value={`${rate}% per month`} />

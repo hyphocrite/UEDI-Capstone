@@ -59,6 +59,23 @@ members' records.
 application through the four signers, see their schedule and payments, and get due-date reminders.
 See [mobile/README.md](mobile/README.md).
 
+### Member score, co-makers and early warning
+
+- **Member score** (Members page, out of 100): an alternative-data credit score for every member, even
+  with no loan history. Savings regularity (retirement plan contributions), meeting and PMES attendance
+  (Attendance page), utility/load bills (recorded from proof on the member's score), co-maker record,
+  how many members vouch for them, and past repayment. Parts without data are left out, not counted
+  against the member; months after the last contribution anyone has on record count as "not entered
+  yet", so import contributions regularly.
+- **Co-makers**: each application names 1 or 2 members with accounts (Loan Settings sets how many).
+  They confirm on their **Co-maker** page before the Bookkeeper can sign, see how the loans they
+  vouched for are paid, and are emailed when they're named and when a payroll deduction is missed.
+- **Early warning** (Loan Officer and up): the chance each active loan misses a payment in the next 60
+  days, from a second XGBoost model in the ML service with plain reasons (e.g. stopped saving). It is
+  trained on SAMPLE snapshots until there is history: `npm --prefix server run export:early-warning --
+  snapshots.csv`, then `cd ml-service && python train_early_warning.py --data ../server/snapshots.csv`.
+  `npm run ml:train` trains both models.
+
 ### Documents, sessions and addresses
 
 - **Supporting documents** are stored in MongoDB (GridFS, bucket `applicationDocuments`), so no other

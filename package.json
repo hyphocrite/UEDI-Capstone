@@ -8,7 +8,7 @@
     "build": "npm --prefix client run build",
     "test": "npm --prefix server test && cd ml-service && python -m pytest -q",
     "ml": "cd ml-service && python -m uvicorn app:app --port 8000",
-    "ml:train": "cd ml-service && python train.py"
+    "ml:train": "cd ml-service && python train.py && python train_early_warning.py"
   },
   "devDependencies": {
     "concurrently": "^10.0.5"

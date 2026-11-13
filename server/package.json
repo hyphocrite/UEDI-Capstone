@@ -10,7 +10,8 @@
     "seed": "node scripts/seed-applications.js",
     "seed:signers": "node scripts/seed-signers.js",
     "dev:admin": "node scripts/create-dev-admin",
-    "import:udei": "node scripts/import-udei.js"
+    "import:udei": "node scripts/import-udei.js",
+    "export:early-warning": "node scripts/export-early-warning.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

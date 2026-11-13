@@ -22,6 +22,8 @@ const settingSchema = new mongoose.Schema(
     minMonthlySalary: { type: Number, required: true, min: 0, max: 10_000_000 },
     // Offices or branches shown on sign-up, profiles and member records.
     branches: { type: [{ type: String, trim: true, maxlength: 120 }], default: [] },
+    // How many co-makers each application needs (0 to 2).
+    coMakersRequired: { type: Number, min: 0, max: 2, default: 1 },
     updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     updatedByName: String,
   },

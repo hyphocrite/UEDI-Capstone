@@ -6,11 +6,12 @@ import StatCard from '../components/StatCard'
 import StatusBadge from '../components/StatusBadge'
 import MemberForm from '../components/members/MemberForm'
 import CarriedDeductionForm from '../components/members/CarriedDeductionForm'
+import MemberScoreModal from '../components/members/MemberScoreModal'
 import { useAuth } from '../context/AuthContext'
 import { api } from '../lib/api'
 import { formatDate } from '../lib/format'
 import { formatCentavos } from '../lib/loans'
-import { byMemberId, memberStatusLabel, planStatusLabel } from '../lib/members'
+import { bandLabel, bandStyle, byMemberId, memberStatusLabel, planStatusLabel } from '../lib/members'
 import type { Member } from '../lib/members'
 import { useSettings } from '../lib/settings'
 
@@ -27,6 +28,7 @@ export default function MembersPage() {
   const [editing, setEditing] = useState<Member | null | 'new'>(null)
   const [notice, setNotice] = useState('')
   const [deducting, setDeducting] = useState<Member | null>(null)
+  const [scoring, setScoring] = useState<Member | null>(null)
   // Same roles that record loan payments and run payroll deductions.
   const { session } = useAuth()
   const canSetDeduction = session?.role === 'bookkeeper' || session?.role === 'treasurer'
@@ -118,6 +120,7 @@ export default function MembersPage() {
                 <th className="px-4 py-3">Member since</th>
                 <th className="px-4 py-3 text-right">Loan balance</th>
                 <th className="px-4 py-3 text-right">Retirement plan</th>
+                <th className="px-4 py-3">Score</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3"><span className="sr-only">Edit</span></th>
               </tr>
@@ -155,6 +158,14 @@ export default function MembersPage() {
                     ) : <span className="text-brand-400">None</span>}
                   </td>
                   <td className="px-4 py-3">
+                    {m.score && (
+                      <button className="text-left" onClick={() => setScoring(m)} title="See how the score is made up">
+                        <span className="block text-base font-bold text-brand-800">{m.score.score ?? '—'}</span>
+                        <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${bandStyle[m.score.band]}`}>{bandLabel[m.score.band]}</span>
+                      </button>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
                     <StatusBadge status={memberStatusLabel[m.status]} />
                     {m.remarks && <p className="mt-1 text-xs text-brand-600">{m.remarks}</p>}
                   </td>
@@ -172,11 +183,11 @@ export default function MembersPage() {
                 </tr>
               ))}
               {members && filtered.length === 0 && (
-                <tr><td colSpan={7} className="px-4 py-10 text-center text-brand-500">
+                <tr><td colSpan={8} className="px-4 py-10 text-center text-brand-500">
                   {list.length ? 'No members match your search.' : 'No members yet. Add them here, or load UDEI\'s spreadsheets with the import script.'}
                 </td></tr>
               )}
-              {!members && !loadError && <tr><td colSpan={7} className="px-4 py-10 text-center text-brand-500">Loading members…</td></tr>}
+              {!members && !loadError && <tr><td colSpan={8} className="px-4 py-10 text-center text-brand-500">Loading members…</td></tr>}
             </tbody>
           </table>
         </div>
@@ -186,6 +197,8 @@ export default function MembersPage() {
         </p>
       </div>
 
+
+      {scoring && <MemberScoreModal member={scoring} onClose={() => setScoring(null)} onChanged={() => void load()} />}
 
       {deducting && (
         <CarriedDeductionForm

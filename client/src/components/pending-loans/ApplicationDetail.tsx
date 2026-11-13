@@ -164,6 +164,25 @@ export default function ApplicationDetail({ app, onChange }: { app: LoanApplicat
       </section>
 
       <section className="card min-w-0 p-4 sm:p-5">
+        {(app.coMakers?.length ?? 0) > 0 && (
+          <div className="mb-5">
+            <h3 className="mb-2 font-semibold text-brand-800">Co-makers</h3>
+            <ul className="space-y-1 text-sm">
+              {app.coMakers!.map((c) => (
+                <li key={c.memberId} className="flex items-center gap-2">
+                  {c.status === 'accepted' ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> : c.status === 'declined' ? <XCircle className="h-4 w-4 text-red-600" /> : <AlertTriangle className="h-4 w-4 text-amber-600" />}
+                  <span className="font-medium text-ink">{c.name ?? c.memberId}</span>
+                  <span className="text-brand-500">No. {c.memberId} · {c.status === 'pending' ? 'has not answered yet' : c.status}{c.note ? ` (“${c.note}”)` : ''}</span>
+                </li>
+              ))}
+            </ul>
+            {app.status === 'pending' && app.coMakers!.some((c) => c.status !== 'accepted') && (
+              <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                Signing waits until every co-maker accepts in their co-maker portal{app.coMakers!.some((c) => c.status === 'declined') ? '. A co-maker declined, so this can only be denied.' : '.'}
+              </p>
+            )}
+          </div>
+        )}
         <h3 className="mb-3 font-semibold text-brand-800">Supporting documents</h3>
         {app.documents.length === 0 ? (
           <p className="text-sm text-brand-500">No documents were attached.</p>

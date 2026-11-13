@@ -20,6 +20,9 @@ import PendingLoansPage from './pages/PendingLoansPage'
 import CreditModelPage from './pages/CreditModelPage'
 import AuditLogPage from './pages/AuditLogPage'
 import StatementPage from './pages/StatementPage'
+import CoMakerPage from './pages/CoMakerPage'
+import EarlyWarningPage from './pages/EarlyWarningPage'
+import AttendancePage from './pages/AttendancePage'
 import ProfilePage from './pages/ProfilePage'
 import NotFoundPage from './pages/NotFoundPage'
 
@@ -48,11 +51,14 @@ export default function App() {
           <Route path="/loans/:id" element={<LoanDetailPage />} />
           <Route path="/loans/:id/statement" element={<StatementPage />} />
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/co-maker" element={<CoMakerPage />} />
 
           <Route element={<RequireLevel min="loan_officer" />}>
             <Route path="/loans/pending" element={<PendingLoansPage />} />
             <Route path="/members" element={<MembersPage />} />
             <Route path="/member-accounts" element={<MemberAccountsPage />} />
+            <Route path="/early-warning" element={<EarlyWarningPage />} />
+            <Route path="/attendance" element={<AttendancePage />} />
             <Route path="/retirement-plans" element={<RetirementPlansPage />} />
           </Route>
           <Route element={<RequireLevel roles={['bookkeeper', 'treasurer', 'admin']} />}>

@@ -38,6 +38,11 @@ export default function MyApplications() {
               </div>
               {a.loan.purpose && <p className="text-sm text-brand-700">“{a.loan.purpose}”</p>}
 
+              {(a.coMakers?.length ?? 0) > 0 && (
+                <p className="mt-1 text-xs text-brand-600">
+                  Co-maker{a.coMakers!.length > 1 ? 's' : ''}: {a.coMakers!.map((c) => `${c.name ?? c.memberId} (${c.status === 'pending' ? 'not answered yet' : c.status})`).join(', ')}
+                </p>
+              )}
               {a.status === 'pending' && (
                 <p className="mt-2 flex items-center gap-2 text-sm text-brand-700">
                   <Hourglass className="h-4 w-4 shrink-0 text-amber-600" />

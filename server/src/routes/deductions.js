@@ -165,7 +165,11 @@ router.post(
   canWrite,
   handle(async (req, res) => {
     const run = await findRun(req, res);
-    if (run) res.json({ run: runs.present(await runs.post(run, req.user)) });
+    if (!run) return;
+    const posted = await runs.post(run, req.user);
+    // Co-makers hear about missed or partial deductions on loans they vouched for. Best effort.
+    require("../services/coMakers").notifyMissed(posted.lines).catch((err) => console.error("Co-maker alerts failed:", err.message));
+    res.json({ run: runs.present(posted) });
   }),
 );
 

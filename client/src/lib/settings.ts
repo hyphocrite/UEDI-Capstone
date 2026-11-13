@@ -9,6 +9,8 @@ export type LoanSettings = {
   products: Record<LoanType, LoanProduct>
   minMonthlySalary: number
   branches: string[]
+  /** How many co-makers each application needs (0 to 2). */
+  coMakersRequired: number
   updatedAt: string | null
   updatedByName: string | null
 }
@@ -21,6 +23,7 @@ export const FALLBACK_SETTINGS: LoanSettings = {
   },
   minMonthlySalary: 10000,
   branches: ['Main Office'],
+  coMakersRequired: 1,
   updatedAt: null,
   updatedByName: null,
 }

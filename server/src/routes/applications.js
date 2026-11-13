@@ -11,6 +11,7 @@ const { seesAllLoans } = require("../config/access");
 const { auditNote } = require("../middleware/audit");
 const { explain } = require("../services/explain");
 const documentFiles = require("../services/documentFiles");
+const coMakers = require("../services/coMakers");
 const settings = require("../services/settings");
 
 const router = express.Router();
@@ -90,6 +91,8 @@ const createSchema = z
       autoRestructure: z.literal(true, { message: "The applicant must agree to automatic restructuring." }),
       applicationDate: z.coerce.date(),
     }),
+    // Member numbers of 1 or 2 co-makers (how many is a Loan Setting). Checked in createApplication.
+    coMakers: z.array(z.string().trim().max(32)).max(2).default([]),
     documents: z
       .array(
         z.object({
@@ -153,6 +156,9 @@ async function bookkeeperFor(memberId, typed) {
 
 /** Saves a new application from a parsed createSchema body and scores it. Also used by the member app. */
 async function createApplication(data, user) {
+  const rules = await settings.get();
+  // Throws CoMakerError, which the routes answer with 400.
+  data.coMakers = await coMakers.resolve(data.coMakers, data.applicant.memberId, rules.coMakersRequired);
   const bookkeeper = await bookkeeperFor(data.applicant.memberId, data.bookkeeper);
   let app;
   for (let attempt = 0; attempt < 3 && !app; attempt++) {
@@ -171,6 +177,7 @@ async function createApplication(data, user) {
       if (err?.code !== 11000) throw err; // retry on a numbering clash
     }
   }
+  if (app.coMakers.length) coMakers.notifyNamed(app).catch(() => {});
   return runAssessment(app);
 }
 
@@ -200,6 +207,7 @@ router.post("/", async (req, res, next) => {
     auditNote(res, { target: `${app.applicationNo} · ${app.applicant.fullName} · ₱${app.loan.amount.toLocaleString("en-PH")}` });
     res.status(201).json({ application: forViewer(req.user, app) });
   } catch (err) {
+    if (err instanceof coMakers.CoMakerError) return res.status(400).json({ error: err.message });
     next(err);
   }
 });
@@ -340,6 +348,9 @@ router.post("/:id/approvals", async (req, res, next) => {
       before: { status: app.status, currentStep: step },
     });
     if (app.status !== "pending") return res.status(409).json({ error: `This application was already ${app.status}.` });
+    // Co-makers confirm first; a denial needs no co-maker answer.
+    const waiting = coMakers.blocking(app);
+    if (waiting && decision === "approved") return res.status(409).json({ error: waiting, code: "CO_MAKERS_PENDING" });
 
     if (req.user.role !== step) {
       return res.status(403).json({ error: `It is the ${STEP_LABELS[step]}'s turn to sign this application.` });
