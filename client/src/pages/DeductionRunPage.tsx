@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, CheckCheck, Download, Printer, Save, Send, Undo2 } from 'lucide-react'
+import { ArrowLeft, CheckCheck, Download, Printer, Save, Send, Undo2, ReceiptText } from 'lucide-react'
 import Modal from '../components/Modal'
 import PageHeader from '../components/PageHeader'
 import StatusBadge from '../components/StatusBadge'
@@ -91,7 +91,7 @@ export default function DeductionRunPage() {
   if (!run) {
     return (
       <>
-        <PageHeader title="Payroll deduction run" actions={<Link to="/deductions" className="btn-ghost"><ArrowLeft className="h-4 w-4" /> All runs</Link>} />
+        <PageHeader icon={ReceiptText} title="Payroll deduction run" actions={<Link to="/deductions" className="btn-ghost"><ArrowLeft className="h-4 w-4" /> All runs</Link>} />
         {error ? <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{error}</p> : <p className="text-sm text-brand-500">Loading…</p>}
       </>
     )
@@ -184,7 +184,7 @@ export default function DeductionRunPage() {
   return (
     <>
       <div className="print:hidden">
-        <PageHeader
+        <PageHeader icon={ReceiptText}
           title={`Payroll deductions, ${formatCutoff(run.cutoff)}`}
           subtitle={`${runStatusLabel[run.status]}${run.sentByName ? ` · sent by ${run.sentByName}` : ''}${run.postedByName ? ` · posted by ${run.postedByName}` : ''}`}
           actions={

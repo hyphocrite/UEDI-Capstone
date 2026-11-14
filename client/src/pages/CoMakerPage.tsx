@@ -92,7 +92,7 @@ export default function CoMakerPage() {
 
   return (
     <div className="mx-auto max-w-5xl">
-      <PageHeader title="Co-maker" subtitle="Loans you were asked to vouch for, and how the loans you vouched for are being paid." />
+      <PageHeader icon={Handshake} title="Co-maker" subtitle="Loans you were asked to vouch for, and how the loans you vouched for are being paid." />
       {error && <p className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{error}</p>}
       {data && !data.linked && (
         <p className="card p-5 text-sm text-amber-800">Your account isn't linked to a member record yet, so no one can name you as co-maker. Ask the UDEI office to link it.</p>

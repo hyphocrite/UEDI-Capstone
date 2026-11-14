@@ -24,6 +24,8 @@ const settingSchema = new mongoose.Schema(
     branches: { type: [{ type: String, trim: true, maxlength: 120 }], default: [] },
     // How many co-makers each application needs (0 to 2).
     coMakersRequired: { type: Number, min: 0, max: 2, default: 1 },
+    // Co-makers are needed only for loans of this amount (pesos) or more. 0: every loan.
+    coMakersFromAmount: { type: Number, min: 0, max: 10_000_000, default: 50000 },
     updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     updatedByName: String,
   },

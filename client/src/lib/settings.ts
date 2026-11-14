@@ -11,8 +11,15 @@ export type LoanSettings = {
   branches: string[]
   /** How many co-makers each application needs (0 to 2). */
   coMakersRequired: number
+  /** Co-makers are needed only for loans of this amount (pesos) or more. 0: every loan. */
+  coMakersFromAmount: number
   updatedAt: string | null
   updatedByName: string | null
+}
+
+/** How many co-makers a loan of this amount needs. Same rule as the server (services/settings.js). */
+export function coMakersNeeded(s: LoanSettings, amount: number): number {
+  return amount >= (s.coMakersFromAmount ?? 50000) ? s.coMakersRequired : 0
 }
 
 /** Used until the server answers. Same values as the server's defaults (server/src/services/settings.js). */
@@ -24,6 +31,7 @@ export const FALLBACK_SETTINGS: LoanSettings = {
   minMonthlySalary: 10000,
   branches: ['Main Office'],
   coMakersRequired: 1,
+  coMakersFromAmount: 50000,
   updatedAt: null,
   updatedByName: null,
 }

@@ -14,7 +14,7 @@ before(async () => {
   t = await setup();
   staff = await staffUp(t);
   const Setting = require("../src/models/Setting");
-  await Setting.updateOne({ key: "loan" }, { $set: { coMakersRequired: 1 } });
+  await Setting.updateOne({ key: "loan" }, { $set: { coMakersRequired: 1, coMakersFromAmount: 0 } });
   const Member = require("../src/models/Member");
   await Member.create([
     { memberId: "C-10", lastName: "Borrower", firstName: "Ben" },
@@ -94,4 +94,28 @@ test("a declined co-maker blocks approval but not denial", { skip }, async () =>
   assert.equal(blocked.status, 409);
   assert.match(blocked.json.error, /declined/);
   assert.equal((await sign(app, "bookkeeper", "denied")).status, 200);
+});
+
+test("co-makers are needed only from the amount set in Settings", { skip }, async () => {
+  const Setting = require("../src/models/Setting");
+  const Member = require("../src/models/Member");
+  await Member.create({ memberId: "C-30", lastName: "Small", firstName: "Sam" });
+  await Setting.updateOne({ key: "loan" }, { $set: { coMakersFromAmount: 50000 } });
+  try {
+    const sam = await t.register("Sam Small", "sam@uedi.test");
+    await link(sam.id, "C-30");
+    const file = (amount) => t.call("/applications", { method: "POST", cookie: sam.cookie, body: { ...application(0, { loan: { amount } }), coMakers: [] } });
+
+    const small = await file(25000);
+    assert.equal(small.status, 201, small.json.error);
+    assert.deepEqual(small.json.application.coMakers, []);
+    const big = await file(50000);
+    assert.equal(big.status, 400);
+    assert.match(big.json.error, /Loans of ₱50,000 or more need a co-maker/);
+
+    const shown = (await t.call("/settings", { cookie: sam.cookie })).json.settings;
+    assert.equal(shown.coMakersFromAmount, 50000);
+  } finally {
+    await Setting.updateOne({ key: "loan" }, { $set: { coMakersFromAmount: 0 } });
+  }
 });

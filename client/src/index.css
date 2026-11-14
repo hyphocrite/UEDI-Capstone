@@ -38,16 +38,40 @@ body {
   @apply inline-flex whitespace-nowrap items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60;
 }
 
+/* Solid buttons lift a little on hover and press in when clicked (no movement under reduced motion). */
+@utility btn-press {
+  @apply hover:shadow-sm motion-safe:active:scale-[0.98];
+}
+
 @utility btn-primary {
-  @apply btn bg-brand-800 text-white hover:bg-brand-700;
+  @apply btn btn-press bg-brand-800 text-white hover:bg-brand-700;
 }
 
 @utility btn-accent {
-  @apply btn bg-accent text-white hover:bg-accent-dark;
+  @apply btn btn-press bg-accent text-white hover:bg-accent-dark;
 }
 
 @utility btn-ghost {
-  @apply btn border border-brand-200 bg-white text-brand-800 hover:bg-brand-50;
+  @apply btn btn-press border border-brand-200 bg-white text-brand-800 hover:bg-brand-50;
+}
+
+/* Yes / no on loan decisions: green approves, red denies. */
+@utility btn-approve {
+  @apply btn btn-press bg-emerald-600 text-white hover:bg-emerald-700 focus-visible:ring-emerald-500;
+}
+
+@utility btn-deny {
+  @apply btn btn-press bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-500;
+}
+
+/* Clickable or summary cards (not tables or forms): lift on hover. */
+@utility card-hover {
+  @apply transition hover:border-brand-200 hover:shadow-md motion-safe:hover:-translate-y-0.5;
+}
+
+/* Table rows: tint and an accent bar on the left on hover. */
+@utility row-hover {
+  @apply transition-colors hover:bg-brand-50/50 hover:shadow-[inset_3px_0_0_var(--color-accent)];
 }
 
 @utility input {
@@ -60,4 +84,42 @@ body {
 
 @utility table-head {
   @apply bg-brand-50 text-left text-xs font-semibold tracking-wide text-brand-700 uppercase;
+}
+
+/* Bars grow from zero when their data loads: vertical bars up from the bottom, horizontal ones
+   out from the left. Nothing moves when the system asks for reduced motion. */
+@keyframes grow-up {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+
+@keyframes grow-right {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+/* From the left end of its track to wherever its own style puts it. */
+@keyframes slide-in {
+  from { left: 0; opacity: 0; }
+}
+
+@utility animate-grow-up {
+  @media (prefers-reduced-motion: no-preference) {
+    transform-origin: bottom;
+    animation: grow-up 700ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+}
+
+@utility animate-grow-right {
+  @media (prefers-reduced-motion: no-preference) {
+    transform-origin: left;
+    animation: grow-right 700ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+}
+
+/* For a marker that slides in from the left of its track (the risk scale). */
+@utility animate-slide-in {
+  @media (prefers-reduced-motion: no-preference) {
+    animation: slide-in 700ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
 }

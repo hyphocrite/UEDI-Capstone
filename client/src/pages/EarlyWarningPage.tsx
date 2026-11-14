@@ -64,7 +64,7 @@ export default function EarlyWarningPage() {
 
   return (
     <>
-      <PageHeader
+      <PageHeader icon={Siren}
         title="Early Warning"
         subtitle="Active loans likely to miss a payment in the next 60 days, so the office can reach the borrower before it happens."
       />

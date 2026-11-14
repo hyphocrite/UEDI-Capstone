@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { KeyRound, Save } from 'lucide-react'
+import { KeyRound, Save, UserRound } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import { useAuth } from '../context/AuthContext'
 import { useConfirm } from '../context/ConfirmContext'
@@ -89,7 +89,7 @@ export default function ProfilePage() {
 
   return (
     <div className="mx-auto max-w-3xl">
-      <PageHeader title="Profile" subtitle="Your account details and password." />
+      <PageHeader icon={UserRound} title="Profile" subtitle="Your account details and password." />
 
       <section className="card mb-6 p-5">
         <h2 className="mb-4 font-semibold text-brand-800">Account</h2>

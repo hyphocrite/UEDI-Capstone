@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Plus } from 'lucide-react'
+import { Plus, ReceiptText } from 'lucide-react'
 import Modal from '../components/Modal'
 import PageHeader from '../components/PageHeader'
 import StatusBadge from '../components/StatusBadge'
@@ -65,7 +65,7 @@ export default function DeductionsPage() {
 
   return (
     <>
-      <PageHeader
+      <PageHeader icon={ReceiptText}
         title="Payroll Deductions"
         subtitle="Each cutoff, send DNSC's Payroll Officer the list of installments to deduct, then record what payroll remitted."
         actions={canCreate && (

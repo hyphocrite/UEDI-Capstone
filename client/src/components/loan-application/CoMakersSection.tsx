@@ -49,13 +49,22 @@ function CoMakerField({ id, label, value, onChange, applicantId }: {
  * The co-makers: UDEI members who vouch for the loan. They confirm in their co-maker portal
  * before the Bookkeeper can sign, and are told if the borrower later misses a payment.
  */
-export default function CoMakersSection({ form, update, required }: { form: Form; update: (patch: Partial<Form>) => void; required: number }) {
+export default function CoMakersSection({ form, update, required, perLoan, fromAmount }: {
+  form: Form
+  update: (patch: Partial<Form>) => void
+  /** Needed for this application's amount. */
+  required: number
+  /** Needed for loans of fromAmount or more (Settings). */
+  perLoan: number
+  fromAmount: number
+}) {
+  const rule = perLoan > 0 && fromAmount > 0 ? `Loans of ₱${fromAmount.toLocaleString('en-PH')} or more need ${perLoan === 1 ? 'one' : perLoan}. ` : ''
   return (
     <FormSection title="Co-makers">
       <p className="mb-3 flex items-start gap-2 text-sm text-brand-700">
         <Users className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
         <span>
-          {required === 0 ? 'Optional. ' : `${required === 1 ? 'One co-maker is' : `${required} co-makers are`} required. `}
+          {required === 0 ? `Optional for this amount. ${rule}` : `${required === 1 ? 'One co-maker is' : `${required} co-makers are`} required for this amount. `}
           A co-maker is a UDEI member with an account who vouches for this loan. They confirm online before signing starts,
           and can see how the loan is being paid.
         </span>

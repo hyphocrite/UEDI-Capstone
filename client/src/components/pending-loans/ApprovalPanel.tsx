@@ -124,6 +124,7 @@ function SignForm({ app, step, onChange }: { app: LoanApplication; step: Approva
       ),
       confirmLabel: decision === 'approved' ? 'Yes, approve' : 'Yes, deny',
       danger: decision === 'denied',
+      tone: decision === 'approved' ? 'approve' : undefined,
     })
     if (!ok) return
     setBusy(decision)
@@ -201,10 +202,10 @@ function SignForm({ app, step, onChange }: { app: LoanApplication; step: Approva
         placeholder="e.g. Verified payslip with HR by phone." />
       {error && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{error}</p>}
       <div className="mt-4 flex flex-wrap justify-end gap-2">
-        <button className="btn border border-red-200 bg-white text-red-700 hover:bg-red-50" onClick={() => sign('denied')} disabled={busy !== null}>
+        <button className="btn-deny min-w-40" onClick={() => sign('denied')} disabled={busy !== null}>
           <ThumbsDown className="h-4 w-4" /> {busy === 'denied' ? 'Saving…' : 'Deny'}
         </button>
-        <button className="btn-accent" onClick={() => sign('approved')} disabled={busy !== null}>
+        <button className="btn-approve min-w-40" onClick={() => sign('approved')} disabled={busy !== null}>
           <ThumbsUp className="h-4 w-4" /> {busy === 'approved' ? 'Saving…' : 'Approve and sign'}
         </button>
       </div>

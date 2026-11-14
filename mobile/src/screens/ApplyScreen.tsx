@@ -171,7 +171,13 @@ export default function ApplyScreen({ onDone }: { onDone: () => void }) {
               ]}
             />
             <Field label="Purpose (optional)" value={f.purpose} onChangeText={set('purpose')} placeholder="e.g. tuition, medical" />
-            <Field label="Co-maker's member number" value={f.coMaker1} onChangeText={set('coMaker1')} placeholder="A UDEI member who vouches for you" />
+            <Field
+              label={
+                (rules.coMakersRequired ?? 1) === 0 ? 'Co-maker (optional)'
+                  : amount >= (rules.coMakersFromAmount ?? 0) ? "Co-maker's member number"
+                    : `Co-maker (optional under ₱${(rules.coMakersFromAmount ?? 0).toLocaleString('en-PH')})`
+              }
+              value={f.coMaker1} onChangeText={set('coMaker1')} placeholder="A UDEI member who vouches for you" />
             <Field label="Second co-maker (optional)" value={f.coMaker2} onChangeText={set('coMaker2')} placeholder="Member number" />
 
             <View style={{ backgroundColor: colors.bg, borderRadius: 10, padding: 12, marginTop: 4 }}>

@@ -3,7 +3,7 @@ import { monthlyInstallment } from '../../lib/applications'
 import type { EmploymentStatus, LoanType } from '../../lib/applications'
 import type { MemberBalances } from '../../lib/loans'
 import type { Member, MemberHistory } from '../../lib/members'
-import { FALLBACK_SETTINGS } from '../../lib/settings'
+import { coMakersNeeded, FALLBACK_SETTINGS } from '../../lib/settings'
 import type { LoanSettings } from '../../lib/settings'
 import type { Applicant, DocumentAnalysis } from '../../lib/ocr/analyzeDocument'
 
@@ -264,8 +264,9 @@ export function validateForm(f: Form, settings: LoanSettings = FALLBACK_SETTINGS
   if (term < 1 || term > maxTerm) return `${settings.products[f.loanType].label} loans run 1 to ${maxTerm} months.`
   if (f.monthlyRate.trim() === '' || !Number.isFinite(rate) || rate < 0 || rate > 10) return 'The interest rate could not be loaded. Reload the page.'
   const coMakers = [f.coMaker1, f.coMaker2].map((c) => c.trim()).filter(Boolean)
-  if (coMakers.length < settings.coMakersRequired) {
-    return settings.coMakersRequired === 1 ? 'Name a co-maker: a UDEI member who vouches for this loan.' : `Name ${settings.coMakersRequired} co-makers.`
+  const needed = coMakersNeeded(settings, num(f.amount))
+  if (coMakers.length < needed) {
+    return `Loans of ₱${settings.coMakersFromAmount.toLocaleString('en-PH')} or more need ${needed === 1 ? 'a co-maker: a UDEI member who vouches for this loan' : `${needed} co-makers`}.`
   }
   if (coMakers.length === 2 && coMakers[0] === coMakers[1]) return 'Name two different co-makers.'
   if (!f.payrollDeduction) return 'The applicant must authorize payroll deduction.'

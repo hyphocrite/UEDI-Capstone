@@ -44,6 +44,9 @@ export type Loan = {
 export type LoanSettings = {
   products: Record<'long_term' | 'emergency', { label: string; monthlyRate: number; maxTermMonths: number }>
   minMonthlySalary: number
+  /** Co-makers needed for loans of coMakersFromAmount pesos or more. Older servers leave these out. */
+  coMakersRequired?: number
+  coMakersFromAmount?: number
 }
 
 export type Payment = { id: string; amount: number; paidAt: string; method: string }

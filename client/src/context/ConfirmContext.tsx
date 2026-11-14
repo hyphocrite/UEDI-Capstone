@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { AlertTriangle } from 'lucide-react'
+import { AlertTriangle, ThumbsUp } from 'lucide-react'
 import Modal from '../components/Modal'
 
 export type ConfirmOptions = {
@@ -10,6 +10,8 @@ export type ConfirmOptions = {
   confirmLabel?: string
   /** Red button, for actions that are hard to undo (denials, voids, role changes). */
   danger?: boolean
+  /** Green button, only when the caller asks for it: approving a loan. */
+  tone?: 'approve'
 }
 
 type Confirm = (options: ConfirmOptions) => Promise<boolean>
@@ -44,7 +46,9 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
       {options && (
         <Modal title={options.title} open onClose={() => close(false)}>
           <div className="flex gap-3">
-            <AlertTriangle className={`mt-0.5 h-5 w-5 shrink-0 ${options.danger ? 'text-red-600' : 'text-amber-600'}`} />
+            {options.tone === 'approve' && !options.danger
+              ? <ThumbsUp className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+              : <AlertTriangle className={`mt-0.5 h-5 w-5 shrink-0 ${options.danger ? 'text-red-600' : 'text-amber-600'}`} />}
             <div className="min-w-0 space-y-2 text-sm text-brand-800">{options.message}</div>
           </div>
           <p className="mt-4 text-xs text-brand-500">This action is recorded in the audit log.</p>
@@ -53,7 +57,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
             <button
               type="button"
               autoFocus
-              className={options.danger ? 'btn bg-red-700 text-white hover:bg-red-800' : 'btn-primary'}
+              className={options.danger ? 'btn-deny' : options.tone === 'approve' ? 'btn-approve' : 'btn-primary'}
               onClick={() => close(true)}
             >
               {options.confirmLabel ?? 'Yes, continue'}

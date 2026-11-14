@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react'
-import { Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes } from 'react-router-dom'
 import ProtectedRoute from './components/ProtectedRoute'
 import RequireLevel, { HomeRedirect } from './components/RequireLevel'
 import AppLayout from './layouts/AppLayout'
@@ -8,7 +8,6 @@ import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import VerifyEmailPage from './pages/VerifyEmailPage'
 import MembersPage from './pages/MembersPage'
-import MemberAccountsPage from './pages/MemberAccountsPage'
 import LoansPage from './pages/LoansPage'
 import LoanDetailPage from './pages/LoanDetailPage'
 import DeductionsPage from './pages/DeductionsPage'
@@ -56,7 +55,7 @@ export default function App() {
           <Route element={<RequireLevel min="loan_officer" />}>
             <Route path="/loans/pending" element={<PendingLoansPage />} />
             <Route path="/members" element={<MembersPage />} />
-            <Route path="/member-accounts" element={<MemberAccountsPage />} />
+            <Route path="/member-accounts" element={<Navigate to="/members?tab=accounts" replace />} />
             <Route path="/early-warning" element={<EarlyWarningPage />} />
             <Route path="/attendance" element={<AttendancePage />} />
             <Route path="/retirement-plans" element={<RetirementPlansPage />} />
