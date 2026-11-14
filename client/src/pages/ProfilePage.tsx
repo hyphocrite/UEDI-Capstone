@@ -114,6 +114,12 @@ export default function ProfilePage() {
             To see your loans and apply online, ask the UDEI office to link this account to your member record.
           </p>
         )}
+        {session.memberId?.startsWith('N-') && (
+          <p className="mt-4 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            This is your new member ID, so you can apply right away. If you already have a UDEI member number, ask the office to
+            link it: everything under {session.memberId} moves to your member record.
+          </p>
+        )}
       </section>
 
       <form onSubmit={saveDetails} className="card mb-6 space-y-4 p-5" noValidate>

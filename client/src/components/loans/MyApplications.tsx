@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { CheckCircle2, Hourglass, XCircle } from 'lucide-react'
 import { api } from '../../lib/api'
+import { MascotSays } from '../mascot/Mascot'
 import { loanTypeLabel } from '../../lib/applications'
 import type { LoanApplication } from '../../lib/applications'
 import { formatDate, formatPeso } from '../../lib/format'
@@ -59,17 +60,20 @@ export default function MyApplications() {
                 <div className="mt-2 rounded-lg bg-red-50 p-3 text-sm text-red-900">
                   <p className="flex items-center gap-2 font-semibold"><XCircle className="h-4 w-4 shrink-0" /> Not approved</p>
                   {denial?.note && <p className="mt-1">The {roleLabel[denial.step]} wrote: “{denial.note}”</p>}
-                  {a.explanation && a.explanation.against.length > 0 && (
-                    <>
-                      <p className="mt-2 font-semibold">What counted against it</p>
-                      <ul className="mt-1 list-disc space-y-0.5 pl-5">{a.explanation.against.map((r) => <li key={r.feature}>{r.text}</li>)}</ul>
-                    </>
-                  )}
-                  {a.explanation && a.explanation.tips.length > 0 && (
-                    <>
-                      <p className="mt-2 font-semibold">What can help next time</p>
-                      <ul className="mt-1 list-disc space-y-0.5 pl-5">{a.explanation.tips.map((t) => <li key={t}>{t}</li>)}</ul>
-                    </>
+                  {a.explanation && (a.explanation.against.length > 0 || a.explanation.tips.length > 0) && (
+                    <div className="mt-3">
+                      <MascotSays mood="concerned" title="I looked at your application. Here's what counted against it:">
+                        {a.explanation.against.length > 0 && (
+                          <ul className="list-disc space-y-0.5 pl-5">{a.explanation.against.map((r) => <li key={r.feature}>{r.text}</li>)}</ul>
+                        )}
+                        {a.explanation.tips.length > 0 && (
+                          <>
+                            <p className="mt-2 font-semibold">What can help next time</p>
+                            <ul className="mt-1 list-disc space-y-0.5 pl-5">{a.explanation.tips.map((t) => <li key={t}>{t}</li>)}</ul>
+                          </>
+                        )}
+                      </MascotSays>
+                    </div>
                   )}
                 </div>
               )}

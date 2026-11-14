@@ -17,6 +17,7 @@ const {
 const { rateLimit } = require("../middleware/rateLimit");
 const verification = require("../services/emailVerification");
 const { auditNote } = require("../middleware/audit");
+const memberIds = require("../services/memberIds");
 
 const router = express.Router();
 
@@ -82,7 +83,10 @@ router.post("/register", registerLimit, async (req, res, next) => {
     const role = (await User.estimatedDocumentCount()) === 0 ? "admin" : "staff";
     const passwordHash = await bcrypt.hash(password, 12);
     const user = await User.create({ fullName, email, passwordHash, role, branch, emailVerified: false });
-    auditNote(res, { user, target: `${user.fullName} <${user.email}> as ${role}` });
+    // Every account after the administrator is a member with its own new member ID until the
+    // office links it to their UDEI number.
+    if (role !== "admin") await memberIds.ensureFor(user);
+    auditNote(res, { user, target: `${user.fullName} <${user.email}> as ${role}${user.memberId ? `, member ${user.memberId}` : ""}` });
 
     let emailSent = true;
     try {
@@ -239,11 +243,17 @@ router.post("/password", requireAuth, loginLimit, async (req, res, next) => {
   }
 });
 
+// newMemberId: the account still has only its own new ID (N-…), so the office should link it.
+// memberNo: the number a phone-app member typed at sign-up, a hint for linking.
+function accountView(u) {
+  return { ...u.toSession(), newMemberId: memberIds.isNewId(u.memberId), createdAt: u.createdAt };
+}
+
 // Loan Officers link accounts to member records, so the list is open to them as well as admins.
 router.get("/users", requireLevel("loan_officer"), async (_req, res, next) => {
   try {
     const users = await User.find().sort({ createdAt: -1 }).limit(200);
-    res.json({ users: users.map((u) => ({ ...u.toSession(), createdAt: u.createdAt })) });
+    res.json({ users: users.map((u) => accountView(u)) });
   } catch (err) {
     next(err);
   }
@@ -259,12 +269,34 @@ router.patch("/users/:id/member", requireLevel("loan_officer"), async (req, res,
       return res.status(409).json({ error: "Another account is already linked to that member ID." });
     }
 
-    const update = memberId ? { $set: { memberId } } : { $unset: { memberId: 1 } };
-    const old = await User.findById(req.params.id);
-    const user = await User.findByIdAndUpdate(req.params.id, update, { returnDocument: "after" });
+    const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ error: "User not found." });
-    auditNote(res, { action: memberId ? "Account linked to member" : "Account unlinked from member", target: `${user.fullName} <${user.email}>`, before: { memberId: old?.memberId ?? null } });
-    res.json({ user: { ...user.toSession(), createdAt: user.createdAt } });
+    const before = user.memberId ?? null;
+    if (!memberId && memberIds.isNewId(before)) {
+      return res.status(400).json({ error: "This account only has its own new member ID. Link it to a member number instead." });
+    }
+    if (memberId && memberIds.isNewId(memberId) && memberId !== before) {
+      return res.status(400).json({ error: "New member IDs (N-…) belong to the account they were made for. Link to the member's UDEI number." });
+    }
+
+    let moved = null;
+    if (memberId && memberId !== before) {
+      // Linking a new account to the member's real number: everything under the new ID moves there.
+      moved = await memberIds.merge(before, memberId, req.user.fullName);
+      user.memberId = memberId;
+      await user.save();
+    } else if (!memberId) {
+      // Unlinked accounts get a fresh new ID of their own.
+      user.memberId = undefined;
+      await memberIds.ensureFor(user);
+    }
+    auditNote(res, {
+      action: memberId ? "Account linked to member" : "Account unlinked from member",
+      target: `${user.fullName} <${user.email}>`,
+      before: { memberId: before },
+      details: moved ? { mergedFrom: before, moved } : undefined,
+    });
+    res.json({ user: accountView(user), moved });
   } catch (err) {
     if (err?.code === 11000) return res.status(409).json({ error: "Another account is already linked to that member ID." });
     next(err);

@@ -6,6 +6,7 @@ import ApprovalTracker from './ApprovalTracker'
 import ModelCard from './ModelCard'
 import DocumentViewer from './DocumentViewer'
 import { api } from '../../lib/api'
+import { MascotSays } from '../mascot/Mascot'
 import { useConfirm } from '../../context/ConfirmContext'
 import { employmentStatusLabel, loanTypeLabel, monthlyInstallment } from '../../lib/applications'
 import type { LoanApplication, Suggestion } from '../../lib/applications'
@@ -109,24 +110,27 @@ export default function ApplicationDetail({ app, onChange }: { app: LoanApplicat
               (stacked ensemble{e.cvMetrics ? `, tested AUC ${e.cvMetrics.aucRoc.toFixed(2)}` : ''}). It is a suggestion; the four signers decide.
             </p>
             {app.explanation && (app.explanation.against.length > 0 || (app.explanation.inFavor?.length ?? 0) > 0) && (
-              <div className="mt-4 grid gap-4 border-t border-white/15 pt-4 sm:grid-cols-2">
-                <div>
-                  <p className="text-xs font-semibold tracking-wide text-brand-200 uppercase">In plain words: against</p>
-                  <ul className="mt-1 space-y-1 text-sm">
-                    {app.explanation.against.length ? app.explanation.against.map((r) => <li key={r.feature}>• {r.text}</li>) : <li className="text-brand-200">Nothing stood out.</li>}
-                  </ul>
-                </div>
-                <div>
-                  <p className="text-xs font-semibold tracking-wide text-brand-200 uppercase">In favor</p>
-                  <ul className="mt-1 space-y-1 text-sm">
-                    {app.explanation.inFavor?.length ? app.explanation.inFavor.map((r) => <li key={r.feature}>• {r.text}</li>) : <li className="text-brand-200">Nothing stood out.</li>}
-                  </ul>
-                </div>
-                {app.explanation.tips.length > 0 && (
-                  <p className="text-sm text-brand-100 sm:col-span-2">
-                    <span className="font-semibold text-white">What would help: </span>{app.explanation.tips.join(' ')}
-                  </p>
-                )}
+              <div className="mt-4 border-t border-white/15 pt-4">
+                <MascotSays tone="dark" mood={e.suggestion === 'approve' ? 'happy' : e.suggestion === 'deny' ? 'concerned' : 'neutral'}
+                  title="Here's what moved the score, in plain words:">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <p className="text-xs font-semibold tracking-wide text-brand-200 uppercase">Against</p>
+                      <ul className="mt-1 space-y-1">
+                        {app.explanation.against.length ? app.explanation.against.map((r) => <li key={r.feature}>• {r.text}</li>) : <li className="text-brand-200">Nothing stood out.</li>}
+                      </ul>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold tracking-wide text-brand-200 uppercase">In favor</p>
+                      <ul className="mt-1 space-y-1">
+                        {app.explanation.inFavor?.length ? app.explanation.inFavor.map((r) => <li key={r.feature}>• {r.text}</li>) : <li className="text-brand-200">Nothing stood out.</li>}
+                      </ul>
+                    </div>
+                  </div>
+                  {app.explanation.tips.length > 0 && (
+                    <p className="mt-3 text-brand-100"><span className="font-semibold text-white">What would help: </span>{app.explanation.tips.join(' ')}</p>
+                  )}
+                </MascotSays>
               </div>
             )}
           </div>

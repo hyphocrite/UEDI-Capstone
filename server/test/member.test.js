@@ -66,7 +66,8 @@ test("a member registers, applies and follows the application to a loan", { skip
 
   const id = created.json.application.id;
   const staffView = (await t.call(`/applications/${id}`, { cookie: admin.cookie })).json.application;
-  assert.equal(staffView.applicant.memberId, "M-0042");
+  // Filed under their own new member ID; the typed M-0042 is only a claim until the office links it.
+  assert.match(staffView.applicant.memberId, /^N-\d{4}$/);
   for (const role of ["bookkeeper", "treasurer", "crecom_chair", "president"]) {
     const r = await t.call(`/applications/${id}/approvals`, { method: "POST", cookie: signer[role].cookie, body: { decision: "approved" } });
     assert.equal(r.status, 200, r.json.error);

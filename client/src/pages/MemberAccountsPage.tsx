@@ -10,7 +10,9 @@ import type { Member } from '../lib/members'
 import { roleLabel } from '../lib/roles'
 import type { Role } from '../lib/roles'
 
-type Account = { id: string; fullName: string; email: string; role: Role; memberId: string | null; createdAt?: string }
+// newMemberId: only their own new ID (N-…) from sign-up, so not linked to a UDEI number yet.
+// memberNo: the number a phone-app member typed when signing up, a hint for linking.
+type Account = { id: string; fullName: string; email: string; role: Role; memberId: string | null; memberNo?: string | null; newMemberId?: boolean; createdAt?: string }
 type Show = 'unlinked' | 'linked' | 'all'
 
 /**
@@ -42,20 +44,23 @@ export default function MemberAccountsPage() {
 
   const memberById = useMemo(() => new Map(members.map((m) => [m.memberId, m])), [members])
   const linkedTo = useMemo(() => new Map((accounts ?? []).filter((a) => a.memberId).map((a) => [a.memberId!, a])), [accounts])
-  const draftOf = (a: Account) => drafts[a.id] ?? a.memberId ?? ''
+  const isLinked = (a: Account) => !!a.memberId && !a.newMemberId
+  const waiting = (a: Account) => !isLinked(a) && (a.role === 'staff' || (a.role as string) === 'member')
+  // A new ID is not a UDEI number, so the box starts empty (or with the number they typed on the phone).
+  const draftOf = (a: Account) => drafts[a.id] ?? (a.newMemberId ? '' : a.memberId ?? '')
 
   // Only member-level accounts (staff roles are linked too when they are also members, under "All").
   const list = useMemo(() => {
     const q = query.trim().toLowerCase()
     return (accounts ?? []).filter((a) =>
-      (show === 'all' || (show === 'linked' ? !!a.memberId : !a.memberId && a.role === 'staff')) &&
+      (show === 'all' || (show === 'linked' ? isLinked(a) : waiting(a))) &&
       (!q || a.fullName.toLowerCase().includes(q) || a.email.toLowerCase().includes(q) || (a.memberId ?? '').toLowerCase().includes(q)),
     )
   }, [accounts, query, show])
 
   const counts = {
-    unlinked: (accounts ?? []).filter((a) => !a.memberId && a.role === 'staff').length,
-    linked: (accounts ?? []).filter((a) => a.memberId).length,
+    unlinked: (accounts ?? []).filter(waiting).length,
+    linked: (accounts ?? []).filter(isLinked).length,
     all: accounts?.length ?? 0,
   }
 
@@ -72,13 +77,16 @@ export default function MemberAccountsPage() {
         <>
           <p>
             <b>{a.fullName}</b> ({a.email}) will see every loan and application under member <b>{memberId}</b>
-            {record ? <> ({record.fullName})</> : ''}{a.memberId ? `, instead of member ${a.memberId}` : ''}, and their loan form will be filled in from that record.
+            {record ? <> ({record.fullName})</> : ''}{a.memberId && !a.newMemberId ? `, instead of member ${a.memberId}` : ''}, and their loan form will be filled in from that record.
           </p>
+          {a.newMemberId && (
+            <p>Everything filed under their new ID <b>{a.memberId}</b> (applications, attendance, bills) moves to member <b>{memberId}</b>, and the new ID is removed. This can't be undone.</p>
+          )}
           {!record && <p className="text-amber-800">There is no member record with number {memberId} yet. Check the number, or add the member first.</p>}
           <p>Check that this is the right person.</p>
         </>
       ) : (
-        <p><b>{a.fullName}</b> ({a.email}) will no longer see the loans and applications of member <b>{a.memberId}</b>.</p>
+        <p><b>{a.fullName}</b> ({a.email}) will no longer see the loans and applications of member <b>{a.memberId}</b>. They get a new member ID of their own.</p>
       ),
       confirmLabel: memberId ? 'Yes, link' : 'Yes, unlink',
     })
@@ -98,7 +106,7 @@ export default function MemberAccountsPage() {
       })
       setMessage({
         tone: 'ok',
-        text: user.memberId ? `${user.fullName} is linked to member ${user.memberId}.` : `${user.fullName} is no longer linked to a member.`,
+        text: user.newMemberId ? `${user.fullName} is no longer linked. Their new ID is ${user.memberId}.` : `${user.fullName} is linked to member ${user.memberId}.`,
       })
     } catch (err) {
       setMessage({ tone: 'error', text: err instanceof Error ? err.message : 'Could not link the account.' })
@@ -122,7 +130,7 @@ export default function MemberAccountsPage() {
       />
 
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatCard icon={UserX} label="Waiting to be linked" value={String(counts.unlinked)} hint="Member accounts with no member number" />
+        <StatCard icon={UserX} label="Waiting to be linked" value={String(counts.unlinked)} hint="New accounts with only their own new ID" />
         <StatCard icon={UserCheck} label="Linked" value={String(counts.linked)} />
         <StatCard icon={Link2} label="Sign-in accounts" value={String(counts.all)} />
       </div>
@@ -159,13 +167,18 @@ export default function MemberAccountsPage() {
           <ul className="divide-y divide-brand-50">
             {list.map((a) => {
               const draft = draftOf(a).trim()
-              const changed = draft !== (a.memberId ?? '')
+              const changed = a.newMemberId ? !!draft : draft !== (a.memberId ?? '')
               const record = draft ? memberById.get(draft) : undefined
               return (
                 <li key={a.id} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
                   <div className="min-w-0">
                     <p className="truncate font-semibold text-ink">{a.fullName}</p>
-                    <p className="truncate text-xs text-brand-500">{a.email} · {roleLabel[a.role]}</p>
+                    <p className="truncate text-xs text-brand-500">{a.email} · {roleLabel[a.role] ?? 'Phone app member'}</p>
+                    {a.newMemberId && (
+                      <p className="truncate text-xs text-amber-700">
+                        New ID {a.memberId}{a.memberNo ? ` · says they are Member No. ${a.memberNo}` : ''}
+                      </p>
+                    )}
                   </div>
                   <div className="flex flex-col gap-1 sm:items-end">
                     <div className="flex gap-2">
@@ -179,7 +192,7 @@ export default function MemberAccountsPage() {
                         onChange={(e) => setDrafts((d) => ({ ...d, [a.id]: e.target.value }))}
                       />
                       <button type="button" className="btn-primary" disabled={!changed || savingId !== null} onClick={() => save(a)}>
-                        {savingId === a.id ? 'Saving…' : a.memberId && !draft ? 'Unlink' : 'Save'}
+                        {savingId === a.id ? 'Saving…' : a.memberId && !a.newMemberId && !draft ? 'Unlink' : a.newMemberId ? 'Link' : 'Save'}
                       </button>
                     </div>
                     {draft && (
