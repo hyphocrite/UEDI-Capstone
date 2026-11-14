@@ -14,10 +14,13 @@ class CoMakerError extends Error {}
  * Checks the co-makers named on an application and returns them as stored entries. Each must be a
  * UDEI member with a linked account (so they can confirm), not the applicant, and named once.
  */
-async function resolve(memberIds, applicantMemberId, required) {
+async function resolve(memberIds, applicantMemberId, required, fromAmount = 0) {
   const ids = [...new Set((memberIds || []).map((s) => String(s).trim()).filter(Boolean))];
   if (ids.length !== (memberIds || []).filter((s) => String(s).trim()).length) throw new CoMakerError("Name each co-maker once.");
-  if (ids.length < required) throw new CoMakerError(required === 1 ? "Name a co-maker: a UDEI member who vouches for this loan." : `Name ${required} co-makers: UDEI members who vouch for this loan.`);
+  if (ids.length < required) {
+    const why = fromAmount > 0 ? `Loans of ₱${Number(fromAmount).toLocaleString("en-PH")} or more need ${required === 1 ? "a co-maker" : `${required} co-makers`}` : required === 1 ? "Name a co-maker" : `Name ${required} co-makers`;
+    throw new CoMakerError(`${why}: ${required === 1 ? "a UDEI member who vouches" : "UDEI members who vouch"} for this loan.`);
+  }
   if (ids.length > 2) throw new CoMakerError("Name at most 2 co-makers.");
   if (applicantMemberId && ids.includes(applicantMemberId)) throw new CoMakerError("The applicant can't be their own co-maker.");
   const [members, users] = await Promise.all([Member.find({ memberId: { $in: ids } }), User.find({ memberId: { $in: ids } })]);

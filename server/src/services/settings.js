@@ -13,7 +13,13 @@ const DEFAULTS = Object.freeze({
   minMonthlySalary: 10000,
   branches: ["Main Office"],
   coMakersRequired: 1,
+  coMakersFromAmount: 50000,
 });
+
+/** How many co-makers a loan of this amount (pesos) needs under these rules. */
+function coMakersNeeded(rules, amount) {
+  return Number(amount) >= (rules.coMakersFromAmount ?? DEFAULTS.coMakersFromAmount) ? rules.coMakersRequired : 0;
+}
 
 function shape(doc) {
   const d = doc || DEFAULTS;
@@ -25,6 +31,7 @@ function shape(doc) {
     minMonthlySalary: d.minMonthlySalary ?? DEFAULTS.minMonthlySalary,
     branches: d.branches?.length ? [...d.branches] : [...DEFAULTS.branches],
     coMakersRequired: d.coMakersRequired ?? DEFAULTS.coMakersRequired,
+    coMakersFromAmount: d.coMakersFromAmount ?? DEFAULTS.coMakersFromAmount,
     updatedAt: doc?.updatedAt ?? null,
     updatedByName: doc?.updatedByName ?? null,
   };
@@ -58,4 +65,4 @@ function checkApplication(rules, { monthlySalary, loanType, termMonths }) {
   return null;
 }
 
-module.exports = { DEFAULTS, get, save, checkApplication };
+module.exports = { DEFAULTS, get, save, checkApplication, coMakersNeeded };

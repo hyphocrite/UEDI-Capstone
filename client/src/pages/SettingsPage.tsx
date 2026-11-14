@@ -16,6 +16,7 @@ type Draft = {
   minMonthlySalary: string
   branches: string[]
   coMakersRequired: string
+  coMakersFromAmount: string
 }
 
 const toDraft = (s: LoanSettings): Draft => ({
@@ -26,6 +27,7 @@ const toDraft = (s: LoanSettings): Draft => ({
   minMonthlySalary: String(s.minMonthlySalary),
   branches: [...s.branches],
   coMakersRequired: String(s.coMakersRequired ?? 1),
+  coMakersFromAmount: String(s.coMakersFromAmount ?? 50000),
 })
 
 const LOAN_TYPES: LoanType[] = ['long_term', 'emergency']
@@ -77,6 +79,9 @@ export default function SettingsPage() {
     if (Number(draft.coMakersRequired) !== (current.coMakersRequired ?? 1)) {
       list.push(`Co-makers required: ${current.coMakersRequired ?? 1} → ${draft.coMakersRequired}`)
     }
+    if (Number(draft.coMakersFromAmount) !== (current.coMakersFromAmount ?? 50000)) {
+      list.push(`Co-makers needed from: ${formatPeso(current.coMakersFromAmount ?? 50000)} → ${formatPeso(Number(draft.coMakersFromAmount))}`)
+    }
     const added = draft.branches.filter((b) => !current.branches.includes(b))
     const removed = current.branches.filter((b) => !draft.branches.includes(b))
     if (added.length) list.push(`Branches added: ${added.join(', ')}`)
@@ -104,6 +109,7 @@ export default function SettingsPage() {
         products: Object.fromEntries(LOAN_TYPES.map((t) => [t, { label: draft.products[t].label, monthlyRate: Number(draft.products[t].monthlyRate), maxTermMonths: Number(draft.products[t].maxTermMonths) }])),
         minMonthlySalary: Number(draft.minMonthlySalary),
         coMakersRequired: Number(draft.coMakersRequired),
+        coMakersFromAmount: Number(draft.coMakersFromAmount),
         branches: draft.branches,
       }
       const { settings: next } = await api<{ settings: LoanSettings }>('/api/settings', { method: 'PUT', body: JSON.stringify(body) })
@@ -193,14 +199,26 @@ export default function SettingsPage() {
             <input type="number" min={0} step={500} className="input w-40" value={draft.minMonthlySalary} aria-label="Minimum monthly salary"
               onChange={(e) => { touch(); setDraft((d) => ({ ...d, minMonthlySalary: e.target.value })) }} />
           </div>
-          <h2 className="mt-5 font-semibold text-brand-800">Co-makers per application</h2>
-          <p className="mt-1 text-sm text-brand-600">Members who vouch for the loan and confirm online before signing starts.</p>
-          <select className="input mt-2 w-40" aria-label="Co-makers required" value={draft.coMakersRequired}
-            onChange={(e) => { touch(); setDraft((d) => ({ ...d, coMakersRequired: e.target.value })) }}>
-            <option value="0">None required</option>
-            <option value="1">1 co-maker</option>
-            <option value="2">2 co-makers</option>
-          </select>
+          <h2 className="mt-5 font-semibold text-brand-800">Co-makers</h2>
+          <p className="mt-1 text-sm text-brand-600">Members who vouch for the loan and confirm online before signing starts. Smaller loans don't need them.</p>
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-brand-700">
+            <select className="input w-40" aria-label="Co-makers required" value={draft.coMakersRequired}
+              onChange={(e) => { touch(); setDraft((d) => ({ ...d, coMakersRequired: e.target.value })) }}>
+              <option value="0">None required</option>
+              <option value="1">1 co-maker</option>
+              <option value="2">2 co-makers</option>
+            </select>
+            {draft.coMakersRequired !== '0' && (
+              <>
+                <span>for loans of</span>
+                <span className="font-semibold">₱</span>
+                <input type="number" min={0} step={5000} className="input w-36" aria-label="Co-makers needed from this amount" value={draft.coMakersFromAmount}
+                  onChange={(e) => { touch(); setDraft((d) => ({ ...d, coMakersFromAmount: e.target.value })) }} />
+                <span>or more</span>
+              </>
+            )}
+          </div>
+          {draft.coMakersRequired !== '0' && Number(draft.coMakersFromAmount) === 0 && <p className="mt-1 text-xs text-brand-500">₱0 means every loan needs them.</p>}
         </section>
 
         <section className="card p-5">

@@ -18,7 +18,7 @@ import { api } from '../lib/api'
 import { clearDraft, draftKey, loadDraft, saveDraft } from '../lib/drafts'
 import { formatDateTime } from '../lib/format'
 import { atLeast } from '../lib/roles'
-import { fetchSettings, useSettings } from '../lib/settings'
+import { coMakersNeeded, fetchSettings, useSettings } from '../lib/settings'
 import { loanTypeLabel } from '../lib/applications'
 import type { LoanApplication, LoanType } from '../lib/applications'
 
@@ -242,7 +242,7 @@ export default function LoanApplicationPage() {
       <div className="grid min-w-0 grid-cols-1 gap-6">
         <ApplicantSection form={form} update={update} lockedMemberId={staffView ? undefined : ownMemberId} />
         <AgreementSection form={form} update={update} onLoanTypeChange={changeLoanType} />
-        <CoMakersSection form={form} update={update} required={settings.coMakersRequired} />
+        <CoMakersSection form={form} update={update} required={coMakersNeeded(settings, Number(form.amount) || 0)} perLoan={settings.coMakersRequired} fromAmount={settings.coMakersFromAmount} />
         {staffView && <BookkeeperSection form={form} update={update} ledger={ledger} />}
         <DocumentsSection loanType={form.loanType} documents={documents} />
 

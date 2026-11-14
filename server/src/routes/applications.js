@@ -159,7 +159,7 @@ async function bookkeeperFor(memberId, typed) {
 async function createApplication(data, user) {
   const rules = await settings.get();
   // Throws CoMakerError, which the routes answer with 400.
-  data.coMakers = await coMakers.resolve(data.coMakers, data.applicant.memberId, rules.coMakersRequired);
+  data.coMakers = await coMakers.resolve(data.coMakers, data.applicant.memberId, settings.coMakersNeeded(rules, data.loan.amount), rules.coMakersFromAmount);
   const bookkeeper = await bookkeeperFor(data.applicant.memberId, data.bookkeeper);
   let app;
   for (let attempt = 0; attempt < 3 && !app; attempt++) {

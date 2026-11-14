@@ -27,6 +27,7 @@ const saveSchema = z.object({
   products: z.object({ long_term: product("Long term"), emergency: product("Emergency") }),
   minMonthlySalary: z.coerce.number({ message: "Enter the minimum monthly salary." }).min(0).max(10_000_000),
   coMakersRequired: z.coerce.number().int().min(0).max(2).optional(),
+  coMakersFromAmount: z.coerce.number({ message: "Enter the amount that needs co-makers." }).min(0).max(10_000_000).optional(),
   branches: z
     .array(z.string().trim().min(1).max(120))
     .min(1, "Keep at least one branch or office.")
