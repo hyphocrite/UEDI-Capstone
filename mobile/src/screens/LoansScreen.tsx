@@ -2,7 +2,7 @@ import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native'
 import type { Application, Loan } from '../api'
 import { centavos, date, LOAN_TYPE_LABEL, pesos } from '../format'
 import { colors } from '../theme'
-import { Badge, Card, Empty, Header, Row, s } from '../ui'
+import { Badge, Card, Empty, Header, MascotSays, Row, s } from '../ui'
 import { applicationBadge, loanBadge, SIGNERS } from './status'
 
 type Props = {
@@ -61,12 +61,11 @@ export default function LoansScreen({ loans, applications, loading, onRefresh, o
             <Steps app={a} />
             {a.denialNote ? <Text style={{ color: colors.danger, marginTop: 8 }}>Reason: {a.denialNote}</Text> : null}
             {a.reasons?.against.length ? (
-              <View style={{ marginTop: 8 }}>
-                <Text style={{ color: colors.text, fontWeight: '600' }}>What counted against it</Text>
+              <MascotSays mood="concerned" title="I looked at your application. Here's what counted against it:">
                 {a.reasons.against.map((r) => <Text key={r.feature} style={{ color: colors.text, marginTop: 2 }}>• {r.text}</Text>)}
                 {a.reasons.tips.length ? <Text style={{ color: colors.text, fontWeight: '600', marginTop: 6 }}>What can help next time</Text> : null}
                 {a.reasons.tips.map((t) => <Text key={t} style={{ color: colors.text, marginTop: 2 }}>• {t}</Text>)}
-              </View>
+              </MascotSays>
             ) : null}
           </Card>
         ))}

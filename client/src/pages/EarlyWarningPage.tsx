@@ -4,6 +4,7 @@ import { AlertTriangle, Eye, ShieldAlert, ShieldCheck, Siren } from 'lucide-reac
 import PageHeader from '../components/PageHeader'
 import StatCard from '../components/StatCard'
 import { api } from '../lib/api'
+import { MascotSays } from '../components/mascot/Mascot'
 import { formatCentavos, formatDay } from '../lib/loans'
 
 type Level = 'high' | 'watch' | 'low'
@@ -104,10 +105,19 @@ export default function EarlyWarningPage() {
                   {l.pastDue && <span className="font-semibold text-red-700"> · already past due</span>}
                 </p>
               </div>
-              <ul className="space-y-1 text-sm text-brand-800">
-                {l.reasons.length ? l.reasons.map((r) => <li key={r.feature} className="flex gap-2"><ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" /> {r.text}</li>)
-                  : <li className="text-brand-500">No warning signs.</li>}
-              </ul>
+              {l.reasons.length && l.level ? (
+                <MascotSays mood={l.level === 'low' ? 'happy' : 'concerned'}
+                  title={l.level === 'low' ? `${l.borrowerName.split(' ')[0]}'s loan looks fine. Small things I noticed:` : `Why I'm watching ${l.borrowerName.split(' ')[0]}'s loan:`}>
+                  <ul className="space-y-1 text-brand-800">
+                    {l.reasons.map((r) => <li key={r.feature} className="flex gap-2"><ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" /> {r.text}</li>)}
+                  </ul>
+                </MascotSays>
+              ) : (
+                <ul className="space-y-1 text-sm text-brand-800">
+                  {l.reasons.length ? l.reasons.map((r) => <li key={r.feature} className="flex gap-2"><ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" /> {r.text}</li>)
+                    : <li className="text-brand-500">No warning signs.</li>}
+                </ul>
+              )}
               <div className="md:text-right">
                 {l.level && <span className={`inline-block rounded-full px-2.5 py-1 text-xs font-semibold ${levelStyle[l.level]}`}>{levelLabel[l.level]}</span>}
                 {l.probability !== null && <p className="mt-1 text-xs text-brand-500">{Math.round(l.probability * 100)}% chance</p>}

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View, type TextInputProps, type ViewStyle } from 'react-native'
+import { ActivityIndicator, Image, Pressable, StyleSheet, Text, TextInput, View, type TextInputProps, type ViewStyle } from 'react-native'
 import { colors, radius } from './theme'
 
 export function Header({ title, subtitle, right }: { title: string; subtitle?: string; right?: ReactNode }) {
@@ -208,3 +208,25 @@ export const s = StyleSheet.create({
   row: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 },
   sectionTitle: { color: colors.text, fontSize: 16, fontWeight: '700', marginBottom: 10, marginTop: 6 },
 })
+
+const kuwi = {
+  happy: require('../assets/kuwi-happy.png'),
+  neutral: require('../assets/kuwi-neutral.png'),
+  concerned: require('../assets/kuwi-concerned.png'),
+}
+
+/** Kuwi the owl explaining something in a speech bubble (the same owl as on the website). */
+export function MascotSays({ mood = 'neutral', title, children }: { mood?: keyof typeof kuwi; title?: string; children: ReactNode }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginTop: 10 }}>
+      <View style={{ alignItems: 'center' }}>
+        <Image source={kuwi[mood]} style={{ width: 52, height: 52 }} accessibilityLabel={`Kuwi the owl, ${mood}`} />
+        <Text style={{ fontSize: 9, fontWeight: '700', color: colors.muted, letterSpacing: 0.5 }}>KUWI</Text>
+      </View>
+      <View style={{ flex: 1, backgroundColor: colors.bg, borderColor: colors.border, borderWidth: 1, borderRadius: 14, padding: 10 }}>
+        {title ? <Text style={{ fontWeight: '700', color: colors.text, marginBottom: 2 }}>{title}</Text> : null}
+        {children}
+      </View>
+    </View>
+  )
+}
