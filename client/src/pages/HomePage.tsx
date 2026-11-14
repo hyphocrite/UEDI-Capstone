@@ -92,7 +92,7 @@ export default function HomePage() {
               <p className="text-sm text-brand-600">96 months left</p>
             </div>
             <div className="mt-4 h-3 overflow-hidden rounded-full bg-brand-100">
-              <div className="h-full w-[47%] rounded-full bg-accent" />
+              <div className="animate-grow-right h-full w-[47%] rounded-full bg-accent" />
             </div>
             <p className="mt-2 text-xs text-brand-600">47% of ₱540,000 paid</p>
             <div className="mt-6 grid grid-cols-3 gap-3 text-center">
@@ -115,7 +115,7 @@ export default function HomePage() {
         <h2 className="text-center text-2xl font-bold text-brand-800">Everything the office needs</h2>
         <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {features.map(({ icon: Icon, title, text }) => (
-            <div key={title} className="card p-6">
+            <div key={title} className="card card-hover p-6">
               <span className="inline-flex rounded-lg bg-brand-50 p-2.5 text-brand-700">
                 <Icon className="h-5 w-5" />
               </span>

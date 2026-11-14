@@ -46,7 +46,7 @@ export default function RetirementPlansPage() {
 
   return (
     <>
-      <PageHeader
+      <PageHeader icon={PiggyBank}
         title="Retirement Plans"
         subtitle="Each member's retirement plan balance and monthly contributions."
         actions={canWrite ? <button className="btn-primary" onClick={() => setEnrolling(true)}><Plus className="h-4 w-4" /> Enroll member</button> : undefined}
@@ -86,7 +86,7 @@ export default function RetirementPlansPage() {
               <tbody className="divide-y divide-brand-50">
                 {filtered.map((p) => (
                   <tr key={p._id} onClick={() => setSelectedId(p._id)}
-                    className={`cursor-pointer ${p._id === selected?._id ? 'bg-brand-50' : 'hover:bg-brand-50/50'}`}>
+                    className={`cursor-pointer ${p._id === selected?._id ? 'bg-brand-50' : 'row-hover'}`}>
                     <td className="px-4 py-3">
                       <button className="text-left" onClick={() => setSelectedId(p._id)}>
                         <p className="font-semibold text-ink">{p.memberName}</p>

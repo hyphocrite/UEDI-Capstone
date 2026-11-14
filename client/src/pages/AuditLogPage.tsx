@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useState } from 'react'
-import { ChevronDown, ChevronRight, Search } from 'lucide-react'
+import { ChevronDown, ChevronRight, Search, History } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import { api } from '../lib/api'
 import { roleLabel } from '../lib/roles'
@@ -86,7 +86,7 @@ export default function AuditLogPage() {
 
   return (
     <>
-      <PageHeader
+      <PageHeader icon={History}
         title="Audit Log"
         subtitle="Every change made in the system, by anyone, on the web or the mobile app, including failed attempts. Entries can't be edited or deleted."
       />
@@ -130,7 +130,7 @@ export default function AuditLogPage() {
             <tbody className="divide-y divide-brand-50">
               {result?.entries.map((e) => (
                 <Fragment key={e._id}>
-                  <tr className="cursor-pointer align-top hover:bg-brand-50/50" onClick={() => setOpen(open === e._id ? null : e._id)}>
+                  <tr className="row-hover cursor-pointer align-top" onClick={() => setOpen(open === e._id ? null : e._id)}>
                     <td className="px-2 py-3 text-brand-500">
                       {open === e._id ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                     </td>

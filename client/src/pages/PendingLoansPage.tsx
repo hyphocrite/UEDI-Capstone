@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { AlertTriangle, CheckCircle2, Clock, Cpu, FilePlus2 } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Clock, Cpu, FilePlus2, ClipboardCheck } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import StatusBadge from '../components/StatusBadge'
 import ApplicationDetail from '../components/pending-loans/ApplicationDetail'
 import SuggestionBadge from '../components/pending-loans/SuggestionBadge'
+import { MascotSays } from '../components/mascot/Mascot'
 import { useAuth } from '../context/AuthContext'
 import { api } from '../lib/api'
-import { loanTypeLabel } from '../lib/applications'
+import { awaitingUser, loanTypeLabel } from '../lib/applications'
 import type { LoanApplication, ModelInfo } from '../lib/applications'
 import { formatDate, formatPeso } from '../lib/format'
 import { isSigner, stepShortLabel } from '../lib/roles'
@@ -27,9 +28,6 @@ const waitedText = (hours: number) =>
 /** Amber after a day, red after two. */
 const waitTone = (hours: number) => (hours >= OVERDUE_HOURS ? 'text-red-700' : hours >= 24 ? 'text-amber-700' : 'text-brand-600')
 
-/** Pending, at the caller's step, and not already signed by them (same rule as GET /api/applications?awaiting=me). */
-const awaitingUser = (a: LoanApplication, role: string | undefined, userId: string | undefined) =>
-  a.status === 'pending' && a.currentStep === role && !a.approvals.some((x) => x.signedBy === userId)
 
 export default function PendingLoansPage() {
   const { session } = useAuth()
@@ -102,7 +100,7 @@ export default function PendingLoansPage() {
 
   return (
     <>
-      <PageHeader
+      <PageHeader icon={ClipboardCheck}
         title="Pending Loans"
         subtitle="Applications waiting for the Bookkeeper, Treasurer, Credit Committee Chairman and President to sign, with suggestions from three machine learning models."
         actions={<Link to="/loans/apply" className="btn-primary"><FilePlus2 className="h-4 w-4" /> New application</Link>}
@@ -138,21 +136,29 @@ export default function PendingLoansPage() {
       {loading && apps.length === 0 ? (
         <p className="py-10 text-center text-sm text-brand-500">Loading applications…</p>
       ) : visible.length === 0 ? (
-        <div className="card p-10 text-center text-brand-600">
-          {tab === 'awaiting'
-            ? 'Nothing is waiting for your signature.'
-            : tab === 'pending' ? 'No applications are waiting for a decision.' : 'No decisions yet.'}
+        <div className="card px-4 py-8 sm:py-12">
+          <div className="mx-auto max-w-lg">
+            <MascotSays mood={tab === 'decided' ? 'neutral' : 'happy'}
+              title={tab === 'awaiting' ? 'Nothing is waiting for your signature.' : tab === 'pending' ? 'No applications are waiting for a decision.' : 'No decisions yet.'}>
+              <p className="text-brand-600">
+                {tab === 'awaiting'
+                  ? "You're all caught up. New applications at your step show up here, oldest first."
+                  : tab === 'pending' ? 'New applications appear here as soon as they are filed.' : 'Approved and denied applications are kept here.'}
+              </p>
+              {tab !== 'decided' && <Link to="/loans/apply" className="btn-primary mt-3"><FilePlus2 className="h-4 w-4" /> New application</Link>}
+            </MascotSays>
+          </div>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          <ul className="card h-fit min-w-0 divide-y divide-brand-50 overflow-hidden" aria-label="Applications">
+          <ul className="card h-fit min-w-0 divide-y divide-brand-50 overflow-hidden lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto" aria-label="Applications">
             {visible.map((a) => {
               const s = a.assessment?.ensemble
               const active = selected?._id === a._id
               return (
                 <li key={a._id}>
                   <button onClick={() => setSelectedId(a._id)}
-                    className={`w-full px-4 py-3 text-left transition ${active ? 'bg-brand-50' : 'hover:bg-brand-50/50'}`}
+                    className={`card-hover w-full border-l-[3px] px-4 py-3 text-left ${active ? 'border-l-accent bg-brand-50' : 'border-l-transparent hover:bg-brand-50/50'}`}
                     aria-current={active}>
                     <div className="flex items-center justify-between gap-2">
                       <p className="truncate font-semibold text-ink">{a.applicant.fullName}</p>

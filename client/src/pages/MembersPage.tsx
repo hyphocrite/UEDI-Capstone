@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { HandCoins, Link2, Pencil, PiggyBank, Plus, ReceiptText, Search, UserCheck, Users } from 'lucide-react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { HandCoins, KeyRound, Pencil, PiggyBank, Plus, ReceiptText, Search, SearchX, UserCheck, UserPlus, Users } from 'lucide-react'
+import EmptyState from '../components/EmptyState'
 import PageHeader from '../components/PageHeader'
+import Pagination from '../components/Pagination'
+import MemberAccountsPanel from '../components/members/MemberAccountsPanel'
 import StatCard from '../components/StatCard'
 import StatusBadge from '../components/StatusBadge'
 import MemberForm from '../components/members/MemberForm'
@@ -9,6 +12,8 @@ import CarriedDeductionForm from '../components/members/CarriedDeductionForm'
 import MemberScoreModal from '../components/members/MemberScoreModal'
 import { useAuth } from '../context/AuthContext'
 import { api } from '../lib/api'
+import { waitingToLink } from '../lib/accounts'
+import type { Account } from '../lib/accounts'
 import { formatDate } from '../lib/format'
 import { formatCentavos } from '../lib/loans'
 import { bandLabel, bandStyle, byMemberId, memberStatusLabel, planStatusLabel } from '../lib/members'
@@ -16,9 +21,31 @@ import type { Member } from '../lib/members'
 import { useSettings } from '../lib/settings'
 
 const short = (c: number) => formatCentavos(c).replace(/\.00$/, '')
+const PER_PAGE = 10
+type Tab = 'members' | 'accounts'
 
 export default function MembersPage() {
   const { settings } = useSettings()
+  // The tab and page live in the URL (/members?tab=accounts&page=2), so a reload or a link keeps them.
+  const [params, setParams] = useSearchParams()
+  const tab: Tab = params.get('tab') === 'accounts' ? 'accounts' : 'members'
+  const page = Math.max(1, Number(params.get('page')) || 1)
+  const setUrl = (next: { tab?: Tab; page?: number }) =>
+    setParams((p) => {
+      const q = new URLSearchParams(p)
+      if (next.tab !== undefined) {
+        if (next.tab === 'accounts') q.set('tab', 'accounts')
+        else q.delete('tab')
+      }
+      if (next.page !== undefined) {
+        if (next.page > 1) q.set('page', String(next.page))
+        else q.delete('page')
+      }
+      return q
+    }, { replace: true })
+  const toPage = (n: number) => setUrl({ page: n })
+  const [accounts, setAccounts] = useState<Account[] | null>(null)
+  const [accountsError, setAccountsError] = useState('')
   const [members, setMembers] = useState<Member[] | null>(null)
   const [nextMemberId, setNextMemberId] = useState('1')
   const [loadError, setLoadError] = useState('')
@@ -43,6 +70,13 @@ export default function MembersPage() {
 
   useEffect(() => {
     void load()
+    // Loaded here (not in the panel) so the tab can show how many wait to be linked.
+    api<{ users: Account[] }>('/api/auth/users')
+      .then((d) => setAccounts(d.users))
+      .catch((err: unknown) => {
+        setAccounts([])
+        setAccountsError(err instanceof Error ? err.message : 'Could not load accounts.')
+      })
   }, [])
 
   const list = useMemo(() => members ?? [], [members])
@@ -59,6 +93,12 @@ export default function MembersPage() {
         (!q || m.fullName.toLowerCase().includes(q) || m.memberId.toLowerCase() === q || m.memberId.toLowerCase().includes(q)),
     )
   }, [list, query, branch, status])
+  const sorted = useMemo(() => [...filtered].sort(byMemberId), [filtered])
+  const sortedMembers = useMemo(() => [...list].sort(byMemberId), [list])
+  const pages = Math.max(1, Math.ceil(sorted.length / PER_PAGE))
+  const current = Math.min(page, pages)
+  const visible = sorted.slice((current - 1) * PER_PAGE, current * PER_PAGE)
+  const waitingCount = (accounts ?? []).filter(waitingToLink).length
 
   const saved = (m: Member) => {
     setNotice(editing === 'new' ? `${m.fullName} was added as member no. ${m.memberId}.` : `${m.fullName}'s record was saved.`)
@@ -70,22 +110,38 @@ export default function MembersPage() {
 
   return (
     <>
-      <PageHeader
+      <PageHeader icon={Users}
         title="Members"
         subtitle="Everyone enrolled with UDEI, their Mutual Assistance balance and retirement plan."
         actions={
-          <>
-            <Link to="/member-accounts" className="btn-ghost"><Link2 className="h-4 w-4" /> Link accounts</Link>
-            <button className="btn-primary" onClick={() => setEditing('new')}>
-              <Plus className="h-4 w-4" /> Add member
-            </button>
-          </>
+          <button className="btn-primary" onClick={() => setEditing('new')}>
+            <Plus className="h-4 w-4" /> Add member
+          </button>
         }
       />
+
+      <div className="mb-6 inline-flex max-w-full rounded-lg border border-brand-200 bg-white p-1" role="tablist" aria-label="Members or sign-in accounts">
+        {([['members', 'Members', Users], ['accounts', 'Sign-in accounts', KeyRound]] as const).map(([id, label, Icon]) => (
+          <button key={id} role="tab" aria-selected={tab === id} onClick={() => setUrl({ tab: id, page: 1 })}
+            className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-semibold transition sm:px-4 ${tab === id ? 'bg-brand-800 text-white' : 'text-brand-700 hover:bg-brand-50'}`}>
+            <Icon className="h-4 w-4" /> {label}
+            {id === 'accounts' && waitingCount > 0 && (
+              <span className={`rounded-full px-1.5 py-0.5 text-[11px] leading-none font-bold ${tab === id ? 'bg-accent text-white' : 'bg-amber-100 text-amber-800'}`}
+                title={`${waitingCount} waiting to be linked`}>
+                {waitingCount}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
 
       {notice && <p className="mb-4 rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-800" role="status">{notice}</p>}
       {loadError && <p className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{loadError}</p>}
 
+      {tab === 'accounts' ? (
+        <MemberAccountsPanel members={sortedMembers} accounts={accounts} setAccounts={setAccounts} loadError={accountsError} page={page} onPage={toPage} />
+      ) : (
+      <>
       <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard icon={Users} label="Members" value={members ? String(list.length) : '…'} hint={`${list.filter((m) => m.status === 'inactive').length} inactive`} />
         <StatCard icon={UserCheck} label="Active" value={members ? String(list.filter((m) => m.status === 'active').length) : '…'} />
@@ -98,14 +154,14 @@ export default function MembersPage() {
           <div className="relative flex-1">
             <Search className="pointer-events-none absolute top-2.5 left-3 h-4 w-4 text-brand-400" />
             <input className="input pl-9" placeholder="Search by name or member no." value={query}
-              onChange={(e) => setQuery(e.target.value)} aria-label="Search members" />
+              onChange={(e) => { setQuery(e.target.value); toPage(1) }} aria-label="Search members" />
           </div>
-          <select className="input sm:w-44" value={status} onChange={(e) => setStatus(e.target.value as typeof status)} aria-label="Filter by status">
+          <select className="input sm:w-44" value={status} onChange={(e) => { setStatus(e.target.value as typeof status); toPage(1) }} aria-label="Filter by status">
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>
             <option value="all">All statuses</option>
           </select>
-          <select className="input sm:w-48" value={branch} onChange={(e) => setBranch(e.target.value)} aria-label="Filter by branch">
+          <select className="input sm:w-48" value={branch} onChange={(e) => { setBranch(e.target.value); toPage(1) }} aria-label="Filter by branch">
             <option value="All">All branches</option>
             {branchOptions.map((b) => <option key={b}>{b}</option>)}
           </select>
@@ -126,8 +182,8 @@ export default function MembersPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-brand-50">
-              {[...filtered].sort(byMemberId).map((m) => (
-                <tr key={m.memberId} className="hover:bg-brand-50/50">
+              {visible.map((m) => (
+                <tr key={m.memberId} className="row-hover">
                   <td className="px-4 py-3">
                     <p className={`font-semibold ${m.lastName ? 'text-ink' : 'text-brand-500 italic'}`}>{m.fullName}</p>
                     <p className="text-xs text-brand-500">No. {m.memberId}{m.branch ? ` · ${m.branch}` : ''}</p>
@@ -171,32 +227,37 @@ export default function MembersPage() {
                   </td>
                   <td className="px-4 py-3 text-right whitespace-nowrap">
                     {canSetDeduction && !m.ledgerLoan && (m.openingLoan?.balance ?? 0) > 0 && (
-                      <button className="rounded p-1.5 text-brand-600 hover:bg-brand-50" onClick={() => setDeducting(m)}
+                      <button className="rounded p-1.5 text-brand-600 transition hover:bg-brand-50 hover:text-accent-dark" onClick={() => setDeducting(m)}
                         title="Set up payroll deduction" aria-label={`Set up payroll deduction for ${m.fullName}`}>
                         <ReceiptText className="h-4 w-4" />
                       </button>
                     )}
-                    <button className="rounded p-1.5 text-brand-600 hover:bg-brand-50" onClick={() => setEditing(m)} aria-label={`Edit ${m.fullName}`}>
+                    <button className="rounded p-1.5 text-brand-600 transition hover:bg-brand-50 hover:text-accent-dark" onClick={() => setEditing(m)} aria-label={`Edit ${m.fullName}`}>
                       <Pencil className="h-4 w-4" />
                     </button>
                   </td>
                 </tr>
               ))}
               {members && filtered.length === 0 && (
-                <tr><td colSpan={8} className="px-4 py-10 text-center text-brand-500">
-                  {list.length ? 'No members match your search.' : 'No members yet. Add them here, or load UDEI\'s spreadsheets with the import script.'}
+                <tr><td colSpan={8}>
+                  {list.length
+                    ? <EmptyState icon={SearchX} title="No members match your search." hint="Check the spelling or member number, or change the status and branch filters." />
+                    : <EmptyState icon={UserPlus} title="No members yet." hint="Add them here, or load UDEI's spreadsheets with the import script."
+                        action={<button className="btn-primary" onClick={() => setEditing('new')}><Plus className="h-4 w-4" /> Add member</button>} />}
                 </td></tr>
               )}
               {!members && !loadError && <tr><td colSpan={8} className="px-4 py-10 text-center text-brand-500">Loading members…</td></tr>}
             </tbody>
           </table>
         </div>
+        <Pagination page={current} pageSize={PER_PAGE} total={sorted.length} onPage={toPage} />
         <p className="border-t border-brand-100 px-4 py-3 text-xs text-brand-500">
           Loan balance is what the member owes on loans in this system plus the balance carried over from UDEI's ledger
           {list.find((m) => m.openingLoan)?.openingLoan?.asOf ? ` (as of ${formatDate(list.find((m) => m.openingLoan)!.openingLoan!.asOf)})` : ''}.
         </p>
       </div>
-
+      </>
+      )}
 
       {scoring && <MemberScoreModal member={scoring} onClose={() => setScoring(null)} onChanged={() => void load()} />}
 

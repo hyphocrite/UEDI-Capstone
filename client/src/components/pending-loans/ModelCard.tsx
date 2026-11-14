@@ -16,7 +16,7 @@ function factorLabel(f: ModelScore['topFactors'][number]) {
 export default function ModelCard({ model }: { model: ModelScore }) {
   const maxImpact = Math.max(...model.topFactors.map((f) => Math.abs(f.impact)), 1e-6)
   return (
-    <article className="card flex flex-col p-4" aria-label={`${model.name} result`}>
+    <article className="card card-hover flex flex-col p-4" aria-label={`${model.name} result`}>
       <div className="flex items-start justify-between gap-2">
         <div>
           <h3 className="font-semibold text-brand-800">{model.name}</h3>
@@ -37,7 +37,7 @@ export default function ModelCard({ model }: { model: ModelScore }) {
 
       <h4 className="mt-4 text-xs font-semibold tracking-wide text-brand-600 uppercase">Biggest factors</h4>
       <ul className="mt-2 space-y-2">
-        {model.topFactors.map((f) => {
+        {model.topFactors.map((f, i) => {
           const raises = f.impact > 0
           return (
             <li key={f.feature} className="text-xs">
@@ -47,8 +47,8 @@ export default function ModelCard({ model }: { model: ModelScore }) {
               </div>
               <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-brand-50">
                 <div
-                  className={`h-full rounded-full ${raises ? 'bg-red-400' : 'bg-accent'}`}
-                  style={{ width: `${Math.max(6, (Math.abs(f.impact) / maxImpact) * 100)}%` }}
+                  className={`animate-grow-right h-full rounded-full ${raises ? 'bg-red-400' : 'bg-accent'}`}
+                  style={{ width: `${Math.max(6, (Math.abs(f.impact) / maxImpact) * 100)}%`, animationDelay: `${i * 80}ms` }}
                 />
               </div>
             </li>

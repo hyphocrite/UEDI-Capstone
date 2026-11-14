@@ -20,6 +20,13 @@ const suggestionText: Record<Suggestion, string> = {
   deny: 'Deny',
 }
 
+/** The suggestion word, coloured by outcome on the dark panel. */
+const suggestionTone: Record<Suggestion, string> = {
+  approve: 'text-emerald-300',
+  review: 'text-amber-300',
+  deny: 'text-red-300',
+}
+
 export default function ApplicationDetail({ app, onChange }: { app: LoanApplication; onChange: (a: LoanApplication) => void }) {
   const confirm = useConfirm()
   const [busy, setBusy] = useState<'rescore' | null>(null)
@@ -73,44 +80,21 @@ export default function ApplicationDetail({ app, onChange }: { app: LoanApplicat
         </div>
         {error && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{error}</p>}
 
-        {/* What is being asked for and why: the first thing a signer reads. */}
-        <div className="mt-4 grid min-w-0 gap-3 sm:grid-cols-[minmax(0,15rem)_1fr]">
-          <div className="rounded-xl border-2 border-accent/40 bg-emerald-50/60 p-4">
-            <p className="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-brand-600 uppercase">
-              <HandCoins className="h-4 w-4 text-accent" /> Loan amount
-            </p>
-            <p className="mt-1 text-3xl font-bold text-brand-800">{formatPeso(app.loan.amount)}</p>
-            <p className="mt-1 text-sm text-brand-700">
-              {loanTypeLabel[app.loan.loanType]} · {app.loan.termMonths} months · {app.loan.monthlyRate}%/month
-            </p>
-            <p className="text-xs text-brand-500">{app.loan.paymentFrequency === 'quincenal' ? 'Deducted every payday' : 'Deducted monthly'}</p>
-          </div>
-          <div className={`min-w-0 rounded-xl border-2 p-4 ${app.loan.purpose ? 'border-brand-200 bg-white' : 'border-dashed border-amber-300 bg-amber-50/60'}`}>
-            <p className="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-brand-600 uppercase">
-              <MessageSquareText className="h-4 w-4 text-accent" /> Reason for the loan
-            </p>
-            {app.loan.purpose ? (
-              <p className="mt-1 text-lg font-semibold break-words text-ink">“{app.loan.purpose}”</p>
-            ) : (
-              <p className="mt-1 text-sm font-medium text-amber-800">No reason given. Ask the applicant before signing if it matters.</p>
-            )}
-          </div>
-        </div>
-
+        {/* The ML suggestion is the centre of the page: the signers read it first. */}
         {e ? (
-          <div className="mt-5 rounded-xl bg-[#0B422A] p-5 text-white">
-            <p className="text-sm text-brand-200">ML suggestion</p>
-            <div className="mt-1 flex flex-wrap items-baseline gap-x-4 gap-y-1">
-              <p className="text-3xl font-bold">{suggestionText[e.suggestion]}</p>
-              <p className="text-brand-100">{Math.round(e.defaultProbability * 100)}% estimated chance of default</p>
+          <div className="mt-4 rounded-xl bg-[#0B422A] p-5 text-center text-white sm:p-6">
+            <p className="text-xs font-semibold tracking-wider text-brand-200 uppercase">ML suggestion</p>
+            <p className={`mt-1 text-4xl font-bold ${suggestionTone[e.suggestion]}`}>{suggestionText[e.suggestion]}</p>
+            <p className="mt-1 text-brand-100">{Math.round(e.defaultProbability * 100)}% estimated chance of default</p>
+            <div className="text-left">
+              <RiskScale value={e.defaultProbability} approve={app.assessment!.thresholds.approve} deny={app.assessment!.thresholds.deny} />
             </div>
-            <RiskScale value={e.defaultProbability} approve={app.assessment!.thresholds.approve} deny={app.assessment!.thresholds.deny} />
-            <p className="mt-3 text-sm text-brand-100">
-              {agree} of 3 models agree. The final score combines XGBoost, Random Forest and Logistic Regression
+            <p className="mx-auto mt-3 max-w-2xl text-sm text-brand-100">
+              <b className="text-white">{agree} of 3 models agree.</b> The final score combines XGBoost, Random Forest and Logistic Regression
               (stacked ensemble{e.cvMetrics ? `, tested AUC ${e.cvMetrics.aucRoc.toFixed(2)}` : ''}). It is a suggestion; the four signers decide.
             </p>
             {app.explanation && (app.explanation.against.length > 0 || (app.explanation.inFavor?.length ?? 0) > 0) && (
-              <div className="mt-4 border-t border-white/15 pt-4">
+              <div className="mt-4 border-t border-white/15 pt-4 text-left">
                 <MascotSays tone="dark" mood={e.suggestion === 'approve' ? 'happy' : e.suggestion === 'deny' ? 'concerned' : 'neutral'}
                   title="Here's what moved the score, in plain words:">
                   <div className="grid gap-3 sm:grid-cols-2">
@@ -135,18 +119,43 @@ export default function ApplicationDetail({ app, onChange }: { app: LoanApplicat
             )}
           </div>
         ) : (
-          <p className="mt-5 flex items-center gap-2 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <p className="mt-4 flex items-center justify-center gap-2 rounded-lg bg-amber-50 px-4 py-6 text-center text-sm text-amber-800">
             <AlertTriangle className="h-4 w-4 shrink-0" /> Not scored yet{app.assessmentError ? `: ${app.assessmentError}` : '.'}
           </p>
         )}
+
+        {/* The three models behind the suggestion, as supporting evidence. */}
+        {app.assessment && (
+          <div className="mt-4 grid gap-4 xl:grid-cols-3">
+            {app.assessment.models.map((m) => <ModelCard key={m.key} model={m} />)}
+          </div>
+        )}
+
+        {/* What is being asked for and why, in one compact row. */}
+        <div className="mt-4 grid min-w-0 gap-3 sm:grid-cols-[minmax(0,14rem)_1fr]">
+          <div className="rounded-xl border-2 border-accent/40 bg-emerald-50/60 px-4 py-3">
+            <p className="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-brand-600 uppercase">
+              <HandCoins className="h-4 w-4 text-accent" /> Loan amount
+            </p>
+            <p className="mt-0.5 text-2xl font-bold text-brand-800">{formatPeso(app.loan.amount)}</p>
+            <p className="text-sm text-brand-700">
+              {loanTypeLabel[app.loan.loanType]} · {app.loan.termMonths} months · {app.loan.monthlyRate}%/month
+            </p>
+            <p className="text-xs text-brand-500">{app.loan.paymentFrequency === 'quincenal' ? 'Deducted every payday' : 'Deducted monthly'}</p>
+          </div>
+          <div className={`min-w-0 rounded-xl border-2 px-4 py-3 ${app.loan.purpose ? 'border-brand-200 bg-white' : 'border-dashed border-amber-300 bg-amber-50/60'}`}>
+            <p className="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-brand-600 uppercase">
+              <MessageSquareText className="h-4 w-4 text-accent" /> Reason for the loan
+            </p>
+            {app.loan.purpose ? (
+              <p className="mt-0.5 text-lg font-semibold break-words text-ink">“{app.loan.purpose}”</p>
+            ) : (
+              <p className="mt-0.5 text-sm font-medium text-amber-800">No reason given. Ask the applicant before signing if it matters.</p>
+            )}
+          </div>
+        </div>
         <ApprovalTracker app={app} />
       </section>
-
-      {app.assessment && (
-        <div className="grid gap-4 xl:grid-cols-3">
-          {app.assessment.models.map((m) => <ModelCard key={m.key} model={m} />)}
-        </div>
-      )}
 
       <section className="card min-w-0 p-4 sm:p-5">
         <h3 className="mb-3 font-semibold text-brand-800">Details the models used</h3>
@@ -240,7 +249,7 @@ function RiskScale({ value, approve, deny }: { value: number; approve: number; d
   return (
     <div className="mt-4" aria-hidden="true">
       <div className="relative h-2.5 rounded-full bg-gradient-to-r from-emerald-400 via-amber-300 to-red-400">
-        <div className="absolute -top-1 h-4.5 w-1 -translate-x-1/2 rounded bg-white shadow" style={{ left: pct(value) }} />
+        <div className="animate-slide-in absolute -top-1 h-4.5 w-1 -translate-x-1/2 rounded bg-white shadow" style={{ left: pct(value) }} />
       </div>
       <div className="relative mt-1 h-4 text-[11px] text-brand-200">
         <span className="absolute left-0">Approve</span>

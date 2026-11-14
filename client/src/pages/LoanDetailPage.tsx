@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, FileText } from 'lucide-react'
+import { ArrowLeft, FileText, HandCoins } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import StatusBadge from '../components/StatusBadge'
 import { PaymentForm, ReleaseForm } from '../components/loans/LoanForms'
@@ -37,7 +37,7 @@ export default function LoanDetailPage() {
   if (!loan) {
     return (
       <>
-        <PageHeader title="Loan" actions={back} />
+        <PageHeader icon={HandCoins} title="Loan" actions={back} />
         {error ? <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{error}</p> : <p className="text-sm text-brand-500">Loading…</p>}
       </>
     )
@@ -50,7 +50,7 @@ export default function LoanDetailPage() {
 
   return (
     <>
-      <PageHeader
+      <PageHeader icon={HandCoins}
         title={loan.loanNo}
         subtitle={`${loan.borrowerName} · ${loanTypeLabel[loan.loanType]}${loan.applicationNo ? ` · from ${loan.applicationNo}` : ''}`}
         actions={

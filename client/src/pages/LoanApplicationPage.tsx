@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
-import { Send } from 'lucide-react'
+import { Send, FilePlus2 } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import AgreementSection from '../components/loan-application/AgreementSection'
 import ApplicantSection from '../components/loan-application/ApplicantSection'
@@ -200,7 +200,7 @@ export default function LoanApplicationPage() {
   if (!staffView && !ownMemberId) {
     return (
       <div className="mx-auto max-w-xl">
-        <PageHeader title="Apply for a Loan" subtitle="Mutual Assistance Application Form, United DNSC Employees, Inc." />
+        <PageHeader icon={FilePlus2} title="Apply for a Loan" subtitle="Mutual Assistance Application Form, United DNSC Employees, Inc." />
         <p className="card p-5 text-sm text-amber-800">
           Your account isn't linked to a member record yet. Ask the UDEI office to link it, then you can apply here.
         </p>
@@ -211,7 +211,7 @@ export default function LoanApplicationPage() {
 
   return (
     <form onSubmit={submit} noValidate className="mx-auto max-w-4xl min-w-0">
-      <PageHeader
+      <PageHeader icon={FilePlus2}
         title={staffView ? 'Loan Application' : 'Apply for a Loan'}
         subtitle="Mutual Assistance Application Form, United DNSC Employees, Inc. Supporting documents are read and checked against the form."
       />

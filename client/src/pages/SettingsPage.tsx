@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Building2, Percent, Plus, RotateCcw, Save, Wallet, X } from 'lucide-react'
+import { Building2, Percent, Plus, RotateCcw, Save, Wallet, X, Settings } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import UsersSection from '../components/settings/UsersSection'
 import { useAuth } from '../context/AuthContext'
@@ -126,7 +126,7 @@ export default function SettingsPage() {
 
   return (
     <>
-      <PageHeader
+      <PageHeader icon={Settings}
         title="Loan Settings"
         subtitle={session?.role === 'admin'
           ? 'Interest rates, terms and the minimum salary for Mutual Assistance loans, and who can sign loans.'

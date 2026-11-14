@@ -1,51 +1,44 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { ArrowLeft, Link2, Search, UserCheck, UserX } from 'lucide-react'
-import PageHeader from '../components/PageHeader'
-import StatCard from '../components/StatCard'
-import { useConfirm } from '../context/ConfirmContext'
-import { api } from '../lib/api'
-import { byMemberId } from '../lib/members'
-import type { Member } from '../lib/members'
-import { roleLabel } from '../lib/roles'
-import type { Role } from '../lib/roles'
+import { useMemo, useState } from 'react'
+import type { Dispatch, SetStateAction } from 'react'
+import { Link2, Search, SearchX, UserCheck, UserX } from 'lucide-react'
+import EmptyState from '../EmptyState'
+import Pagination from '../Pagination'
+import StatCard from '../StatCard'
+import { useConfirm } from '../../context/ConfirmContext'
+import { api } from '../../lib/api'
+import { isLinked, waitingToLink } from '../../lib/accounts'
+import type { Account } from '../../lib/accounts'
+import type { Member } from '../../lib/members'
+import { roleLabel } from '../../lib/roles'
 
-// newMemberId: only their own new ID (N-…) from sign-up, so not linked to a UDEI number yet.
-// memberNo: the number a phone-app member typed when signing up, a hint for linking.
-type Account = { id: string; fullName: string; email: string; role: Role; memberId: string | null; memberNo?: string | null; newMemberId?: boolean; createdAt?: string }
 type Show = 'unlinked' | 'linked' | 'all'
 
+export const ACCOUNTS_PER_PAGE = 10
+
 /**
- * Loan Officers and up link sign-in accounts to member records here. A member account sees the
- * loans and applications filed under its member ID, and its loan form is filled in from that record,
- * so only the office can set it.
+ * The "Sign-in accounts" tab on Members: Loan Officers and up link sign-in accounts to member
+ * records. A member account sees the loans and applications filed under its member ID, and its
+ * loan form is filled in from that record, so only the office can set it.
+ * The page loads the members and accounts (for the tab's count) and passes them in.
  */
-export default function MemberAccountsPage() {
+export default function MemberAccountsPanel({ members, accounts, setAccounts, loadError, page, onPage }: {
+  /** Sorted by member number. */
+  members: Member[]
+  accounts: Account[] | null
+  setAccounts: Dispatch<SetStateAction<Account[] | null>>
+  loadError: string
+  page: number
+  onPage: (page: number) => void
+}) {
   const confirm = useConfirm()
-  const [accounts, setAccounts] = useState<Account[] | null>(null)
-  const [members, setMembers] = useState<Member[]>([])
   const [drafts, setDrafts] = useState<Record<string, string>>({})
   const [savingId, setSavingId] = useState<string | null>(null)
   const [message, setMessage] = useState<{ tone: 'ok' | 'error'; text: string } | null>(null)
   const [query, setQuery] = useState('')
   const [show, setShow] = useState<Show>('unlinked')
 
-  useEffect(() => {
-    api<{ users: Account[] }>('/api/auth/users')
-      .then((d) => setAccounts(d.users))
-      .catch((err: unknown) => {
-        setAccounts([])
-        setMessage({ tone: 'error', text: err instanceof Error ? err.message : 'Could not load accounts.' })
-      })
-    api<{ members: Member[] }>('/api/members')
-      .then((d) => setMembers([...d.members].sort(byMemberId)))
-      .catch(() => setMembers([]))
-  }, [])
-
   const memberById = useMemo(() => new Map(members.map((m) => [m.memberId, m])), [members])
   const linkedTo = useMemo(() => new Map((accounts ?? []).filter((a) => a.memberId).map((a) => [a.memberId!, a])), [accounts])
-  const isLinked = (a: Account) => !!a.memberId && !a.newMemberId
-  const waiting = (a: Account) => !isLinked(a) && (a.role === 'staff' || (a.role as string) === 'member')
   // A new ID is not a UDEI number, so the box starts empty (or with the number they typed on the phone).
   const draftOf = (a: Account) => drafts[a.id] ?? (a.newMemberId ? '' : a.memberId ?? '')
 
@@ -53,13 +46,16 @@ export default function MemberAccountsPage() {
   const list = useMemo(() => {
     const q = query.trim().toLowerCase()
     return (accounts ?? []).filter((a) =>
-      (show === 'all' || (show === 'linked' ? isLinked(a) : waiting(a))) &&
+      (show === 'all' || (show === 'linked' ? isLinked(a) : waitingToLink(a))) &&
       (!q || a.fullName.toLowerCase().includes(q) || a.email.toLowerCase().includes(q) || (a.memberId ?? '').toLowerCase().includes(q)),
     )
   }, [accounts, query, show])
+  const pages = Math.max(1, Math.ceil(list.length / ACCOUNTS_PER_PAGE))
+  const current = Math.min(page, pages)
+  const visible = list.slice((current - 1) * ACCOUNTS_PER_PAGE, current * ACCOUNTS_PER_PAGE)
 
   const counts = {
-    unlinked: (accounts ?? []).filter(waiting).length,
+    unlinked: (accounts ?? []).filter(waitingToLink).length,
     linked: (accounts ?? []).filter(isLinked).length,
     all: accounts?.length ?? 0,
   }
@@ -123,21 +119,15 @@ export default function MemberAccountsPage() {
 
   return (
     <>
-      <PageHeader
-        title="Member Accounts"
-        subtitle="Link each sign-in account to its UDEI member number. A linked member sees only their own loans, can apply online, and gets their loan form filled in from their record."
-        actions={<Link to="/members" className="btn-ghost"><ArrowLeft className="h-4 w-4" /> Members</Link>}
-      />
-
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatCard icon={UserX} label="Waiting to be linked" value={String(counts.unlinked)} hint="New accounts with only their own new ID" />
-        <StatCard icon={UserCheck} label="Linked" value={String(counts.linked)} />
-        <StatCard icon={Link2} label="Sign-in accounts" value={String(counts.all)} />
+        <StatCard icon={UserX} label="Waiting to be linked" value={accounts ? String(counts.unlinked) : '…'} hint="New accounts with only their own new ID" />
+        <StatCard icon={UserCheck} label="Linked" value={accounts ? String(counts.linked) : '…'} />
+        <StatCard icon={Link2} label="Sign-in accounts" value={accounts ? String(counts.all) : '…'} />
       </div>
 
-      {message && (
-        <p className={`mb-4 rounded-lg px-4 py-3 text-sm ${message.tone === 'ok' ? 'bg-emerald-50 text-emerald-800' : 'bg-red-50 text-red-700'}`} role={message.tone === 'ok' ? 'status' : 'alert'}>
-          {message.text}
+      {(message || loadError) && (
+        <p className={`mb-4 rounded-lg px-4 py-3 text-sm ${message?.tone === 'ok' ? 'bg-emerald-50 text-emerald-800' : 'bg-red-50 text-red-700'}`} role={message?.tone === 'ok' ? 'status' : 'alert'}>
+          {message?.text ?? loadError}
         </p>
       )}
 
@@ -145,7 +135,7 @@ export default function MemberAccountsPage() {
         <div className="flex flex-col gap-3 border-b border-brand-100 p-4 lg:flex-row lg:items-center">
           <div className="flex flex-wrap gap-2" role="tablist" aria-label="Show">
             {tabs.map((t) => (
-              <button key={t.key} role="tab" aria-selected={show === t.key} onClick={() => setShow(t.key)}
+              <button key={t.key} role="tab" aria-selected={show === t.key} onClick={() => { setShow(t.key); onPage(1) }}
                 className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${show === t.key ? 'bg-brand-800 text-white' : 'bg-brand-50 text-brand-700 hover:bg-brand-100'}`}>
                 {t.label}
               </button>
@@ -153,7 +143,8 @@ export default function MemberAccountsPage() {
           </div>
           <div className="relative lg:ml-auto lg:w-80">
             <Search className="pointer-events-none absolute top-2.5 left-3 h-4 w-4 text-brand-400" />
-            <input className="input pl-9" placeholder="Search name, email or member no." value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search accounts" />
+            <input className="input pl-9" placeholder="Search name, email or member no." value={query}
+              onChange={(e) => { setQuery(e.target.value); onPage(1) }} aria-label="Search accounts" />
           </div>
         </div>
 
@@ -165,12 +156,12 @@ export default function MemberAccountsPage() {
           <p className="p-5 text-sm text-brand-500">Loading accounts…</p>
         ) : (
           <ul className="divide-y divide-brand-50">
-            {list.map((a) => {
+            {visible.map((a) => {
               const draft = draftOf(a).trim()
               const changed = a.newMemberId ? !!draft : draft !== (a.memberId ?? '')
               const record = draft ? memberById.get(draft) : undefined
               return (
-                <li key={a.id} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+                <li key={a.id} className="row-hover flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
                   <div className="min-w-0">
                     <p className="truncate font-semibold text-ink">{a.fullName}</p>
                     <p className="truncate text-xs text-brand-500">{a.email} · {roleLabel[a.role] ?? 'Phone app member'}</p>
@@ -205,12 +196,15 @@ export default function MemberAccountsPage() {
               )
             })}
             {list.length === 0 && (
-              <li className="px-4 py-10 text-center text-sm text-brand-500">
-                {show === 'unlinked' && !query ? 'Every member account is linked.' : 'No accounts match.'}
+              <li>
+                {show === 'unlinked' && !query
+                  ? <EmptyState icon={UserCheck} title="Every member account is linked." hint="New sign-ups show up here until you link them to their UDEI member number." />
+                  : <EmptyState icon={SearchX} title="No accounts match." hint="Try another name, email or member number, or show all accounts." />}
               </li>
             )}
           </ul>
         )}
+        <Pagination page={current} pageSize={ACCOUNTS_PER_PAGE} total={list.length} onPage={onPage} />
       </section>
     </>
   )

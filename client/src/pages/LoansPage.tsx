@@ -79,7 +79,7 @@ export default function LoansPage() {
 
   return (
     <>
-      <PageHeader
+      <PageHeader icon={HandCoins}
         title={staffView ? 'Loans' : 'My Loans'}
         subtitle={staffView
           ? 'Approved Mutual Assistance loans: releases, payments and balances.'
@@ -141,7 +141,7 @@ export default function LoansPage() {
             </thead>
             <tbody className="divide-y divide-brand-50">
               {filtered.map((l) => (
-                <tr key={l._id} className="cursor-pointer hover:bg-brand-50/50" onClick={() => navigate(`/loans/${l._id}`)}>
+                <tr key={l._id} className="row-hover cursor-pointer" onClick={() => navigate(`/loans/${l._id}`)}>
                   <td className="px-4 py-3 whitespace-nowrap">
                     <Link to={`/loans/${l._id}`} className="font-semibold text-ink hover:text-accent-dark" onClick={(e) => e.stopPropagation()}>
                       {l.loanNo}
@@ -198,7 +198,7 @@ export default function LoansPage() {
               </thead>
               <tbody className="divide-y divide-brand-50">
                 {carriedShown.map((c) => (
-                  <tr key={c.memberId}>
+                  <tr key={c.memberId} className="row-hover">
                     <td className="px-4 py-3 whitespace-nowrap">
                       <p className="font-semibold text-ink">{c.fullName}</p>
                       {!c.fullName.startsWith('Member No.') && <p className="text-xs text-brand-500">{c.memberId}</p>}

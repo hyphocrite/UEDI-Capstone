@@ -175,3 +175,7 @@ export const monthlyInstallment = (l: Pick<LoanApplication['loan'], 'amount' | '
   const r = l.monthlyRate / 100
   return r > 0 ? (l.amount * r) / (1 - (1 + r) ** -n) : l.amount / n
 }
+
+/** Pending, at the caller's step, and not already signed by them (same rule as GET /api/applications?awaiting=me). */
+export const awaitingUser = (a: LoanApplication, role: string | undefined, userId: string | undefined) =>
+  a.status === 'pending' && a.currentStep === role && !a.approvals.some((x) => x.signedBy === userId)

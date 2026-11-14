@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, Database, Gauge, ShieldCheck, Target } from 'lucide-react'
+import { AlertTriangle, Database, Gauge, ShieldCheck, Target, BrainCircuit } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import StatCard from '../components/StatCard'
 import { api } from '../lib/api'
@@ -51,7 +51,7 @@ export default function CreditModelPage() {
 
   return (
     <>
-      <PageHeader
+      <PageHeader icon={BrainCircuit}
         title="Credit Model"
         subtitle="How the loan-risk model behind Pending Loans was built and how it compares with 8 other classifiers."
       />
@@ -122,16 +122,16 @@ export default function CreditModelPage() {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r) => {
+                {rows.map((r, i) => {
                   const isEns = r.model === ENSEMBLE
                   return (
                     <tr key={r.model} onClick={() => setSelected(r.model)}
-                      className={`cursor-pointer border-b border-brand-50 last:border-0 hover:bg-brand-50/60 ${selected === r.model ? 'bg-brand-50' : ''}`}>
+                      className={`cursor-pointer border-b border-brand-50 last:border-0 row-hover ${selected === r.model ? 'bg-brand-50' : ''}`}>
                       <td className={`py-2.5 pr-3 whitespace-nowrap ${isEns ? 'font-semibold text-brand-800' : 'text-ink'}`}>{shortName(r.model)}</td>
                       <td className="py-2.5 pr-3">
                         <div className="flex items-center gap-3">
                           <div className="h-2 w-40 rounded-full bg-brand-50" title={`${r.aucRoc.toFixed(3)} ± ${r.aucRocSd.toFixed(3)}`}>
-                            <div className={`h-2 rounded-full ${isEns ? 'bg-accent' : 'bg-brand-300'}`} style={{ width: barWidth(r.aucRoc) }} />
+                            <div className={`animate-grow-right h-2 rounded-full ${isEns ? 'bg-accent' : 'bg-brand-300'}`} style={{ width: barWidth(r.aucRoc), animationDelay: `${i * 80}ms` }} />
                           </div>
                           <span className="tabular-nums">{r.aucRoc.toFixed(3)} <span className="text-xs text-brand-500">± {r.aucRocSd.toFixed(3)}</span></span>
                         </div>

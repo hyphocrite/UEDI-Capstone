@@ -73,7 +73,7 @@ export default function AttendancePage() {
 
   return (
     <>
-      <PageHeader
+      <PageHeader icon={CalendarCheck}
         title="Attendance"
         subtitle="Member meetings and PMES sessions. Who attends is part of the member score."
         actions={<button className="btn-primary" onClick={() => setCreating(true)}><Plus className="h-4 w-4" /> Record a meeting</button>}
