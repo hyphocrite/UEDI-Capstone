@@ -3,6 +3,7 @@ import {
   ArrowRight, BarChart3, BellRing, CalendarCheck, ChevronDown, CircleCheck, Cpu, HandCoins, Link2, PenLine,
   PiggyBank, ShieldCheck, Smartphone, UserPlus, Users, Wallet,
 } from 'lucide-react'
+import dnscSeal from '../assets/dnsc-seal.png'
 import BrandLogo from '../components/BrandLogo'
 import Motif from '../components/Motif'
 import { useAuth } from '../context/AuthContext'
@@ -131,8 +132,14 @@ export default function HomePage() {
           </div>
 
           <div className="card border-white/10 bg-white/95 p-6 text-ink shadow-xl">
-            <p className="text-sm font-semibold text-brand-700">Retirement plan snapshot</p>
-            <p className="mt-1 text-xs text-brand-500">Sample member</p>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-brand-700">Retirement plan snapshot</p>
+                <p className="mt-1 text-xs text-brand-500">Sample member</p>
+              </div>
+              {/* UDEI is the DNSC employees' association. */}
+              <img src={dnscSeal} alt="Davao del Norte State College seal" draggable={false} className="h-[50px] w-[50px] shrink-0 select-none" />
+            </div>
             <div className="mt-4 flex items-end justify-between">
               <div>
                 <p className="text-sm text-brand-600">Remaining to pay</p>

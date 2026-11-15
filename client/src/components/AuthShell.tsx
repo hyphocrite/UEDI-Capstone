@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
+import dnscSeal from '../assets/dnsc-seal.png'
 import BrandLogo from './BrandLogo'
 import Motif from './Motif'
 
@@ -20,12 +21,17 @@ export default function AuthShell({ title, subtitle, children, footer }: Props) 
         <Motif corner="bottom-left" className="w-[min(80vw,34rem)] text-brand-600/70" />
         <Motif corner="top-right" className="hidden w-[min(45vw,24rem)] text-brand-600/50 sm:block" />
         <div className="relative w-full max-w-md">
-          <div className="card p-8 shadow-lg">
-            <h1 className="text-2xl font-bold text-brand-800">{title}</h1>
-            <p className="mt-1 text-sm text-brand-600">{subtitle}</p>
-            <div className="mt-6">{children}</div>
+          <div className="relative">
+            {/* The DNSC seal behind the card, as on the home page. */}
+            <img src={dnscSeal} alt="" aria-hidden="true" draggable={false}
+              className="pointer-events-none absolute top-1/2 left-1/2 w-[min(110vw,38rem)] max-w-none -translate-x-1/2 -translate-y-1/2 opacity-15 select-none print:hidden" />
+            <div className="card relative p-8 shadow-lg">
+              <h1 className="text-2xl font-bold text-brand-800">{title}</h1>
+              <p className="mt-1 text-sm text-brand-600">{subtitle}</p>
+              <div className="mt-6">{children}</div>
+            </div>
           </div>
-          <p className="mt-6 text-center text-sm text-brand-600">{footer}</p>
+          <p className="relative mt-6 text-center text-sm text-brand-600">{footer}</p>
         </div>
       </main>
     </div>
