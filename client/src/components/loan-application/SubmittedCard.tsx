@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { CheckCircle2 } from 'lucide-react'
 import SuggestionBadge from '../pending-loans/SuggestionBadge'
-import { loanTypeLabel } from '../../lib/applications'
+import { creditScore, loanTypeLabel } from '../../lib/applications'
 import type { LoanApplication } from '../../lib/applications'
 import { formatPeso } from '../../lib/format'
 
@@ -38,7 +38,7 @@ export default function SubmittedCard({ application: app, onNew, staffView }: Pr
         {ensemble ? (
           <div className="mt-2 flex flex-wrap items-center justify-center gap-3">
             <SuggestionBadge suggestion={ensemble.suggestion} large />
-            <span className="text-sm text-brand-700">Risk score {Math.round(ensemble.defaultProbability * 100)} / 100</span>
+            <span className="text-sm text-brand-700">Credit score {creditScore(ensemble.defaultProbability)} / 100</span>
           </div>
         ) : (
           <p className="mt-2 text-sm text-amber-800">

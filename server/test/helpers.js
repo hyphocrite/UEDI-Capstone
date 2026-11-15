@@ -37,6 +37,8 @@ function startFakeMl() {
             models: [model("xgboost", "XGBoost"), model("random_forest", "Random Forest"), model("logistic_regression", "Logistic Regression")],
             thresholds: { approve: 0.2, deny: 0.5 },
             modelVersion: "test",
+            // A SHAP waterfall that adds up: -2 + 0.9 - 0.4 + 0.1 = -1.4.
+            shap: { model: "xgboost", scale: "log-odds", baseValue: -2, factors: [{ feature: "late_payment_rate", label: "Late payment rate", value: 0.2, shap: 0.9 }, { feature: "years_as_member", label: "Years as member", value: 5, shap: -0.4 }], otherFeatures: 0.1, output: -1.4, outputProbability: 0.1978 },
           }),
         );
       });

@@ -77,3 +77,25 @@ def test_benchmark(client, tmp_path, monkeypatch):
     assert [d["key"] for d in body["datasets"]] == ["german_credit"]
     assert body["datasets"][0]["results"] == [row]
     assert body["confusion"] is None
+
+
+def test_shap_waterfall_adds_up_to_the_xgboost_score(client):
+    body = client.post("/predict", json=RISKY).json()
+    w = body["shap"]
+    assert w["model"] == "xgboost" and w["scale"] == "log-odds"
+    assert 0 < len(w["factors"]) <= 8
+    assert all(f["label"] and isinstance(f["shap"], float) for f in w["factors"])
+    total = w["baseValue"] + sum(f["shap"] for f in w["factors"]) + w["otherFeatures"]
+    assert abs(total - w["output"]) < 1e-3, "base value plus every SHAP value equals the model output"
+    shown = next(m for m in body["models"] if m["key"] == "xgboost")["defaultProbability"]
+    assert abs(w["outputProbability"] - shown) < 1e-3, "the waterfall ends at the XGBoost model's displayed chance of default"
+    # Largest first.
+    sizes = [abs(f["shap"]) for f in w["factors"]]
+    assert sizes == sorted(sizes, reverse=True)
+
+
+def test_metrics_have_a_shap_summary(client):
+    metrics = client.get("/model").json()
+    imp = metrics["globalImportance"]
+    assert imp and all(i["label"] and i["meanAbsShap"] >= 0 for i in imp)
+    assert [i["meanAbsShap"] for i in imp] == sorted((i["meanAbsShap"] for i in imp), reverse=True)

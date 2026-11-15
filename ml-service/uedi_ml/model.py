@@ -135,7 +135,10 @@ class LoanRiskModel:
         }
         ensemble = self.stack.predict_proba(X)[:, 1]
 
-        xgb_contrib = bases["xgboost"].get_booster().predict(xgb.DMatrix(X), pred_contribs=True)[:, :-1]
+        # TreeSHAP: one column per feature plus the bias (the explainer's expected value) last,
+        # in the class-weighted XGBoost model's log-odds of default.
+        xgb_all = bases["xgboost"].get_booster().predict(xgb.DMatrix(X), pred_contribs=True)
+        xgb_contrib = xgb_all[:, :-1]
         rf_contrib = self._rf_shap(X)
         lr = bases["logistic_regression"]
         lr_contrib = lr.named_steps["scale"].transform(X) * lr.named_steps["lr"].coef_[0]
@@ -173,9 +176,41 @@ class LoanRiskModel:
                     "models": models,
                     "thresholds": {"approve": self.thresholds.approve, "deny": self.thresholds.deny},
                     "modelVersion": self.metrics.get("version"),
+                    "shap": self._waterfall(xgb_all[i], X.iloc[i]),
                 }
             )
         return results
+
+    def _waterfall(self, contribs: np.ndarray, row: pd.Series, top: int = 8) -> dict:
+        """What a SHAP waterfall needs for the XGBoost model, for one application.
+
+        Scale: log-odds of default, after the same Platt calibration as XGBoost's displayed
+        chance of default. TreeSHAP gives raw log-odds (bias + one value per feature = the raw
+        margin); the calibrator maps the margin linearly (slope a, intercept b), so every value
+        is multiplied by a and the base shifted to a*bias + b. They still add up exactly:
+        baseValue + sum(factors) + otherFeatures = output, and sigmoid(output) is the XGBoost
+        model's displayed chance of default. Positive values push toward default.
+        """
+        cal = self.calibrators.get("xgboost")
+        a, b = (float(cal.coef_[0][0]), float(cal.intercept_[0])) if cal is not None else (1.0, 0.0)
+        values = contribs[:-1] * a
+        base = float(contribs[-1]) * a + b
+        order = np.argsort(-np.abs(values))
+        kept = [j for j in order[:top] if abs(values[j]) > 1e-9]
+        rest = float(sum(values[j] for j in order[top:]))
+        output = base + float(values.sum())
+        return {
+            "model": "xgboost",
+            "scale": "log-odds",
+            "baseValue": round(base, 4),
+            "factors": [
+                {"feature": self.features[j], "label": FEATURE_LABELS[self.features[j]], "value": round(float(row[self.features[j]]), 4), "shap": round(float(values[j]), 4)}
+                for j in kept
+            ],
+            "otherFeatures": round(rest, 4),
+            "output": round(output, 4),
+            "outputProbability": round(float(1 / (1 + np.exp(-output))), 4),
+        }
 
 
 def to_logit(p):

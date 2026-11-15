@@ -8,7 +8,7 @@ import SuggestionBadge from '../components/pending-loans/SuggestionBadge'
 import { MascotSays } from '../components/mascot/Mascot'
 import { useAuth } from '../context/AuthContext'
 import { api } from '../lib/api'
-import { awaitingUser, loanTypeLabel } from '../lib/applications'
+import { awaitingUser, creditScore, loanTypeLabel } from '../lib/applications'
 import type { LoanApplication, ModelInfo } from '../lib/applications'
 import { formatDate, formatPeso } from '../lib/format'
 import { isSigner, stepShortLabel } from '../lib/roles'
@@ -179,7 +179,7 @@ export default function PendingLoansPage() {
                     </p>
                     <p className="mt-0.5 text-xs text-brand-500">
                       {a.applicationNo}
-                      {s && ` · ${Math.round(s.defaultProbability * 100)}% risk`}
+                      {s && ` · credit score ${creditScore(s.defaultProbability)}`}
                     </p>
                     {a.status === 'pending' && a.currentStep !== 'none' && (
                       <>

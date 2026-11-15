@@ -34,22 +34,34 @@ export function MascotSays({ mood = 'neutral', title, tone = 'light', children }
 }
 
 /**
- * Kuwi's reasons, marked so "against" and "in favor" can't be mixed up: a red cross or a green
- * check on every line, not just on the heading.
+ * Kuwi's reasons in a bordered callout, the same shape as KuwiTips, so "against" (red),
+ * "in favor" (green) and the tips (amber) read as three separate boxes. A cross or a check on
+ * every line too, not only the colour. h-full keeps the two boxes equal in a row.
  */
-export function KuwiReasons({ kind, items, tone = 'light' }: { kind: 'against' | 'favor'; items: string[]; tone?: 'light' | 'dark' }) {
-  const against = kind === 'against'
-  const Icon = against ? CircleX : CircleCheck
-  const color = tone === 'dark' ? (against ? 'text-red-300' : 'text-emerald-300') : against ? 'text-red-600' : 'text-emerald-600'
+const reasonTones = {
+  against: {
+    light: { box: 'border-red-400 bg-red-50 text-red-950', head: 'text-red-800', icon: 'text-red-600', empty: 'text-red-900/70' },
+    dark: { box: 'border-red-300 bg-red-300/15 text-red-50', head: 'text-red-200', icon: 'text-red-300', empty: 'text-red-100/80' },
+  },
+  favor: {
+    light: { box: 'border-emerald-400 bg-emerald-50 text-emerald-950', head: 'text-emerald-800', icon: 'text-emerald-600', empty: 'text-emerald-900/70' },
+    dark: { box: 'border-emerald-300 bg-emerald-300/15 text-emerald-50', head: 'text-emerald-200', icon: 'text-emerald-300', empty: 'text-emerald-100/80' },
+  },
+} as const
+
+export function KuwiReasons({ kind, items, tone = 'light', title }: { kind: 'against' | 'favor'; items: string[]; tone?: 'light' | 'dark'; title?: string }) {
+  const Icon = kind === 'against' ? CircleX : CircleCheck
+  const t = reasonTones[kind][tone]
+  const heading = title ?? (kind === 'against' ? 'Against' : 'In favor')
   return (
-    <div>
-      <p className={`flex items-center gap-1.5 text-xs font-semibold tracking-wide uppercase ${color}`}>
-        <Icon className="h-3.5 w-3.5" /> {against ? 'Against' : 'In favor'}
+    <div className={`h-full rounded-lg border-l-4 px-3 py-2.5 ${t.box}`} role="note" aria-label={heading}>
+      <p className={`flex items-center gap-1.5 text-xs font-bold tracking-wide uppercase ${t.head}`}>
+        <Icon className="h-4 w-4" /> {heading}
       </p>
       <ul className="mt-1.5 space-y-1.5">
-        {items.length ? items.map((t) => (
-          <li key={t} className="flex gap-2"><Icon className={`mt-0.5 h-4 w-4 shrink-0 ${color}`} /> <span>{t}</span></li>
-        )) : <li className={tone === 'dark' ? 'text-brand-200' : 'text-brand-500'}>Nothing stood out.</li>}
+        {items.length ? items.map((text) => (
+          <li key={text} className="flex gap-2"><Icon className={`mt-0.5 h-4 w-4 shrink-0 ${t.icon}`} /> <span>{text}</span></li>
+        )) : <li className={t.empty}>Nothing stood out.</li>}
       </ul>
     </div>
   )

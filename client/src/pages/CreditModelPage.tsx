@@ -3,6 +3,7 @@ import { AlertTriangle, Database, Gauge, ShieldCheck, Target, BrainCircuit } fro
 import PageHeader from '../components/PageHeader'
 import StatCard from '../components/StatCard'
 import { api } from '../lib/api'
+import { scoreLine } from '../lib/applications'
 import type { Benchmark, BenchmarkDataset, ConfusionMatrix, ModelInfo } from '../lib/applications'
 import { formatDate } from '../lib/format'
 
@@ -69,8 +70,8 @@ export default function CreditModelPage() {
         <StatCard
           icon={ShieldCheck}
           label="Suggestion cut-offs"
-          value={model?.thresholds ? `${pct(model.thresholds.approve)} / ${pct(model.thresholds.deny)}` : '–'}
-          hint="Approve below / deny from, chance of default"
+          value={model?.thresholds ? `${Math.round(scoreLine(model.thresholds.deny))} / ${Math.round(scoreLine(model.thresholds.approve))}` : '–'}
+          hint="Credit score: deny at or below / approve above"
         />
         <StatCard
           icon={Database}
@@ -79,6 +80,8 @@ export default function CreditModelPage() {
           hint={model ? `${pct(model.defaultRate)} bad, ${formatDate(model.trainedAt)}` : 'ML service not reachable'}
         />
       </div>
+
+      {model && <ShapSummary items={model.globalImportance} />}
 
       <section className="card mb-6 p-5">
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -185,5 +188,35 @@ function ConfusionGrid({ cm }: { cm: ConfusionMatrix }) {
       {cell(fn, bad, 'Missed', 'wrong')}
       {cell(tp, bad, 'Caught', 'right')}
     </div>
+  )
+}
+
+/** SHAP summary: which factors move the XGBoost model's scores most across all training loans. */
+function ShapSummary({ items }: { items: ModelInfo['globalImportance'] }) {
+  return (
+    <section className="card mb-6 p-5" aria-labelledby="shap-summary">
+      <h2 id="shap-summary" className="text-lg font-semibold text-brand-800">Which factors matter most overall (SHAP summary)</h2>
+      <p className="text-sm text-brand-600">
+        Average size of each factor's push on the XGBoost model's score over the training loans (mean |SHAP|, log-odds). Longer bars matter more, either way.
+      </p>
+      {!items?.length ? (
+        <p className="mt-4 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          This model was trained before the SHAP summary existed. Retrain it to see the chart: <code>npm run ml:train</code>.
+        </p>
+      ) : (
+        <ol className="mt-4 space-y-2">
+          {items.map((f, i) => (
+            <li key={f.feature} className="grid grid-cols-1 items-center gap-x-3 gap-y-0.5 text-sm sm:grid-cols-[16rem_1fr_3.5rem]">
+              <span className="min-w-0 truncate text-ink" title={f.label}>{f.label}</span>
+              <span className="h-3 overflow-hidden rounded-full bg-brand-50">
+                <span className="animate-grow-right block h-full rounded-full bg-accent bg-grad-bar-x"
+                  style={{ width: `${Math.max(2, (f.meanAbsShap / items[0].meanAbsShap) * 100)}%`, animationDelay: `${i * 40}ms` }} />
+              </span>
+              <span className="text-xs text-brand-600 tabular-nums sm:text-right">{f.meanAbsShap.toFixed(3)}</span>
+            </li>
+          ))}
+        </ol>
+      )}
+    </section>
   )
 }

@@ -34,6 +34,23 @@ export type Assessment = {
   thresholds: { approve: number; deny: number }
   modelVersion?: string
   assessedAt?: string
+  /** XGBoost SHAP waterfall (staff only); missing on applications scored before it existed. */
+  shap?: ShapWaterfall
+}
+
+/**
+ * SHAP waterfall for the XGBoost model, in log-odds of default (calibrated like its displayed score):
+ * baseValue + sum(factors[].shap) + otherFeatures = output, and outputProbability = sigmoid(output).
+ * Positive values push toward default.
+ */
+export type ShapWaterfall = {
+  model: 'xgboost'
+  scale: 'log-odds'
+  baseValue: number
+  factors: { feature: string; label: string; value: number; shap: number }[]
+  otherFeatures: number
+  output: number
+  outputProbability: number
 }
 
 export type LoanApplication = {
@@ -128,6 +145,8 @@ export type ModelInfo = {
   validation: string
   models: Record<string, CvMetrics>
   thresholds?: { approve: number; deny: number }
+  /** SHAP summary: mean absolute SHAP value per feature for XGBoost, largest first. Missing until retrained. */
+  globalImportance?: { feature: string; label: string; meanAbsShap: number }[]
 }
 
 /** One model's row from ml-service/benchmark.py: means and standard deviations over 25 test folds. */
@@ -191,3 +210,13 @@ export const canChange = (a: LoanApplication, userId: string | undefined) =>
 /** ...and add supporting documents until it is decided, after signatures too (POST /api/applications/:id/documents). */
 export const canAddDocuments = (a: LoanApplication, userId: string | undefined) =>
   !!userId && a.submittedBy === userId && a.status === 'pending'
+
+/**
+ * Display only: the loan application model's chance of default (stored and sent as
+ * defaultProbability, 0 to 1) as a credit score from 0 to 100, where higher is safer.
+ * Not for the early-warning model, which stays a percentage.
+ */
+export const creditScore = (p: number) => Math.round(100 * (1 - p))
+
+/** A chance-of-default cut-off on the credit score scale: approve line = 100 × (1 − approve), deny line = 100 × (1 − deny). */
+export const scoreLine = (p: number) => 100 * (1 - p)

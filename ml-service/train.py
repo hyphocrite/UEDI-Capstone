@@ -25,7 +25,9 @@ from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_sc
 from sklearn.model_selection import StratifiedKFold, cross_val_predict
 
 from uedi_ml.dataset import LABEL, load_training_csv
-from uedi_ml.features import ALL_FEATURES, build_features
+import xgboost as xgb
+
+from uedi_ml.features import ALL_FEATURES, FEATURE_LABELS, build_features
 from uedi_ml.model import BASE_MODELS, LoanRiskModel, Thresholds, fit_calibrator, make_base_models, make_stack, to_logit
 
 HERE = Path(__file__).parent
@@ -88,6 +90,16 @@ def print_threshold_table(table: list[dict], thresholds: Thresholds):
         mark = "  <- approve line" if r["threshold"] == thresholds.approve else "  <- deny line" if r["threshold"] == thresholds.deny else ""
         rate = f"{r['defaultRateAtOrAbove']:.0%}" if r["defaultRateAtOrAbove"] is not None else "-"
         print(f"  {r['threshold']:>7.0%}  {r['shareBelow']:>17.0%}  {r['defaultsBelow']:>24.0%}  {rate:>21}{mark}")
+
+
+def global_importance(stack, X: pd.DataFrame, features: list[str], sample: int = 1000) -> list[dict]:
+    """SHAP summary for the XGBoost model: the mean absolute TreeSHAP value of each feature over
+    the training data (up to `sample` rows), largest first. Log-odds of default, like the waterfall."""
+    rows = X.sample(n=min(sample, len(X)), random_state=42) if len(X) > sample else X
+    contribs = stack.named_estimators_["xgboost"].get_booster().predict(xgb.DMatrix(rows), pred_contribs=True)[:, :-1]
+    mean_abs = np.abs(contribs).mean(axis=0)
+    order = np.argsort(-mean_abs)
+    return [{"feature": features[j], "label": FEATURE_LABELS[features[j]], "meanAbsShap": round(float(mean_abs[j]), 4)} for j in order]
 
 
 def train(
@@ -185,6 +197,7 @@ def train(
             "thresholds": {"approve": thresholds.approve, "deny": thresholds.deny},
             "thresholdTable": table,
             "warnings": checked.warnings,
+            "globalImportance": global_importance(stack, X, features),
         }
     )
 
