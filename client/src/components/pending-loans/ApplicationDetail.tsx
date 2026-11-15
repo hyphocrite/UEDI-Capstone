@@ -1,14 +1,15 @@
 import { useState } from 'react'
-import { AlertTriangle, CheckCircle2, Eye, HandCoins, MessageSquareText, RefreshCw, XCircle } from 'lucide-react'
+import { AlertTriangle, BarChart3, CheckCircle2, ChevronDown, Eye, HandCoins, MessageSquareText, RefreshCw, XCircle } from 'lucide-react'
 import ApprovalPanel from './ApprovalPanel'
 import BookkeeperBalances from './BookkeeperBalances'
 import ApprovalTracker from './ApprovalTracker'
 import ModelCard from './ModelCard'
+import ShapWaterfall from './ShapWaterfall'
 import DocumentViewer from './DocumentViewer'
 import { api } from '../../lib/api'
 import { KuwiReasons, KuwiTips, MascotSays } from '../mascot/Mascot'
 import { useConfirm } from '../../context/ConfirmContext'
-import { employmentStatusLabel, loanTypeLabel, monthlyInstallment } from '../../lib/applications'
+import { creditScore, employmentStatusLabel, loanTypeLabel, monthlyInstallment, scoreLine } from '../../lib/applications'
 import type { LoanApplication, Suggestion } from '../../lib/applications'
 import { formatDate, formatPeso } from '../../lib/format'
 import { documentType } from '../../lib/ocr/documentTypes'
@@ -32,6 +33,8 @@ export default function ApplicationDetail({ app, onChange }: { app: LoanApplicat
   const [busy, setBusy] = useState<'rescore' | null>(null)
   const [viewing, setViewing] = useState<number | null>(null)
   const [error, setError] = useState('')
+  // The SHAP chart starts open on wide screens and folded on phones.
+  const [wideScreen] = useState(() => typeof window === 'undefined' || window.matchMedia('(min-width: 640px)').matches)
 
   const a = app.applicant
   const installment = monthlyInstallment(app.loan)
@@ -86,9 +89,13 @@ export default function ApplicationDetail({ app, onChange }: { app: LoanApplicat
           <div className="mt-4 rounded-xl bg-[#0B422A] bg-grad-hero p-5 text-center text-white sm:p-6">
             <p className="text-xs font-semibold tracking-wider text-brand-200 uppercase">ML suggestion</p>
             <p className={`mt-1 text-4xl font-bold ${suggestionTone[e.suggestion]}`}>{suggestionText[e.suggestion]}</p>
-            <p className="mt-1 text-brand-100">{Math.round(e.defaultProbability * 100)}% estimated chance of default</p>
+            <p className="mt-2 text-lg text-white">
+              Credit score <b className="text-2xl tabular-nums">{creditScore(e.defaultProbability)}</b> <span className="text-brand-200">/ 100</span>
+            </p>
+            {/* The probability the score comes from, for the signers. */}
+            <p className="text-xs text-brand-200">about {Math.round(e.defaultProbability * 100)}% estimated chance of default</p>
             <div className="text-left">
-              <RiskScale value={e.defaultProbability} approve={app.assessment!.thresholds.approve} deny={app.assessment!.thresholds.deny} />
+              <CreditScoreScale score={creditScore(e.defaultProbability)} approveLine={scoreLine(app.assessment!.thresholds.approve)} denyLine={scoreLine(app.assessment!.thresholds.deny)} />
             </div>
             <p className="mx-auto mt-3 max-w-2xl text-sm text-brand-100">
               <b className="text-white">{agree} of 3 models agree.</b> The final score combines XGBoost, Random Forest and Logistic Regression
@@ -111,6 +118,25 @@ export default function ApplicationDetail({ app, onChange }: { app: LoanApplicat
           <p className="mt-4 flex items-center justify-center gap-2 rounded-lg bg-amber-50 px-4 py-6 text-center text-sm text-amber-800">
             <AlertTriangle className="h-4 w-4 shrink-0" /> Not scored yet{app.assessmentError ? `: ${app.assessmentError}` : '.'}
           </p>
+        )}
+
+        {/* Under Kuwi's words, the chart they come from. Staff only (members never get the assessment). */}
+        {app.assessment && (
+          <details className="group mt-4 rounded-xl border border-brand-100 bg-white p-4" open={wideScreen}>
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-semibold text-brand-800 [&::-webkit-details-marker]:hidden">
+              <span className="flex items-center gap-2"><BarChart3 className="h-4 w-4 text-accent-dark" /> Why the model scored it this way (SHAP waterfall)</span>
+              <ChevronDown className="h-4 w-4 shrink-0 text-brand-500 transition group-open:rotate-180" />
+            </summary>
+            <div className="mt-3">
+              {app.assessment.shap ? (
+                <ShapWaterfall data={app.assessment.shap} />
+              ) : (
+                <p className="text-sm text-brand-500">
+                  Scored before this chart existed.{app.status === 'pending' ? ' Run models again to see it.' : ''}
+                </p>
+              )}
+            </div>
+          </details>
         )}
 
         {/* The three models behind the suggestion, as supporting evidence. */}
@@ -238,17 +264,22 @@ function Item({ label, value, warn = false }: { label: string; value: string; wa
   )
 }
 
-function RiskScale({ value, approve, deny }: { value: number; approve: number; deny: number }) {
-  const pct = (n: number) => `${Math.min(100, Math.max(0, n * 100))}%`
+/**
+ * Credit score 0 to 100, left to right: the deny band at the low (risky) end, review in the middle,
+ * approve at the high end. Lines: deny = 100 × (1 − thresholds.deny), approve = 100 × (1 − thresholds.approve).
+ */
+function CreditScoreScale({ score, approveLine, denyLine }: { score: number; approveLine: number; denyLine: number }) {
+  const at = (n: number) => `${Math.min(100, Math.max(0, n))}%`
+  const bands = `linear-gradient(to right, #f87171 0%, #f87171 ${at(denyLine)}, #fcd34d ${at(denyLine)}, #fcd34d ${at(approveLine)}, #34d399 ${at(approveLine)}, #34d399 100%)`
   return (
     <div className="mt-4" aria-hidden="true">
-      <div className="relative h-2.5 rounded-full bg-gradient-to-r from-emerald-400 via-amber-300 to-red-400">
-        <div className="animate-slide-in absolute -top-1 h-4.5 w-1 -translate-x-1/2 rounded bg-white shadow" style={{ left: pct(value) }} />
+      <div className="relative h-2.5 rounded-full" style={{ backgroundImage: bands }}>
+        <div className="animate-slide-in absolute -top-1 h-4.5 w-1 -translate-x-1/2 rounded bg-white shadow" style={{ left: at(score) }} />
       </div>
       <div className="relative mt-1 h-4 text-[11px] text-brand-200">
-        <span className="absolute left-0">Approve</span>
-        <span className="absolute -translate-x-1/2" style={{ left: pct((approve + deny) / 2) }}>Review</span>
-        <span className="absolute right-0">Deny</span>
+        <span className="absolute left-0">0 · Deny</span>
+        <span className="absolute -translate-x-1/2" style={{ left: at((denyLine + approveLine) / 2) }}>Review</span>
+        <span className="absolute right-0">Approve · 100</span>
       </div>
     </div>
   )

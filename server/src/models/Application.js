@@ -81,6 +81,24 @@ const assessmentSchema = new mongoose.Schema(
     models: [modelScoreSchema],
     thresholds: { approve: Number, deny: Number },
     modelVersion: String,
+    // SHAP waterfall for the XGBoost model (staff only). Log-odds of default, calibrated like
+    // XGBoost's displayed score: baseValue + sum(factors.shap) + otherFeatures = output, and
+    // outputProbability = sigmoid(output). Missing on applications scored before it existed.
+    shap: {
+      type: new mongoose.Schema(
+        {
+          model: String,
+          scale: String,
+          baseValue: Number,
+          factors: [new mongoose.Schema({ feature: String, label: String, value: Number, shap: Number }, { _id: false })],
+          otherFeatures: Number,
+          output: Number,
+          outputProbability: Number,
+        },
+        { _id: false },
+      ),
+      default: undefined,
+    },
     assessedAt: { type: Date, default: Date.now },
   },
   { _id: false },

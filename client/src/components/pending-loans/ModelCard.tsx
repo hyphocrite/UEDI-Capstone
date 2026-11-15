@@ -1,3 +1,4 @@
+import { creditScore } from '../../lib/applications'
 import type { ModelScore } from '../../lib/applications'
 import SuggestionBadge from './SuggestionBadge'
 
@@ -26,8 +27,8 @@ export default function ModelCard({ model }: { model: ModelScore }) {
       </div>
 
       <p className="mt-3 text-3xl font-bold text-ink">
-        {Math.round(model.defaultProbability * 100)}%
-        <span className="ml-1 text-sm font-medium text-brand-500">chance of default</span>
+        {creditScore(model.defaultProbability)}
+        <span className="ml-1 text-sm font-medium text-brand-500">/ 100 credit score</span>
       </p>
       {model.cvMetrics && (
         <p className="text-xs text-brand-500">

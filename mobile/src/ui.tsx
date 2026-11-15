@@ -230,3 +230,27 @@ export function MascotSays({ mood = 'neutral', title, children }: { mood?: keyof
     </View>
   )
 }
+
+// Kuwi's callouts, as on the web: a left border, a light fill and a coloured heading, so the
+// reasons (red) and the tips (amber) read as separate boxes.
+const kuwiBoxTones = {
+  against: { border: '#f87171', bg: '#fef2f2', head: '#991b1b', text: '#450a0a', mark: '✕' },
+  tips: { border: '#fbbf24', bg: '#fffbeb', head: '#92400e', text: '#451a03', mark: '→' },
+} as const
+
+export function KuwiBox({ kind, title, items }: { kind: keyof typeof kuwiBoxTones; title: string; items: string[] }) {
+  const t = kuwiBoxTones[kind]
+  if (!items.length) return null
+  return (
+    <View accessibilityRole="summary" accessibilityLabel={title}
+      style={{ marginTop: 8, borderLeftWidth: 4, borderLeftColor: t.border, backgroundColor: t.bg, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8 }}>
+      <Text style={{ color: t.head, fontWeight: '800', fontSize: 11, letterSpacing: 0.5, textTransform: 'uppercase' }}>{title}</Text>
+      {items.map((item) => (
+        <View key={item} style={{ flexDirection: 'row', gap: 6, marginTop: 4 }}>
+          <Text style={{ color: t.border, fontWeight: '800' }}>{t.mark}</Text>
+          <Text style={{ color: t.text, flex: 1 }}>{item}</Text>
+        </View>
+      ))}
+    </View>
+  )
+}
