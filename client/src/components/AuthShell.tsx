@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import dnscSeal from '../assets/dnsc-seal.png'
 import BrandLogo from './BrandLogo'
-import Motif from './Motif'
+import CornerPattern from './CornerPattern'
 
 type Props = { title: string; subtitle: string; children: ReactNode; footer: ReactNode }
 
@@ -17,9 +17,8 @@ export default function AuthShell({ title, subtitle, children, footer }: Props) 
         </div>
       </header>
       <main className="relative flex flex-1 items-center justify-center overflow-hidden px-4 py-12">
-        {/* The UDEI motif in two corners, clearest at the edge and fading toward the form. */}
-        <Motif corner="bottom-left" className="w-[min(80vw,34rem)] text-brand-600/70" />
-        <Motif corner="top-right" className="hidden w-[min(45vw,24rem)] text-brand-600/50 sm:block" />
+        {/* Lines and arcs in the corners, framing the card. */}
+        <CornerPattern className="text-brand-600/70" />
         <div className="relative w-full max-w-md">
           <div className="relative">
             {/* The DNSC seal behind the card, as on the home page. */}
