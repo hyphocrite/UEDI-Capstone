@@ -9,6 +9,8 @@ const ACTIONS = [
   ["POST", /^\/api\/auth\/register$/, "Account created"],
   ["POST", /^\/api\/auth\/verify-email$/, "Email verified"],
   ["POST", /^\/api\/auth\/resend-verification$/, "Verification code resent"],
+  ["POST", /^\/api\/auth\/forgot-password$/, "Password reset code requested"],
+  ["POST", /^\/api\/auth\/reset-password$/, "Password reset"],
   ["POST", /^\/api\/auth\/login$/, "Signed in"],
   ["POST", /^\/api\/auth\/logout$/, "Signed out"],
   ["POST", /^\/api\/auth\/refresh$/, "Stayed signed in"],

@@ -6,7 +6,7 @@ import ApprovalTracker from './ApprovalTracker'
 import ModelCard from './ModelCard'
 import DocumentViewer from './DocumentViewer'
 import { api } from '../../lib/api'
-import { MascotSays } from '../mascot/Mascot'
+import { KuwiReasons, KuwiTips, MascotSays } from '../mascot/Mascot'
 import { useConfirm } from '../../context/ConfirmContext'
 import { employmentStatusLabel, loanTypeLabel, monthlyInstallment } from '../../lib/applications'
 import type { LoanApplication, Suggestion } from '../../lib/applications'
@@ -98,22 +98,10 @@ export default function ApplicationDetail({ app, onChange }: { app: LoanApplicat
                 <MascotSays tone="dark" mood={e.suggestion === 'approve' ? 'happy' : e.suggestion === 'deny' ? 'concerned' : 'neutral'}
                   title="Here's what moved the score, in plain words:">
                   <div className="grid gap-3 sm:grid-cols-2">
-                    <div>
-                      <p className="text-xs font-semibold tracking-wide text-brand-200 uppercase">Against</p>
-                      <ul className="mt-1 space-y-1">
-                        {app.explanation.against.length ? app.explanation.against.map((r) => <li key={r.feature}>• {r.text}</li>) : <li className="text-brand-200">Nothing stood out.</li>}
-                      </ul>
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold tracking-wide text-brand-200 uppercase">In favor</p>
-                      <ul className="mt-1 space-y-1">
-                        {app.explanation.inFavor?.length ? app.explanation.inFavor.map((r) => <li key={r.feature}>• {r.text}</li>) : <li className="text-brand-200">Nothing stood out.</li>}
-                      </ul>
-                    </div>
+                    <KuwiReasons tone="dark" kind="against" items={app.explanation.against.map((r) => r.text)} />
+                    <KuwiReasons tone="dark" kind="favor" items={(app.explanation.inFavor ?? []).map((r) => r.text)} />
                   </div>
-                  {app.explanation.tips.length > 0 && (
-                    <p className="mt-3 text-brand-100"><span className="font-semibold text-white">What would help: </span>{app.explanation.tips.join(' ')}</p>
-                  )}
+                  <KuwiTips tone="dark" tips={app.explanation.tips} title="Kuwi recommends (what would help)" />
                 </MascotSays>
               </div>
             )}

@@ -38,6 +38,14 @@ const userSchema = new mongoose.Schema(
       ),
       select: false,
     },
+    // Forgot password: the emailed reset code, same shape as emailVerification.
+    passwordReset: {
+      type: new mongoose.Schema(
+        { codeHash: String, expiresAt: Date, attempts: { type: Number, default: 0 }, sentAt: Date },
+        { _id: false },
+      ),
+      select: false,
+    },
   },
   { timestamps: true },
 );

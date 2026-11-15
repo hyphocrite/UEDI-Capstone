@@ -44,6 +44,12 @@ body {
   @apply bg-surface text-ink antialiased;
 }
 
+/* Password boxes have our own show/hide button (PasswordInput); hide Edge's built-in one. */
+input::-ms-reveal,
+input::-ms-clear {
+  display: none;
+}
+
 @utility card {
   @apply rounded-xl border border-brand-100 bg-white shadow-sm;
 }
