@@ -55,6 +55,10 @@ test("a member registers, applies and follows the application to a loan", { skip
   const tooLong = await as(token, "/member/applications", { method: "POST", body: apply({ loanType: "emergency", termMonths: 13 }) });
   assert.equal(tooLong.status, 400);
 
+  const noReason = await as(token, "/member/applications", { method: "POST", body: apply({ purpose: "" }) });
+  assert.equal(noReason.status, 400, "the reason for the loan is required");
+  assert.match(noReason.json.error, /reason for the loan/);
+
   const created = await as(token, "/member/applications", { method: "POST", body: apply() });
   assert.equal(created.status, 201, created.json.error);
   assert.equal(created.json.application.waitingFor, "Bookkeeper");

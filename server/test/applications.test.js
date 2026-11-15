@@ -81,7 +81,7 @@ const application = (late = 0) => ({
     employer: "Davao del Norte State College", employmentStatus: "permanent", monthlySalary: 38000, netTakeHomePay: 24000,
     dateOfBirth: "1984-03-12", yearsAsMember: 5, priorLoans: 3, priorLatePayments: late,
   },
-  loan: { loanType: "long_term", amount: 60000, termMonths: 12, monthlyRate: 1, paymentFrequency: "quincenal" },
+  loan: { loanType: "long_term", amount: 60000, termMonths: 12, monthlyRate: 1, paymentFrequency: "quincenal", purpose: "House repair" },
   bookkeeper: { longTermBalance: 12000, shortTermBalance: 0 },
   agreement: { payrollDeduction: true, autoRestructure: true, applicationDate: "2026-10-19" },
   documents: [{ fileName: "id.jpg", type: "valid_id", verdict: "verified" }, { fileName: "slip.jpg", type: "payslip", verdict: "mismatch" }],
@@ -98,6 +98,13 @@ test("submit, score and list applications", { skip: !uri && "TEST_MONGODB_URI no
 
   const bad = await call("/applications", { method: "POST", cookie: officer, body: { ...application(), loan: { ...application().loan, amount: 0 } } });
   assert.equal(bad.status, 400);
+
+  // The reason for the loan is required, and spaces alone don't count.
+  for (const purpose of [undefined, "   "]) {
+    const noReason = await call("/applications", { method: "POST", cookie: officer, body: { ...application(), loan: { ...application().loan, purpose } } });
+    assert.equal(noReason.status, 400);
+    assert.match(noReason.json.error, /reason for the loan/);
+  }
 
   const noConsent = await call("/applications", { method: "POST", cookie: officer, body: { ...application(), agreement: { ...application().agreement, payrollDeduction: false } } });
   assert.equal(noConsent.status, 400);

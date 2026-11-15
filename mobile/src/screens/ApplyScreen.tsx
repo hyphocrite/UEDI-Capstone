@@ -74,6 +74,7 @@ export default function ApplyScreen({ onDone }: { onDone: () => void }) {
 
   const submit = async () => {
     setError(null)
+    if (f.purpose.trim().length < 3) return setError('Give the reason for the loan.')
     const kind = f.loanType === 'long_term' ? 'Long term' : 'Emergency'
     const ok = await confirmAction(
       'Submit this application?',
@@ -95,7 +96,7 @@ export default function ApplyScreen({ onDone }: { onDone: () => void }) {
         amount,
         termMonths: num(f.termMonths),
         paymentFrequency: f.paymentFrequency,
-        purpose: f.purpose || undefined,
+        purpose: f.purpose.trim(),
         payrollDeduction: f.payrollDeduction,
         autoRestructure: f.autoRestructure,
         coMakers: [f.coMaker1, f.coMaker2].map((c) => c.trim()).filter(Boolean),
@@ -170,7 +171,7 @@ export default function ApplyScreen({ onDone }: { onDone: () => void }) {
                 { value: 'monthly', label: 'Monthly' },
               ]}
             />
-            <Field label="Purpose (optional)" value={f.purpose} onChangeText={set('purpose')} placeholder="e.g. tuition, medical" />
+            <Field label="Reason for the loan" value={f.purpose} onChangeText={set('purpose')} placeholder="e.g. tuition, medical" />
             <Field
               label={
                 (rules.coMakersRequired ?? 1) === 0 ? 'Co-maker (optional)'

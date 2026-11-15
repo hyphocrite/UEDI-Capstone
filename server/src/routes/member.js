@@ -54,7 +54,7 @@ const applySchema = z.object({
   amount: z.coerce.number().positive("Enter the loan amount."),
   termMonths: z.coerce.number().int().min(1, "Enter the term in months."),
   paymentFrequency: z.enum(["quincenal", "monthly"]).default("monthly"),
-  purpose: z.string().trim().max(300).optional(),
+  purpose: z.string({ message: "Give the reason for the loan." }).trim().min(3, "Give the reason for the loan.").max(300),
   payrollDeduction: z.literal(true, { message: "You must authorize payroll deduction." }),
   autoRestructure: z.literal(true, { message: "You must agree to automatic restructuring." }),
   // Member numbers of the co-makers (how many are needed is a Loan Setting).
