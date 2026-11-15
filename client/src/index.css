@@ -173,6 +173,19 @@ input::-ms-clear {
   mask-composite: intersect;
 }
 
+/* The sign-in pages' corner pattern (CornerPattern.tsx): banded lines and arcs, coloured with currentColor. */
+@utility pattern-bands {
+  background-color: currentColor;
+  -webkit-mask: url("./assets/pattern-bands.png") no-repeat 0 0 / 100% 100%;
+  mask: url("./assets/pattern-bands.png") no-repeat 0 0 / 100% 100%;
+}
+
+@utility pattern-arc {
+  background-color: currentColor;
+  -webkit-mask: url("./assets/pattern-arc.png") no-repeat 0 0 / 100% 100%;
+  mask: url("./assets/pattern-arc.png") no-repeat 0 0 / 100% 100%;
+}
+
 /* Print stays plain: gradients drop back to each element's solid colour. */
 @media print {
   [class*="bg-grad-"],
