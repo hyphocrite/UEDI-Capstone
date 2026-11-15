@@ -21,6 +21,8 @@ const ACTIONS = [
   ["POST", /^\/api\/applications$/, "Application submitted"],
   ["POST", /^\/api\/applications\/[^/]+\/assess$/, "Models run again"],
   ["PUT", /^\/api\/applications\/[^/]+\/documents\/\d+$/, "Document uploaded"],
+  ["POST", /^\/api\/applications\/[^/]+\/documents$/, "Supporting documents added"],
+  ["PUT", /^\/api\/applications\/[^/]+$/, "Application changed by the applicant"],
   ["POST", /^\/api\/applications\/[^/]+\/approvals$/, "Application signed"],
   ["POST", /^\/api\/loans\/[^/]+\/release$/, "Loan released"],
   ["POST", /^\/api\/loans\/[^/]+\/payments\/[^/]+\/void$/, "Payment voided"],

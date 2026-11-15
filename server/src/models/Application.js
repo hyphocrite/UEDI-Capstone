@@ -19,6 +19,8 @@ const documentSchema = new mongoose.Schema(
     fileId: { type: mongoose.Schema.Types.ObjectId },
     contentType: String,
     size: Number,
+    // Set on documents the applicant added after filing (they can, until the application is decided).
+    addedAt: Date,
   },
   { _id: false },
 );
@@ -160,6 +162,8 @@ const applicationSchema = new mongoose.Schema(
     },
     submittedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     submittedByName: String,
+    // The last time the applicant changed the form (allowed until the Bookkeeper signs).
+    editedAt: Date,
   },
   { timestamps: true },
 );

@@ -29,6 +29,8 @@ import NotFoundPage from './pages/NotFoundPage'
 
 // Loaded on demand: it carries the OCR and PDF libraries.
 const LoanApplicationPage = lazy(() => import('./pages/LoanApplicationPage'))
+// Reads documents with the same OCR as the form, so it loads lazily too.
+const AddDocumentsPage = lazy(() => import('./pages/AddDocumentsPage'))
 
 export default function App() {
   return (
@@ -48,6 +50,16 @@ export default function App() {
           <Route path="/loans/apply" element={
               <Suspense fallback={<p className="text-sm text-brand-600">Loading…</p>}>
                 <LoanApplicationPage />
+              </Suspense>
+            } />
+          <Route path="/loans/applications/:id/edit" element={
+              <Suspense fallback={<p className="text-sm text-brand-600">Loading…</p>}>
+                <LoanApplicationPage />
+              </Suspense>
+            } />
+          <Route path="/loans/applications/:id/documents" element={
+              <Suspense fallback={<p className="text-sm text-brand-600">Loading…</p>}>
+                <AddDocumentsPage />
               </Suspense>
             } />
           <Route path="/loans/:id" element={<LoanDetailPage />} />
