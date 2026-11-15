@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { Navigate, Outlet } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { atLeast, homePath } from '../lib/roles'
@@ -16,8 +17,8 @@ export default function RequireLevel({ min, roles }: Props) {
   return allowed ? <Outlet /> : <Navigate to={homePath(role)} replace />
 }
 
-/** /dashboard: sends each account to its own home page. */
-export function HomeRedirect() {
+/** /dashboard: the office dashboard (`staff`) for Loan Officers and up; members go to their own home page. */
+export function HomeRedirect({ staff }: { staff: ReactNode }) {
   const { session } = useAuth()
-  return <Navigate to={homePath(session?.role)} replace />
+  return atLeast(session?.role, 'loan_officer') ? <>{staff}</> : <Navigate to={homePath(session?.role)} replace />
 }

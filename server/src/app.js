@@ -18,6 +18,7 @@ const auditRoutes = require("./routes/audit");
 const locationRoutes = require("./routes/locations");
 const meetingRoutes = require("./routes/meetings");
 const earlyWarningRoutes = require("./routes/earlyWarning");
+const dashboardRoutes = require("./routes/dashboard");
 const coMakerRoutes = require("./routes/coMaker");
 
 function createApp() {
@@ -55,6 +56,7 @@ function createApp() {
   app.use("/api/locations", locationRoutes);
   app.use("/api/meetings", meetingRoutes);
   app.use("/api/early-warning", earlyWarningRoutes);
+  app.use("/api/dashboard", dashboardRoutes);
   app.use("/api/comaker", coMakerRoutes);
 
   app.use("/api", (_req, res) => res.status(404).json({ error: "Not found." }));
