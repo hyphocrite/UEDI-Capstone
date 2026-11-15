@@ -8,7 +8,7 @@ type Props = { label: string; value: string; hint?: string; icon: LucideIcon }
  */
 export default function StatCard({ label, value, hint, icon: Icon }: Props) {
   return (
-    <div className="card card-hover group flex h-full items-start gap-4 border-t-2 border-t-accent p-5">
+    <div className="card card-hover group flex h-full items-start gap-4 border-grad-top p-5">
       <span className="rounded-lg bg-brand-50 p-2.5 text-brand-700 transition-colors group-hover:bg-accent/15">
         <Icon className="h-5 w-5" />
       </span>

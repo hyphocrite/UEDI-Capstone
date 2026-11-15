@@ -112,7 +112,7 @@ export default function LoansPage() {
             {statuses.map((s) => (
               <button key={s} role="tab" aria-selected={status === s} onClick={() => setStatus(s)}
                 className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
-                  status === s ? 'bg-brand-800 text-white' : 'bg-brand-50 text-brand-700 hover:bg-brand-100'
+                  status === s ? 'bg-brand-800 bg-grad-brand text-white' : 'bg-brand-50 text-brand-700 hover:bg-brand-100'
                 }`}>
                 {s}
               </button>

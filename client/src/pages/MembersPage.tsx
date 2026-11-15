@@ -123,7 +123,7 @@ export default function MembersPage() {
       <div className="mb-6 inline-flex max-w-full rounded-lg border border-brand-200 bg-white p-1" role="tablist" aria-label="Members or sign-in accounts">
         {([['members', 'Members', Users], ['accounts', 'Sign-in accounts', KeyRound]] as const).map(([id, label, Icon]) => (
           <button key={id} role="tab" aria-selected={tab === id} onClick={() => setUrl({ tab: id, page: 1 })}
-            className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-semibold transition sm:px-4 ${tab === id ? 'bg-brand-800 text-white' : 'text-brand-700 hover:bg-brand-50'}`}>
+            className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-semibold transition sm:px-4 ${tab === id ? 'bg-brand-800 bg-grad-brand text-white' : 'text-brand-700 hover:bg-brand-50'}`}>
             <Icon className="h-4 w-4" /> {label}
             {id === 'accounts' && waitingCount > 0 && (
               <span className={`rounded-full px-1.5 py-0.5 text-[11px] leading-none font-bold ${tab === id ? 'bg-accent text-white' : 'bg-amber-100 text-amber-800'}`}

@@ -191,7 +191,7 @@ function PlanDetail({ plan, canWrite, onChange }: { plan: RetirementPlan; canWri
       <h2 className="mt-1 text-lg font-bold text-brand-800">{plan.memberName}</h2>
       <p className="text-sm text-brand-600">Member since {formatDate(plan.startDate)}</p>
 
-      <div className="mt-5 rounded-xl bg-[#0B422A] p-5 text-white">
+      <div className="mt-5 rounded-xl bg-[#0B422A] bg-grad-hero p-5 text-white">
         <p className="text-sm text-brand-200">Retirement plan balance</p>
         <p className="mt-1 text-3xl font-bold">{formatCentavos(plan.balance)}</p>
         <p className="mt-2 text-xs text-brand-200">

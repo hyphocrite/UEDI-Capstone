@@ -50,7 +50,7 @@ export default function Pagination({ page, pageSize, total, onPage }: Props) {
           ) : (
             <button key={n} type="button" aria-label={`Page ${n}`} aria-current={n === current ? 'page' : undefined} onClick={() => onPage(n)}
               className={`h-8 min-w-8 items-center justify-center rounded-lg px-2 text-sm font-semibold tabular-nums transition ${
-                n === current ? 'inline-flex bg-brand-800 text-white' : `text-brand-700 hover:bg-brand-50 ${outer(n) ? 'hidden sm:inline-flex' : 'inline-flex'}`
+                n === current ? 'inline-flex bg-brand-800 bg-grad-brand text-white' : `text-brand-700 hover:bg-brand-50 ${outer(n) ? 'hidden sm:inline-flex' : 'inline-flex'}`
               }`}>
               {n}
             </button>

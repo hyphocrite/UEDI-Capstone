@@ -91,7 +91,7 @@ export default function ReportsPage() {
       <div className="mb-6 inline-flex rounded-lg border border-brand-200 bg-white p-1 print:hidden" role="tablist" aria-label="Report period">
         {periods.map((p) => (
           <button key={p.id} role="tab" aria-selected={period === p.id} onClick={() => setPeriod(p.id)}
-            className={`rounded-md px-4 py-1.5 text-sm font-semibold transition ${period === p.id ? 'bg-brand-800 text-white' : 'text-brand-700 hover:bg-brand-50'}`}>
+            className={`rounded-md px-4 py-1.5 text-sm font-semibold transition ${period === p.id ? 'bg-brand-800 bg-grad-brand text-white' : 'text-brand-700 hover:bg-brand-50'}`}>
             {p.label}
           </button>
         ))}
@@ -209,8 +209,8 @@ function CollectionsChart({ rows }: { rows: Row[] }) {
                       <span className={`${totalsAt} mb-0.5 max-w-full truncate text-[10px] text-brand-600`}>{compact(t)}</span>
                       <div className="animate-grow-up flex w-full max-w-12 flex-col-reverse overflow-hidden rounded-t-md transition group-hover:brightness-110"
                         style={{ height: `${(t / top) * 100}%`, animationDelay: `${i * 60}ms` }} title={label} role="img" aria-label={label}>
-                        <div className="bg-brand-800" style={{ height: `${(r.loanCollections / t) * 100}%` }} />
-                        <div className="bg-accent" style={{ height: `${(dues / t) * 100}%` }} />
+                        <div className="bg-brand-800 bg-grad-bar-brand" style={{ height: `${(r.loanCollections / t) * 100}%` }} />
+                        <div className="bg-accent bg-grad-bar-accent" style={{ height: `${(dues / t) * 100}%` }} />
                       </div>
                     </>
                   ) : (

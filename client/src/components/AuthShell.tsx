@@ -7,7 +7,7 @@ type Props = { title: string; subtitle: string; children: ReactNode; footer: Rea
 export default function AuthShell({ title, subtitle, children, footer }: Props) {
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="bg-[#0B422A]">
+      <header className="bg-[#0B422A] bg-grad-header">
         <div className="mx-auto flex h-16 max-w-7xl items-center px-4 sm:px-6">
           <Link to="/" aria-label="UDEI home">
             <BrandLogo light />

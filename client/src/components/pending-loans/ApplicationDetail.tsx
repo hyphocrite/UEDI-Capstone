@@ -82,7 +82,7 @@ export default function ApplicationDetail({ app, onChange }: { app: LoanApplicat
 
         {/* The ML suggestion is the centre of the page: the signers read it first. */}
         {e ? (
-          <div className="mt-4 rounded-xl bg-[#0B422A] p-5 text-center text-white sm:p-6">
+          <div className="mt-4 rounded-xl bg-[#0B422A] bg-grad-hero p-5 text-center text-white sm:p-6">
             <p className="text-xs font-semibold tracking-wider text-brand-200 uppercase">ML suggestion</p>
             <p className={`mt-1 text-4xl font-bold ${suggestionTone[e.suggestion]}`}>{suggestionText[e.suggestion]}</p>
             <p className="mt-1 text-brand-100">{Math.round(e.defaultProbability * 100)}% estimated chance of default</p>

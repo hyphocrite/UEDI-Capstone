@@ -136,7 +136,7 @@ export default function MemberAccountsPanel({ members, accounts, setAccounts, lo
           <div className="flex flex-wrap gap-2" role="tablist" aria-label="Show">
             {tabs.map((t) => (
               <button key={t.key} role="tab" aria-selected={show === t.key} onClick={() => { setShow(t.key); onPage(1) }}
-                className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${show === t.key ? 'bg-brand-800 text-white' : 'bg-brand-50 text-brand-700 hover:bg-brand-100'}`}>
+                className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${show === t.key ? 'bg-brand-800 bg-grad-brand text-white' : 'bg-brand-50 text-brand-700 hover:bg-brand-100'}`}>
                 {t.label}
               </button>
             ))}

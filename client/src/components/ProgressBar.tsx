@@ -13,7 +13,7 @@ export default function ProgressBar({ value, label }: Props) {
         aria-valuemax={100}
         aria-label={label}
       >
-        <div className="animate-grow-right h-full rounded-full bg-accent" style={{ width: `${v}%` }} />
+        <div className="animate-grow-right h-full rounded-full bg-accent bg-grad-bar-x" style={{ width: `${v}%` }} />
       </div>
       <span className="w-10 text-right text-xs font-medium text-brand-700">{v}%</span>
     </div>

@@ -17,6 +17,14 @@
   --color-surface: #f7f9f6;
   --color-ink: #0d1f17;
 
+  /* Gradients: same greens, a little depth. Solid fallbacks stay as each element's bg colour. */
+  --gradient-brand: linear-gradient(135deg, #0b422a 0%, #15613f 55%, #1f7d52 100%);
+  --gradient-brand-hover: linear-gradient(135deg, #0f5033 0%, #1f7d52 55%, #2a8f61 100%);
+  --gradient-sidebar: linear-gradient(180deg, #0b422a 0%, #0f5033 45%, #15613f 80%, #1f7d52 100%);
+  --gradient-header: linear-gradient(90deg, #0b422a 0%, #0f5033 50%, #1f7d52 100%);
+  --gradient-accent: linear-gradient(135deg, #34d399 0%, #10b981 50%, #059669 100%);
+  --gradient-hero: radial-gradient(130% 150% at 50% 0%, #1f7d52 0%, #0f5033 45%, #0b422a 80%);
+
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
@@ -44,11 +52,11 @@ body {
 }
 
 @utility btn-primary {
-  @apply btn btn-press bg-brand-800 text-white hover:bg-brand-700;
+  @apply btn btn-press bg-brand-800 bg-grad-brand text-white hover:bg-grad-brand-hover;
 }
 
 @utility btn-accent {
-  @apply btn btn-press bg-accent text-white hover:bg-accent-dark;
+  @apply btn btn-press bg-accent bg-grad-accent text-white hover:brightness-105;
 }
 
 @utility btn-ghost {
@@ -57,11 +65,13 @@ body {
 
 /* Yes / no on loan decisions: green approves, red denies. */
 @utility btn-approve {
-  @apply btn btn-press bg-emerald-600 text-white hover:bg-emerald-700 focus-visible:ring-emerald-500;
+  @apply btn btn-press bg-emerald-600 text-white hover:brightness-110 focus-visible:ring-emerald-500;
+  background-image: linear-gradient(135deg, #10b981 0%, #059669 60%, #047857 100%);
 }
 
 @utility btn-deny {
-  @apply btn btn-press bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-500;
+  @apply btn btn-press bg-red-600 text-white hover:brightness-110 focus-visible:ring-red-500;
+  background-image: linear-gradient(135deg, #ef4444 0%, #dc2626 60%, #b91c1c 100%);
 }
 
 /* Clickable or summary cards (not tables or forms): lift on hover. */
@@ -121,5 +131,26 @@ body {
 @utility animate-slide-in {
   @media (prefers-reduced-motion: no-preference) {
     animation: slide-in 700ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+}
+
+/* Gradient backgrounds (palette greens only). */
+@utility bg-grad-brand { background-image: var(--gradient-brand); }
+@utility bg-grad-brand-hover { background-image: var(--gradient-brand-hover); }
+@utility bg-grad-sidebar { background-image: var(--gradient-sidebar); }
+@utility bg-grad-header { background-image: var(--gradient-header); }
+@utility bg-grad-accent { background-image: var(--gradient-accent); }
+@utility bg-grad-hero { background-image: var(--gradient-hero); }
+/* Bars: lighter at the top so they read as columns. */
+@utility bg-grad-bar-brand { background-image: linear-gradient(0deg, #0b422a 0%, #1f7d52 100%); }
+@utility bg-grad-bar-accent { background-image: linear-gradient(0deg, #059669 0%, #34d399 100%); }
+@utility bg-grad-bar-x { background-image: linear-gradient(90deg, #059669 0%, #10b981 60%, #34d399 100%); }
+@utility border-grad-top { border-top: 0; background-image: linear-gradient(90deg, #0b422a, #10b981 60%, #34d399); background-size: 100% 3px; background-repeat: no-repeat; }
+
+/* Print stays plain: gradients drop back to each element's solid colour. */
+@media print {
+  [class*="bg-grad-"],
+  [class*="border-grad-"] {
+    background-image: none !important;
   }
 }
