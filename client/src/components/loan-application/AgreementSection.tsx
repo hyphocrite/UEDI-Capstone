@@ -78,8 +78,8 @@ export default function AgreementSection({ form, update, onLoanTypeChange }: Pro
               {LOAN_AMOUNTS.map((a) => <option key={a} value={String(a)}>{formatPeso(a)}</option>)}
             </select>
           </Field>
-          <Field id="purpose" label="Purpose (optional)">
-            <input id="purpose" className="input" maxLength={300} value={form.purpose} onChange={(e) => update({ purpose: e.target.value })} placeholder="e.g. tuition, house repair" />
+          <Field id="purpose" label="Reason for the loan">
+            <input id="purpose" className="input" maxLength={300} required aria-required="true" value={form.purpose} onChange={(e) => update({ purpose: e.target.value })} placeholder="e.g. tuition, house repair" />
           </Field>
         </div>
 

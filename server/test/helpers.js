@@ -113,7 +113,7 @@ const application = (late = 0, overrides = {}) => ({
     employer: "Davao del Norte State College", employmentStatus: "permanent", monthlySalary: 38000, netTakeHomePay: 24000,
     dateOfBirth: "1984-03-12", yearsAsMember: 5, priorLoans: 3, priorLatePayments: late, ...overrides.applicant,
   },
-  loan: { loanType: "long_term", amount: 60000, termMonths: 24, monthlyRate: 1, paymentFrequency: "quincenal", ...overrides.loan },
+  loan: { loanType: "long_term", amount: 60000, termMonths: 24, monthlyRate: 1, paymentFrequency: "quincenal", purpose: "House repair", ...overrides.loan },
   bookkeeper: overrides.bookkeeper ?? { longTermBalance: 12000, shortTermBalance: 0 },
   agreement: { payrollDeduction: true, autoRestructure: true, applicationDate: "2026-10-19" },
   documents: [],

@@ -31,6 +31,10 @@ type AuthValue = {
   register: (input: RegisterInput) => Promise<RegisterResult>
   verifyEmail: (email: string, code: string) => Promise<void>
   resendVerification: (email: string) => Promise<void>
+  /** Forgot password: emails a reset code (the same answer whether or not the account exists). */
+  requestPasswordReset: (email: string) => Promise<void>
+  /** Sets a new password with the emailed code, then signs in. */
+  resetPassword: (email: string, code: string, newPassword: string) => Promise<void>
   logout: () => Promise<void>
   /** When the current session ends unless renewed (ISO date), or null. */
   expiresAt: string | null
@@ -87,6 +91,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await api('/api/auth/resend-verification', { method: 'POST', body: JSON.stringify({ email }) })
   }, [])
 
+  const requestPasswordReset = useCallback(async (email: string) => {
+    await api('/api/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) })
+  }, [])
+
+  const resetPassword = useCallback(async (email: string, code: string, newPassword: string) => {
+    const d = await api<{ session: Session; expiresAt?: string }>('/api/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ email, code, newPassword }),
+    })
+    setSession(d.session)
+    setExpiresAt(d.expiresAt ?? null)
+  }, [])
+
   const logout = useCallback(async () => {
     await api('/api/auth/logout', { method: 'POST' }).catch(() => undefined)
     clearAllDrafts()
@@ -101,8 +118,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const value = useMemo(
-    () => ({ session, loading, login, register, verifyEmail, resendVerification, logout, updateSession: setSession, expiresAt, refresh }),
-    [session, loading, login, register, verifyEmail, resendVerification, logout, expiresAt, refresh],
+    () => ({ session, loading, login, register, verifyEmail, resendVerification, requestPasswordReset, resetPassword, logout, updateSession: setSession, expiresAt, refresh }),
+    [session, loading, login, register, verifyEmail, resendVerification, requestPasswordReset, resetPassword, logout, expiresAt, refresh],
   )
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

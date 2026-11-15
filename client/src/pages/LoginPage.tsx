@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { LogIn } from 'lucide-react'
 import AuthShell from '../components/AuthShell'
+import PasswordInput from '../components/PasswordInput'
 import { useAuth } from '../context/AuthContext'
 import { ApiError } from '../lib/api'
 
@@ -62,8 +63,13 @@ export default function LoginPage() {
             onChange={(e) => setEmail(e.target.value)} required />
         </div>
         <div>
-          <label className="label" htmlFor="password">Password</label>
-          <input id="password" type="password" autoComplete="current-password" className="input" value={password}
+          <div className="flex items-baseline justify-between gap-2">
+            <label className="label" htmlFor="password">Password</label>
+            <Link to="/forgot-password" state={{ email: email.trim() || undefined }} className="text-xs font-semibold text-brand-700 hover:text-brand-900 hover:underline">
+              Forgot password?
+            </Link>
+          </div>
+          <PasswordInput id="password" autoComplete="current-password" value={password}
             onChange={(e) => setPassword(e.target.value)} required />
         </div>
         {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{error}</p>}

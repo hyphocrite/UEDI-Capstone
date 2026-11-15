@@ -56,6 +56,8 @@ const resendSchema = z.object({
   email: z.string().trim().toLowerCase().email("Enter a valid email address."),
 });
 
+const resetSchema = verifySchema.extend({ newPassword: registerSchema.shape.password });
+
 function firstIssue(result) {
   return result.error.issues[0]?.message || "Invalid input.";
 }
@@ -128,6 +130,50 @@ router.post("/resend-verification", verifyLimit, async (req, res, next) => {
     const user = await User.findOne({ email: parsed.data.email, emailVerified: false }).select("+emailVerification");
     if (user && verification.canResend(user)) await verification.issue(user);
     res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Forgot password, step 1: emails a 6-digit reset code, the same kind as sign-up verification.
+// Always answers the same way, so it can't be used to find out which emails have accounts.
+router.post("/forgot-password", verifyLimit, async (req, res, next) => {
+  try {
+    const parsed = resendSchema.safeParse(req.body || {});
+    if (!parsed.success) return res.status(400).json({ error: firstIssue(parsed) });
+    const user = await User.findOne({ email: parsed.data.email }).select("+passwordReset");
+    if (user && verification.canResend(user, "reset")) {
+      try {
+        await verification.issue(user, "reset");
+      } catch (err) {
+        // Same answer either way; the person can ask for the code again.
+        console.error("Could not send the password reset email:", err.message);
+      }
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Forgot password, step 2: the code and a new password. Every existing session ends, and this
+// browser is signed in with the new password.
+router.post("/reset-password", verifyLimit, async (req, res, next) => {
+  try {
+    const parsed = resetSchema.safeParse(req.body || {});
+    if (!parsed.success) return res.status(400).json({ error: firstIssue(parsed) });
+    const { result, user } = await verification.check(parsed.data.email, parsed.data.code, "reset");
+    if (result === "invalid") return res.status(400).json({ error: "That code is not correct. Check the email and try again." });
+    if (result === "expired") {
+      return res.status(400).json({ error: "This code has expired or was tried too many times. Request a new code." });
+    }
+    user.passwordHash = await bcrypt.hash(parsed.data.newPassword, 12);
+    // Whole seconds, because tokens record their start time in seconds.
+    user.sessionsValidAfter = new Date(Math.floor(Date.now() / 1000) * 1000);
+    await user.save();
+    auditNote(res, { target: `${user.fullName} <${user.email}>` });
+    const expiresAt = startSession(res, user);
+    res.json({ session: user.toSession(), expiresAt });
   } catch (err) {
     next(err);
   }

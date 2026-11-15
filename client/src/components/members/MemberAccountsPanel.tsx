@@ -19,6 +19,7 @@ export const ACCOUNTS_PER_PAGE = 10
  * The "Sign-in accounts" tab on Members: Loan Officers and up link sign-in accounts to member
  * records. A member account sees the loans and applications filed under its member ID, and its
  * loan form is filled in from that record, so only the office can set it.
+ * Linked accounts just show their number; accounts not linked yet get a box and a Link button.
  * The page loads the members and accounts (for the tab's count) and passes them in.
  */
 export default function MemberAccountsPanel({ members, accounts, setAccounts, loadError, page, onPage }: {
@@ -39,8 +40,13 @@ export default function MemberAccountsPanel({ members, accounts, setAccounts, lo
 
   const memberById = useMemo(() => new Map(members.map((m) => [m.memberId, m])), [members])
   const linkedTo = useMemo(() => new Map((accounts ?? []).filter((a) => a.memberId).map((a) => [a.memberId!, a])), [accounts])
-  // A new ID is not a UDEI number, so the box starts empty (or with the number they typed on the phone).
-  const draftOf = (a: Account) => drafts[a.id] ?? (a.newMemberId ? '' : a.memberId ?? '')
+  // The box starts empty: a new ID is not a UDEI number.
+  const draftOf = (a: Account) => drafts[a.id] ?? ''
+  /** Another account already linked to this number, if any. */
+  const takenBy = (a: Account, memberId: string) => {
+    const other = memberId ? linkedTo.get(memberId) : undefined
+    return other && other.id !== a.id ? other : undefined
+  }
 
   // Only member-level accounts (staff roles are linked too when they are also members, under "All").
   const list = useMemo(() => {
@@ -60,31 +66,27 @@ export default function MemberAccountsPanel({ members, accounts, setAccounts, lo
     all: accounts?.length ?? 0,
   }
 
-  const save = async (a: Account) => {
+  const link = async (a: Account) => {
     const memberId = draftOf(a).trim()
+    if (!memberId) return
     const record = memberById.get(memberId)
-    const other = linkedTo.get(memberId)
-    if (memberId && other && other.id !== a.id) {
-      return setMessage({ tone: 'error', text: `Member ${memberId} is already linked to ${other.fullName} (${other.email}). Unlink that account first.` })
-    }
+    const other = takenBy(a, memberId)
+    if (other) return setMessage({ tone: 'error', text: `Number ${memberId} is already linked to ${other.fullName}'s account (${other.email}).` })
     const ok = await confirm({
-      title: memberId ? 'Link this account?' : 'Unlink this account?',
-      message: memberId ? (
+      title: 'Link this account?',
+      message: (
         <>
           <p>
             <b>{a.fullName}</b> ({a.email}) will see every loan and application under member <b>{memberId}</b>
-            {record ? <> ({record.fullName})</> : ''}{a.memberId && !a.newMemberId ? `, instead of member ${a.memberId}` : ''}, and their loan form will be filled in from that record.
+            {record ? <> ({record.fullName})</> : ''}, and their loan form will be filled in from that record.
           </p>
           {a.newMemberId && (
             <p>Everything filed under their new ID <b>{a.memberId}</b> (applications, attendance, bills) moves to member <b>{memberId}</b>, and the new ID is removed. This can't be undone.</p>
           )}
-          {!record && <p className="text-amber-800">There is no member record with number {memberId} yet. Check the number, or add the member first.</p>}
           <p>Check that this is the right person.</p>
         </>
-      ) : (
-        <p><b>{a.fullName}</b> ({a.email}) will no longer see the loans and applications of member <b>{a.memberId}</b>. They get a new member ID of their own.</p>
       ),
-      confirmLabel: memberId ? 'Yes, link' : 'Yes, unlink',
+      confirmLabel: 'Yes, link',
     })
     if (!ok) return
     setSavingId(a.id)
@@ -92,7 +94,7 @@ export default function MemberAccountsPanel({ members, accounts, setAccounts, lo
     try {
       const { user } = await api<{ user: Account }>(`/api/auth/users/${a.id}/member`, {
         method: 'PATCH',
-        body: JSON.stringify({ memberId: memberId || null }),
+        body: JSON.stringify({ memberId }),
       })
       setAccounts((all) => all?.map((x) => (x.id === user.id ? user : x)) ?? null)
       setDrafts((d) => {
@@ -100,10 +102,7 @@ export default function MemberAccountsPanel({ members, accounts, setAccounts, lo
         delete next[a.id]
         return next
       })
-      setMessage({
-        tone: 'ok',
-        text: user.newMemberId ? `${user.fullName} is no longer linked. Their new ID is ${user.memberId}.` : `${user.fullName} is linked to member ${user.memberId}.`,
-      })
+      setMessage({ tone: 'ok', text: `${user.fullName} is linked to member ${user.memberId}.` })
     } catch (err) {
       setMessage({ tone: 'error', text: err instanceof Error ? err.message : 'Could not link the account.' })
     } finally {
@@ -158,8 +157,8 @@ export default function MemberAccountsPanel({ members, accounts, setAccounts, lo
           <ul className="divide-y divide-brand-50">
             {visible.map((a) => {
               const draft = draftOf(a).trim()
-              const changed = a.newMemberId ? !!draft : draft !== (a.memberId ?? '')
               const record = draft ? memberById.get(draft) : undefined
+              const other = takenBy(a, draft)
               return (
                 <li key={a.id} className="row-hover flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
                   <div className="min-w-0">
@@ -171,27 +170,36 @@ export default function MemberAccountsPanel({ members, accounts, setAccounts, lo
                       </p>
                     )}
                   </div>
-                  <div className="flex flex-col gap-1 sm:items-end">
-                    <div className="flex gap-2">
-                      <input
-                        className="input sm:w-44"
-                        placeholder="Member no."
-                        maxLength={32}
-                        list="member-numbers"
-                        aria-label={`Member number for ${a.fullName}`}
-                        value={draftOf(a)}
-                        onChange={(e) => setDrafts((d) => ({ ...d, [a.id]: e.target.value }))}
-                      />
-                      <button type="button" className="btn-primary" disabled={!changed || savingId !== null} onClick={() => save(a)}>
-                        {savingId === a.id ? 'Saving…' : a.memberId && !a.newMemberId && !draft ? 'Unlink' : a.newMemberId ? 'Link' : 'Save'}
-                      </button>
+                  {isLinked(a) ? (
+                    // Linked: just the number.
+                    <p className="flex items-center gap-1.5 text-sm font-semibold text-brand-800">
+                      <UserCheck className="h-4 w-4 text-accent-dark" /> Member No. {a.memberId}
+                    </p>
+                  ) : (
+                    <div className="flex flex-col gap-1 sm:items-end">
+                      <div className="flex gap-2">
+                        <input
+                          className="input sm:w-44"
+                          placeholder="Member no."
+                          maxLength={32}
+                          list="member-numbers"
+                          aria-label={`Member number for ${a.fullName}`}
+                          value={draftOf(a)}
+                          onChange={(e) => setDrafts((d) => ({ ...d, [a.id]: e.target.value }))}
+                        />
+                        <button type="button" className="btn-primary" disabled={!draft || !!other || savingId !== null} onClick={() => link(a)}>
+                          {savingId === a.id ? 'Linking…' : 'Link'}
+                        </button>
+                      </div>
+                      {other ? (
+                        <p className="max-w-xs text-xs font-medium text-red-700 sm:text-right" role="alert">
+                          Number {draft} is already linked to {other.fullName}'s account.
+                        </p>
+                      ) : record ? (
+                        <p className="text-xs text-brand-600">{record.fullName}</p>
+                      ) : null}
                     </div>
-                    {draft && (
-                      <p className={`text-xs ${record ? 'text-brand-600' : 'text-amber-700'}`}>
-                        {record ? record.fullName : 'No member record with this number'}
-                      </p>
-                    )}
-                  </div>
+                  )}
                 </li>
               )
             })}

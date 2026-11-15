@@ -260,6 +260,7 @@ export function validateForm(f: Form, settings: LoanSettings = FALLBACK_SETTINGS
   if (num(f.priorLatePayments) > num(f.priorLoans)) return 'Late payments cannot be more than past loans.'
   if (!f.applicationDate) return 'Enter the application date.'
   if (num(f.amount) <= 0) return 'Choose the loan amount.'
+  if (f.purpose.trim().length < 3) return 'Give the reason for the loan.'
   const maxTerm = Math.min(MAX_TERM_MONTHS, settings.products[f.loanType].maxTermMonths)
   if (term < 1 || term > maxTerm) return `${settings.products[f.loanType].label} loans run 1 to ${maxTerm} months.`
   if (f.monthlyRate.trim() === '' || !Number.isFinite(rate) || rate < 0 || rate > 10) return 'The interest rate could not be loaded. Reload the page.'
@@ -308,7 +309,7 @@ export function buildPayload(f: Form, documents: DocumentPayload[]) {
       termMonths: termMonthsOf(f),
       monthlyRate: Number(f.monthlyRate),
       paymentFrequency: f.paymentFrequency,
-      purpose: optional(f.purpose),
+      purpose: f.purpose.trim(),
     },
     bookkeeper: {
       longTermBalance: num(f.longTermBalance),
