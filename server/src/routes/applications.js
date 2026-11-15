@@ -84,7 +84,8 @@ const createSchema = z
       termMonths: z.coerce.number().int().min(1).max(120),
       monthlyRate: z.coerce.number().min(0).max(10),
       paymentFrequency: z.enum(PAYMENT_FREQUENCIES).default("monthly"),
-      purpose: z.string().trim().max(300).optional(),
+      // Required: the signers read it next to the ML suggestion.
+      purpose: z.string({ message: "Give the reason for the loan." }).trim().min(3, "Give the reason for the loan.").max(300),
     }),
     bookkeeper: bookkeeperSchema.default({ longTermBalance: 0, shortTermBalance: 0 }),
     agreement: z.object({
