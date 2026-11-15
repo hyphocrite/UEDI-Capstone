@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { CheckCircle2, Hourglass, XCircle } from 'lucide-react'
+import { Link, useLocation } from 'react-router-dom'
+import { CheckCircle2, Hourglass, Paperclip, Pencil, XCircle } from 'lucide-react'
+import { useAuth } from '../../context/AuthContext'
 import { api } from '../../lib/api'
 import { KuwiReasons, KuwiTips, MascotSays } from '../mascot/Mascot'
-import { loanTypeLabel } from '../../lib/applications'
+import { canAddDocuments, canChange, loanTypeLabel } from '../../lib/applications'
 import type { LoanApplication } from '../../lib/applications'
-import { formatDate, formatPeso } from '../../lib/format'
+import { formatDate, formatDateTime, formatPeso } from '../../lib/format'
 import { roleLabel } from '../../lib/roles'
 
 /**
@@ -13,6 +14,9 @@ import { roleLabel } from '../../lib/roles'
  * signatures, and for a denied one, why, in plain words, and what can help next time.
  */
 export default function MyApplications() {
+  const { session } = useAuth()
+  // After changing an application or adding documents, the page that did it sends a message back.
+  const notice = (useLocation().state as { notice?: string } | null)?.notice
   const [apps, setApps] = useState<LoanApplication[] | null>(null)
 
   useEffect(() => {
@@ -24,6 +28,12 @@ export default function MyApplications() {
   if (!apps?.length) return null
 
   return (
+    <>
+    {notice && (
+      <p className="mb-4 flex items-center gap-2 rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-800" role="status">
+        <CheckCircle2 className="h-4 w-4 shrink-0" /> {notice}
+      </p>
+    )}
     <section className="card mb-6 min-w-0" aria-labelledby="my-apps">
       <h2 id="my-apps" className="border-b border-brand-100 px-4 py-3 font-semibold text-brand-800">My applications</h2>
       <ul className="divide-y divide-brand-50">
@@ -38,6 +48,10 @@ export default function MyApplications() {
                 <p className="text-xs text-brand-500">{a.applicationNo} · filed {formatDate(a.createdAt)}</p>
               </div>
               {a.loan.purpose && <p className="text-sm text-brand-700">“{a.loan.purpose}”</p>}
+              <p className="text-xs text-brand-500">
+                {a.documents.length} supporting document{a.documents.length === 1 ? '' : 's'}
+                {a.editedAt ? ` · changed ${formatDateTime(a.editedAt)}` : ''}
+              </p>
 
               {(a.coMakers?.length ?? 0) > 0 && (
                 <p className="mt-1 text-xs text-brand-600">
@@ -49,6 +63,17 @@ export default function MyApplications() {
                   <Hourglass className="h-4 w-4 shrink-0 text-amber-600" />
                   Waiting for the {a.currentStep !== 'none' ? roleLabel[a.currentStep] : 'signers'} · {a.approvals.length} of 4 signed
                 </p>
+              )}
+              {canAddDocuments(a, session?.id) && (
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  {canChange(a, session?.id) && (
+                    <Link to={`/loans/applications/${a._id}/edit`} className="btn-ghost px-3 py-1.5 text-sm"><Pencil className="h-4 w-4" /> Change application</Link>
+                  )}
+                  <Link to={`/loans/applications/${a._id}/documents`} className="btn-ghost px-3 py-1.5 text-sm"><Paperclip className="h-4 w-4" /> Add supporting documents</Link>
+                  <span className="text-xs text-brand-500">
+                    {canChange(a, session?.id) ? 'You can change it until the Bookkeeper signs.' : 'The Bookkeeper signed, so the form is final; you can still add documents.'}
+                  </span>
+                </div>
               )}
               {a.status === 'approved' && (
                 <p className="mt-2 flex items-center gap-2 text-sm text-emerald-800">
@@ -77,5 +102,6 @@ export default function MyApplications() {
         })}
       </ul>
     </section>
+    </>
   )
 }

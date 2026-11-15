@@ -60,6 +60,16 @@ const bookkeeperSchema = z.object({
   monthlyPayment: money.default(0),
 });
 
+// A supporting document as the applicant's browser checked it (the file itself is uploaded after).
+const MAX_DOCUMENTS = 30;
+const documentCheckSchema = z.object({
+  fileName: z.string().max(255),
+  type: z.string().max(64).optional(),
+  verdict: z.enum(["verified", "review", "mismatch", "unreadable"]).optional(),
+  sha256: z.string().max(64).optional(),
+  notes: z.array(z.string().max(300)).max(20).optional(),
+});
+
 // The body mirrors UEDI's Mutual Assistance Application Form.
 const createSchema = z
   .object({
@@ -95,18 +105,7 @@ const createSchema = z
     }),
     // Member numbers of 1 or 2 co-makers (how many is a Loan Setting). Checked in createApplication.
     coMakers: z.array(z.string().trim().max(32)).max(2).default([]),
-    documents: z
-      .array(
-        z.object({
-          fileName: z.string().max(255),
-          type: z.string().max(64).optional(),
-          verdict: z.enum(["verified", "review", "mismatch", "unreadable"]).optional(),
-          sha256: z.string().max(64).optional(),
-          notes: z.array(z.string().max(300)).max(20).optional(),
-        }),
-      )
-      .max(30)
-      .default([]),
+    documents: z.array(documentCheckSchema).max(MAX_DOCUMENTS).default([]),
   })
   .refine((v) => v.applicant.priorLatePayments <= v.applicant.priorLoans, {
     message: "Late payments cannot be more than past loans.",
@@ -183,19 +182,28 @@ async function createApplication(data, user) {
   return runAssessment(app);
 }
 
+/** Applies Loan Settings to a parsed form: sets the rate, and returns a problem with the rules or null. */
+function applyRules(rules, data) {
+  // The rate is always the one in Loan Settings, whatever the form sent.
+  const product = rules.products[data.loan.loanType];
+  if (product) data.loan.monthlyRate = product.monthlyRate;
+  return settings.checkApplication(rules, {
+    monthlySalary: data.applicant.monthlySalary,
+    loanType: data.loan.loanType,
+    termMonths: data.loan.termMonths,
+  });
+}
+
+/** Only the person who filed an application may change it or add to it. */
+const filedBy = (app, user) => !!app.submittedBy?.equals(user._id);
+
+const EDIT_CLOSED = "The Bookkeeper already signed this application, so it can't be changed any more. You can still add supporting documents.";
+
 router.post("/", async (req, res, next) => {
   try {
     const parsed = createSchema.safeParse(req.body || {});
     if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0].message });
-    const rules = await settings.get();
-    // The rate is always the one in Loan Settings, whatever the form sent.
-    const product = rules.products[parsed.data.loan.loanType];
-    if (product) parsed.data.loan.monthlyRate = product.monthlyRate;
-    const ruleError = settings.checkApplication(rules, {
-      monthlySalary: parsed.data.applicant.monthlySalary,
-      loanType: parsed.data.loan.loanType,
-      termMonths: parsed.data.loan.termMonths,
-    });
+    const ruleError = applyRules(await settings.get(), parsed.data);
     if (ruleError) return res.status(400).json({ error: ruleError });
     // Members apply only for themselves, and the Bookkeeper section is the Bookkeeper's to fill.
     if (!seesAllLoans(req.user)) {
@@ -258,6 +266,102 @@ router.get("/:id", async (req, res, next) => {
   }
 });
 
+// The applicant changes their application: the same form as filing, allowed until the Bookkeeper
+// signs. The models score it again. Documents aren't touched here (see POST /:id/documents).
+router.put("/:id", async (req, res, next) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ error: "Application not found." });
+    const app = await Application.findById(req.params.id);
+    if (!app) return res.status(404).json({ error: "Application not found." });
+    auditNote(res, { target: `${app.applicationNo} · ${app.applicant.fullName}` });
+    if (!filedBy(app, req.user)) return res.status(403).json({ error: "Only the person who filed the application can change it." });
+    if (app.status !== "pending") return res.status(409).json({ error: `This application was already ${app.status}.` });
+    if (app.approvals.length) return res.status(409).json({ error: EDIT_CLOSED, code: "EDIT_CLOSED" });
+
+    const parsed = createSchema.safeParse(req.body || {});
+    if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0].message });
+    const data = parsed.data;
+    const rules = await settings.get();
+    const ruleError = applyRules(rules, data);
+    if (ruleError) return res.status(400).json({ error: ruleError });
+    // The application stays under the same member; a member's Bookkeeper section stays the Bookkeeper's.
+    data.applicant.memberId = app.applicant.memberId;
+    if (!seesAllLoans(req.user)) data.bookkeeper = { longTermBalance: 0, shortTermBalance: 0, monthlyPayment: 0 };
+
+    // Co-makers vouch for a loan of a given amount and term: they keep their answer only if they are
+    // still named and the loan they agreed to is unchanged. Everyone else is asked (again).
+    const named = await coMakers.resolve(data.coMakers, data.applicant.memberId, settings.coMakersNeeded(rules, data.loan.amount), rules.coMakersFromAmount);
+    const sameLoan = ["loanType", "amount", "termMonths", "paymentFrequency"].every((k) => app.loan[k] === data.loan[k]);
+    const kept = (c) => sameLoan && app.coMakers.find((x) => x.memberId === c.memberId && x.status !== "pending");
+    const nextCoMakers = named.map((c) => {
+      const before = kept(c);
+      return before ? before.toObject() : c;
+    });
+    const askAgain = nextCoMakers.filter((c) => c.status === "pending" && !(sameLoan && app.coMakers.some((x) => x.memberId === c.memberId)));
+
+    const before = { amount: app.loan.amount, termMonths: app.loan.termMonths, loanType: app.loan.loanType, coMakers: app.coMakers.map((c) => c.memberId) };
+    // Only succeeds if nobody signed in the meantime.
+    const updated = await Application.findOneAndUpdate(
+      { _id: app._id, status: "pending", "approvals.0": { $exists: false } },
+      {
+        $set: {
+          applicant: { ...data.applicant, fullName: fullNameOf(data.applicant) },
+          loan: data.loan,
+          bookkeeper: await bookkeeperFor(data.applicant.memberId, data.bookkeeper),
+          agreement: data.agreement,
+          coMakers: nextCoMakers,
+          editedAt: new Date(),
+        },
+      },
+      { returnDocument: "after", runValidators: true },
+    );
+    if (!updated) return res.status(409).json({ error: EDIT_CLOSED, code: "EDIT_CLOSED" });
+    if (askAgain.length) coMakers.notifyNamed({ ...updated.toObject(), coMakers: askAgain }).catch(() => {});
+    await runAssessment(updated);
+    auditNote(res, {
+      target: `${updated.applicationNo} · ${updated.applicant.fullName} · ₱${updated.loan.amount.toLocaleString("en-PH")}`,
+      before,
+      details: { amount: updated.loan.amount, termMonths: updated.loan.termMonths, loanType: updated.loan.loanType, coMakers: updated.coMakers.map((c) => c.memberId), coMakersAskedAgain: askAgain.map((c) => c.memberId) },
+    });
+    res.json({ application: forViewer(req.user, updated) });
+  } catch (err) {
+    if (err instanceof coMakers.CoMakerError) return res.status(400).json({ error: err.message });
+    next(err);
+  }
+});
+
+// The applicant adds supporting documents (their checks; the files follow through PUT
+// /:id/documents/:index). Allowed until the application is decided, after signatures too.
+// Answers with the new documents' positions for the uploads.
+router.post("/:id/documents", async (req, res, next) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ error: "Application not found." });
+    const app = await Application.findById(req.params.id);
+    if (!app) return res.status(404).json({ error: "Application not found." });
+    auditNote(res, { target: `${app.applicationNo} · ${app.applicant.fullName}` });
+    if (!filedBy(app, req.user)) return res.status(403).json({ error: "Only the person who filed the application can add documents to it." });
+    if (app.status !== "pending") return res.status(409).json({ error: `This application was already ${app.status}, so documents can't be added.` });
+
+    const parsed = z.object({ documents: z.array(documentCheckSchema).min(1, "Add at least one document.").max(MAX_DOCUMENTS) }).safeParse(req.body || {});
+    if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0].message });
+    const added = parsed.data.documents.map((d) => ({ ...d, addedAt: new Date() }));
+    const room = MAX_DOCUMENTS - added.length;
+    if (app.documents.length > room) return res.status(400).json({ error: `An application can have at most ${MAX_DOCUMENTS} documents.` });
+
+    const updated = await Application.findOneAndUpdate(
+      { _id: app._id, status: "pending", $expr: { $lte: [{ $size: { $ifNull: ["$documents", []] } }, room] } },
+      { $push: { documents: { $each: added } } },
+      { returnDocument: "after", runValidators: true },
+    );
+    if (!updated) return res.status(409).json({ error: "The application changed in the meantime. Reload and try again." });
+    const first = updated.documents.length - added.length;
+    auditNote(res, { details: { added: added.map((d) => `${d.fileName}${d.verdict ? ` (${d.verdict})` : ""}`), afterSignatures: updated.approvals.length } });
+    res.status(201).json({ application: forViewer(req.user, updated), indexes: added.map((_, i) => first + i) });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // The applicant's browser uploads each supporting document after filing. Only the person who
 // filed it, only into an empty slot, and only the exact file that was checked (same SHA-256).
 router.put(
@@ -269,7 +373,7 @@ router.put(
       const app = await Application.findById(req.params.id);
       if (!app) return res.status(404).json({ error: "Application not found." });
       auditNote(res, { target: `${app.applicationNo} · ${app.applicant.fullName}` });
-      if (!app.submittedBy?.equals(req.user._id)) return res.status(403).json({ error: "Only the person who filed the application can upload its documents." });
+      if (!filedBy(app, req.user)) return res.status(403).json({ error: "Only the person who filed the application can upload its documents." });
       const index = Number(req.params.index);
       const doc = app.documents[index];
       if (!doc) return res.status(404).json({ error: "That document is not on the application." });

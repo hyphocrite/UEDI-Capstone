@@ -70,6 +70,7 @@ export default function ApplicationDetail({ app, onChange }: { app: LoanApplicat
             <h2 className="text-xl font-bold break-words text-brand-800">{a.fullName}</h2>
             <p className="mt-1 text-xs text-brand-500">
               Submitted {formatDate(app.createdAt)}{app.submittedByName && ` by ${app.submittedByName}`}
+              {app.editedAt && <span className="font-medium text-amber-700"> · changed by the applicant {formatDate(app.editedAt)}</span>}
             </p>
           </div>
           {app.status === 'pending' && (
@@ -197,6 +198,11 @@ export default function ApplicationDetail({ app, onChange }: { app: LoanApplicat
                 <span className="min-w-0 break-words">
                   <span className="font-medium text-ink">{d.type ? documentType(d.type as DocumentTypeId)?.label ?? d.type : 'Document'}</span>
                   <span className="text-brand-500"> · {d.fileName}</span>
+                  {d.addedAt && (
+                    <span className="ml-1.5 rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-semibold text-sky-800" title="Added by the applicant after filing">
+                      Added {formatDate(d.addedAt)}
+                    </span>
+                  )}
                   {d.notes?.map((n) => <span key={n} className="block text-xs text-brand-600">{n}</span>)}
                 </span>
                 {d.fileId ? (

@@ -1,6 +1,6 @@
 // State, validation and request body for the Mutual Assistance Application Form.
 import { monthlyInstallment } from '../../lib/applications'
-import type { EmploymentStatus, LoanType } from '../../lib/applications'
+import type { EmploymentStatus, LoanApplication, LoanType } from '../../lib/applications'
 import type { MemberBalances } from '../../lib/loans'
 import type { Member, MemberHistory } from '../../lib/members'
 import { coMakersNeeded, FALLBACK_SETTINGS } from '../../lib/settings'
@@ -227,6 +227,48 @@ export function fromOwnRecord(r: OwnRecord): Partial<Form> {
     patch.priorLatePayments = String(r.history.priorLatePayments)
   }
   return patch
+}
+
+/** A filed application back in the form, for the applicant to change it (until the Bookkeeper signs). */
+export function formFromApplication(a: LoanApplication): Form {
+  const p = a.applicant
+  const b = a.bookkeeper
+  const day = (iso?: string) => (iso ? iso.slice(0, 10) : '')
+  // Whole years show as years, like the form fills in; anything else in months.
+  const years = a.loan.termMonths % 12 === 0
+  return {
+    ...emptyForm(),
+    memberId: p.memberId ?? '',
+    lastName: p.lastName,
+    firstName: p.firstName,
+    middleInitial: p.middleInitial ?? '',
+    residenceAddress: p.residenceAddress,
+    employer: p.employer,
+    employmentStatus: p.employmentStatus,
+    monthlySalary: String(p.monthlySalary),
+    netTakeHomePay: String(p.netTakeHomePay),
+    dateOfBirth: day(p.dateOfBirth),
+    yearsAsMember: String(p.yearsAsMember ?? 0),
+    priorLoans: String(p.priorLoans ?? 0),
+    priorLatePayments: String(p.priorLatePayments ?? 0),
+    applicationDate: day(a.agreement.applicationDate),
+    loanType: a.loan.loanType,
+    amount: String(a.loan.amount),
+    purpose: a.loan.purpose ?? '',
+    period: String(years ? a.loan.termMonths / 12 : a.loan.termMonths),
+    periodUnit: years ? 'years' : 'months',
+    monthlyRate: String(a.loan.monthlyRate),
+    paymentFrequency: a.loan.paymentFrequency,
+    longTermBalance: String(b?.longTermBalance ?? 0),
+    longTermDueDate: day(b?.longTermDueDate),
+    shortTermBalance: String(b?.shortTermBalance ?? 0),
+    shortTermDueDate: day(b?.shortTermDueDate),
+    monthlyPayment: String(b?.monthlyPayment ?? 0),
+    payrollDeduction: a.agreement.payrollDeduction,
+    autoRestructure: a.agreement.autoRestructure,
+    coMaker1: a.coMakers?.[0]?.memberId ?? '',
+    coMaker2: a.coMakers?.[1]?.memberId ?? '',
+  }
 }
 
 export type ApplicantFields = Pick<Form, 'lastName' | 'firstName' | 'middleInitial' | 'residenceAddress' | 'employer' | 'monthlySalary' | 'netTakeHomePay'>

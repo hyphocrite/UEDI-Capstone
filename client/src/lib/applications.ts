@@ -77,7 +77,7 @@ export type LoanApplication = {
   }
   agreement: { payrollDeduction: boolean; autoRestructure: boolean; applicationDate: string }
   /** fileId is set once the file itself was uploaded and can be opened in the viewer. */
-  documents: { fileName: string; type?: string; verdict?: 'verified' | 'review' | 'mismatch' | 'unreadable'; notes?: string[]; fileId?: string; contentType?: string; size?: number }[]
+  documents: { fileName: string; type?: string; verdict?: 'verified' | 'review' | 'mismatch' | 'unreadable'; notes?: string[]; fileId?: string; contentType?: string; size?: number; addedAt?: string }[]
   status: 'pending' | 'approved' | 'denied'
   /** Members vouching for the loan; signing waits until all have accepted. */
   coMakers?: { memberId: string; name?: string; status: 'pending' | 'accepted' | 'declined'; respondedAt?: string; note?: string }[]
@@ -101,6 +101,10 @@ export type LoanApplication = {
     decidedAt?: string
   }
   submittedByName?: string
+  /** Who filed it: only they can change it or add documents. */
+  submittedBy?: string
+  /** When the applicant last changed the form (allowed until the Bookkeeper signs). */
+  editedAt?: string
   createdAt: string
 }
 
@@ -179,3 +183,11 @@ export const monthlyInstallment = (l: Pick<LoanApplication['loan'], 'amount' | '
 /** Pending, at the caller's step, and not already signed by them (same rule as GET /api/applications?awaiting=me). */
 export const awaitingUser = (a: LoanApplication, role: string | undefined, userId: string | undefined) =>
   a.status === 'pending' && a.currentStep === role && !a.approvals.some((x) => x.signedBy === userId)
+
+/** The person who filed it may change the form until the Bookkeeper signs (server: PUT /api/applications/:id). */
+export const canChange = (a: LoanApplication, userId: string | undefined) =>
+  !!userId && a.submittedBy === userId && a.status === 'pending' && a.approvals.length === 0
+
+/** ...and add supporting documents until it is decided, after signatures too (POST /api/applications/:id/documents). */
+export const canAddDocuments = (a: LoanApplication, userId: string | undefined) =>
+  !!userId && a.submittedBy === userId && a.status === 'pending'
