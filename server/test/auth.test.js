@@ -138,3 +138,66 @@ test("accounts made before verification existed can still sign in", { skip: !uri
   const login = await post("/auth/login", { email: "old@uedi.coop", password: "secret123" });
   assert.equal(login.status, 200);
 });
+
+test("forgot password: emailed code, new password, old sessions end", { skip: !uri && "TEST_MONGODB_URI not set" }, async () => {
+  const email = "rosa@uedi.coop";
+  await post("/auth/register", { fullName: "Rosa Lim", email, password: "oldpass123" });
+  const signedIn = await post("/auth/verify-email", { email, code: lastCode(email) });
+  const oldCookie = signedIn.setCookie.split(";")[0];
+
+  // Same answer for unknown emails, and no mail goes out for them.
+  const { outbox } = require("../src/services/mailer");
+  const before = outbox.length;
+  assert.equal((await post("/auth/forgot-password", { email: "nobody@uedi.coop" })).status, 200);
+  assert.equal(outbox.length, before);
+
+  assert.equal((await post("/auth/forgot-password", { email })).status, 200);
+  assert.match(outbox.at(-1).subject, /password reset code/i);
+  const code = lastCode(email);
+
+  // Asking again within a minute doesn't send another code.
+  await post("/auth/forgot-password", { email });
+  assert.equal(lastCode(email), code);
+
+  const weak = await post("/auth/reset-password", { email, code, newPassword: "short" });
+  assert.equal(weak.status, 400, "the new password must follow the same rules as sign-up");
+
+  const wrongCode = String((Number(code) + 1) % 1_000_000).padStart(6, "0");
+  const wrong = await post("/auth/reset-password", { email, code: wrongCode, newPassword: "newpass456" });
+  assert.equal(wrong.status, 400);
+  assert.match(wrong.json.error, /not correct/);
+
+  // Session times are whole seconds: start the reset in a later second than the old sign-in.
+  await new Promise((r) => setTimeout(r, 1100));
+  const reset = await post("/auth/reset-password", { email, code, newPassword: "newpass456" });
+  assert.equal(reset.status, 200);
+  assert.equal(reset.json.session.email, email);
+  assert.ok(reset.setCookie, "signed in after the reset");
+
+  assert.equal((await post("/auth/reset-password", { email, code, newPassword: "another789" })).status, 400, "a code works once");
+  assert.equal((await call("/auth/me", { cookie: oldCookie })).json.session, null, "sessions from before the reset end");
+  assert.equal((await post("/auth/login", { email, password: "oldpass123" })).status, 401);
+  assert.equal((await post("/auth/login", { email, password: "newpass456" })).status, 200);
+});
+
+test("a reset code is used up after five wrong guesses", { skip: !uri && "TEST_MONGODB_URI not set" }, async () => {
+  const email = "ben@uedi.coop";
+  await post("/auth/register", { fullName: "Ben Ramos", email, password: "secret123" });
+  await post("/auth/verify-email", { email, code: lastCode(email) });
+  await post("/auth/forgot-password", { email });
+  const code = lastCode(email);
+  const wrongCode = String((Number(code) + 1) % 1_000_000).padStart(6, "0");
+  for (let i = 0; i < 5; i++) await post("/auth/reset-password", { email, code: wrongCode, newPassword: "newpass456" });
+  const blocked = await post("/auth/reset-password", { email, code, newPassword: "newpass456" });
+  assert.equal(blocked.status, 400);
+  assert.match(blocked.json.error, /expired|too many/i);
+});
+
+test("a reset also verifies an account that never entered its sign-up code", { skip: !uri && "TEST_MONGODB_URI not set" }, async () => {
+  const email = "carla@uedi.coop";
+  await post("/auth/register", { fullName: "Carla Diaz", email, password: "secret123" });
+  await post("/auth/forgot-password", { email });
+  const reset = await post("/auth/reset-password", { email, code: lastCode(email), newPassword: "newpass456" });
+  assert.equal(reset.status, 200);
+  assert.equal((await post("/auth/login", { email, password: "newpass456" })).status, 200);
+});
