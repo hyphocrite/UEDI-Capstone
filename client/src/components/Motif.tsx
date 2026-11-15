@@ -13,5 +13,5 @@ const place: Record<Corner, string> = {
  * (e.g. text-white/40 on dark green, text-brand-700/50 on the light background) and its size with w-*.
  */
 export default function Motif({ corner = 'bottom-left', className = '' }: { corner?: Corner; className?: string }) {
-  return <div aria-hidden="true" className={`motif pointer-events-none absolute aspect-[800/827] select-none print:hidden ${place[corner]} ${className}`} />
+  return <div aria-hidden="true" className={`motif pointer-events-none absolute aspect-[800/850] select-none print:hidden ${place[corner]} ${className}`} />
 }
