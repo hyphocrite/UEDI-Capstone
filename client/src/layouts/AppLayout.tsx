@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { BarChart3, BrainCircuit, CalendarCheck, CalendarDays, ClipboardCheck, FilePlus2, Handshake, HandCoins, History, LogOut, Menu, PiggyBank, ReceiptText, Settings, Siren, UserRound, Users, X } from 'lucide-react'
+import { BarChart3, BrainCircuit, CalendarCheck, CalendarDays, ClipboardCheck, FilePlus2, Handshake, HandCoins, History, LayoutDashboard, LogOut, Menu, PiggyBank, ReceiptText, Settings, Siren, UserRound, Users, X } from 'lucide-react'
 import BrandLogo from '../components/BrandLogo'
 import SessionTimeout from '../components/SessionTimeout'
 import { useAuth } from '../context/AuthContext'
@@ -10,11 +10,12 @@ import type { LoanApplication } from '../lib/applications'
 import { atLeast, homePath, roleLabel } from '../lib/roles'
 import type { Role } from '../lib/roles'
 
-type Section = 'Members' | 'Loans' | 'Records' | 'Admin'
+type Section = 'Overview' | 'Members' | 'Loans' | 'Records' | 'Admin'
 
 // min: shown to this role and every role above it (see lib/roles.ts). roles: shown only to these roles.
 // Must match the route guards in App.tsx. section: the heading it sits under in the sidebar.
 const nav: { to: string; label: string; icon: typeof Users; section: Section; end?: boolean; min?: Role; roles?: Role[] }[] = [
+  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, section: 'Overview', min: 'loan_officer' },
   { to: '/members', label: 'Members', icon: Users, section: 'Members', min: 'loan_officer' },
   { to: '/loans', label: 'Loans', icon: HandCoins, section: 'Loans', end: true },
   { to: '/loans/apply', label: 'Apply for a Loan', icon: FilePlus2, section: 'Loans' },
@@ -29,7 +30,7 @@ const nav: { to: string; label: string; icon: typeof Users; section: Section; en
   { to: '/credit-model', label: 'Credit Model', icon: BrainCircuit, section: 'Admin', min: 'admin' },
   { to: '/audit-log', label: 'Audit Log', icon: History, section: 'Admin', min: 'admin' },
 ]
-const SECTIONS: Section[] = ['Members', 'Loans', 'Records', 'Admin']
+const SECTIONS: Section[] = ['Overview', 'Members', 'Loans', 'Records', 'Admin']
 
 /** Today's date and, for Loan Officers and up, how many applications wait at their step. */
 function TodayBox() {

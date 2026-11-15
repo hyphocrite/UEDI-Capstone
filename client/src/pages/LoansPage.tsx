@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { AlertTriangle, FilePlus2, HandCoins, Search, Wallet, TrendingUp } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import StatCard from '../components/StatCard'
@@ -37,7 +37,9 @@ export default function LoansPage() {
   const staffView = atLeast(session?.role, 'loan_officer')
   const [loans, setLoans] = useState<Loan[] | null>(null)
   const [error, setError] = useState('')
-  const [status, setStatus] = useState<(typeof statuses)[number]>('All')
+  // ?status=Past%20due (from the dashboard) opens with that filter.
+  const [params] = useSearchParams()
+  const [status, setStatus] = useState<(typeof statuses)[number]>(() => statuses.find((s) => s === params.get('status')) ?? 'All')
   const [query, setQuery] = useState('')
   const [carried, setCarried] = useState<Carried[]>([])
 

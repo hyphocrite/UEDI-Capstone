@@ -7,6 +7,7 @@ import HomePage from './pages/HomePage'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import VerifyEmailPage from './pages/VerifyEmailPage'
+import DashboardPage from './pages/DashboardPage'
 import MembersPage from './pages/MembersPage'
 import LoansPage from './pages/LoansPage'
 import LoanDetailPage from './pages/LoanDetailPage'
@@ -38,7 +39,7 @@ export default function App() {
 
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
-          <Route path="/dashboard" element={<HomeRedirect />} />
+          <Route path="/dashboard" element={<HomeRedirect staff={<DashboardPage />} />} />
 
           {/* Every account: their loans, applying, their profile. */}
           <Route path="/loans" element={<LoansPage />} />
