@@ -8,7 +8,7 @@ export default function PageHeader({ title, subtitle, actions, icon: Icon }: Pro
     <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div className="flex min-w-0 items-start gap-3">
         {Icon && (
-          <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-800 text-white shadow-sm print:hidden">
+          <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-800 bg-grad-brand text-white shadow-sm print:hidden">
             <Icon className="h-5 w-5" />
           </span>
         )}

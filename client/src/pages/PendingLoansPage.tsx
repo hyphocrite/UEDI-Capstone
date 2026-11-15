@@ -111,7 +111,7 @@ export default function PendingLoansPage() {
       <div className="mb-4 flex max-w-full flex-wrap gap-1 rounded-lg border border-brand-200 bg-white p-1 sm:inline-flex" role="tablist" aria-label="Application status">
         {tabs.map((t) => (
           <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => { setTab(t.id); setNotice('') }}
-            className={`rounded-md px-3 py-1.5 text-sm font-semibold transition sm:px-4 ${tab === t.id ? 'bg-brand-800 text-white' : 'text-brand-700 hover:bg-brand-50'}`}>
+            className={`rounded-md px-3 py-1.5 text-sm font-semibold transition sm:px-4 ${tab === t.id ? 'bg-brand-800 bg-grad-brand text-white' : 'text-brand-700 hover:bg-brand-50'}`}>
             {t.label}
           </button>
         ))}

@@ -89,7 +89,7 @@ export default function EarlyWarningPage() {
         <div className="flex flex-wrap gap-2 border-b border-brand-100 p-4" role="tablist" aria-label="Show">
           {(['flagged', 'all'] as const).map((s) => (
             <button key={s} role="tab" aria-selected={show === s} onClick={() => setShow(s)}
-              className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${show === s ? 'bg-brand-800 text-white' : 'bg-brand-50 text-brand-700 hover:bg-brand-100'}`}>
+              className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${show === s ? 'bg-brand-800 bg-grad-brand text-white' : 'bg-brand-50 text-brand-700 hover:bg-brand-100'}`}>
               {s === 'flagged' ? `High risk and watch (${high.length + watch.length})` : `All active loans (${all.length})`}
             </button>
           ))}

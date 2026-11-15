@@ -93,7 +93,7 @@ export default function CreditModelPage() {
               {bench.datasets.map((d) => (
                 <button key={d.key} role="tab" aria-selected={datasetKey === d.key} onClick={() => setDatasetKey(d.key)}
                   className={`rounded-md px-3 py-1.5 text-sm font-semibold transition ${
-                    datasetKey === d.key ? 'bg-brand-800 text-white' : 'text-brand-700 hover:bg-brand-50'
+                    datasetKey === d.key ? 'bg-brand-800 bg-grad-brand text-white' : 'text-brand-700 hover:bg-brand-50'
                   }`}>
                   {d.name}
                 </button>
@@ -131,7 +131,7 @@ export default function CreditModelPage() {
                       <td className="py-2.5 pr-3">
                         <div className="flex items-center gap-3">
                           <div className="h-2 w-40 rounded-full bg-brand-50" title={`${r.aucRoc.toFixed(3)} ± ${r.aucRocSd.toFixed(3)}`}>
-                            <div className={`animate-grow-right h-2 rounded-full ${isEns ? 'bg-accent' : 'bg-brand-300'}`} style={{ width: barWidth(r.aucRoc), animationDelay: `${i * 80}ms` }} />
+                            <div className={`animate-grow-right h-2 rounded-full ${isEns ? 'bg-accent bg-grad-bar-x' : 'bg-brand-300'}`} style={{ width: barWidth(r.aucRoc), animationDelay: `${i * 80}ms` }} />
                           </div>
                           <span className="tabular-nums">{r.aucRoc.toFixed(3)} <span className="text-xs text-brand-500">± {r.aucRocSd.toFixed(3)}</span></span>
                         </div>
@@ -168,7 +168,7 @@ function ConfusionGrid({ cm }: { cm: ConfusionMatrix }) {
   const good = tn + fp
   const bad = fn + tp
   const cell = (n: number, of: number, label: string, tone: 'right' | 'wrong') => (
-    <div className={`rounded-lg p-4 ${tone === 'right' ? 'bg-brand-800 text-white' : 'bg-brand-50 text-ink'}`}>
+    <div className={`rounded-lg p-4 ${tone === 'right' ? 'bg-brand-800 bg-grad-brand text-white' : 'bg-brand-50 text-ink'}`}>
       <p className="text-2xl font-bold tabular-nums">{n.toLocaleString()}</p>
       <p className={`text-sm ${tone === 'right' ? 'text-brand-100' : 'text-brand-600'}`}>{label}, {pct(n / of)} of {of === good ? 'good' : 'bad'} loans</p>
     </div>

@@ -33,7 +33,7 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen">
-      <header className="bg-[#0B422A]">
+      <header className="bg-[#0B422A] bg-grad-header">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
           <BrandLogo light />
           <div className="flex items-center gap-2">
