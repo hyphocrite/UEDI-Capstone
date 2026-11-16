@@ -17,8 +17,14 @@ export default function RequireLevel({ min, roles }: Props) {
   return allowed ? <Outlet /> : <Navigate to={homePath(role)} replace />
 }
 
-/** /dashboard: the office dashboard (`staff`) for Loan Officers and up; members go to their own home page. */
+/** /dashboard: the office dashboard (`staff`) for Loan Officers and up; members go to their Home (/home). */
 export function HomeRedirect({ staff }: { staff: ReactNode }) {
   const { session } = useAuth()
   return atLeast(session?.role, 'loan_officer') ? <>{staff}</> : <Navigate to={homePath(session?.role)} replace />
+}
+
+/** /home: a member's Home (`member`); Loan Officers and up go to their dashboard instead. */
+export function MemberOnly({ member }: { member: ReactNode }) {
+  const { session } = useAuth()
+  return atLeast(session?.role, 'loan_officer') ? <Navigate to={homePath(session?.role)} replace /> : <>{member}</>
 }

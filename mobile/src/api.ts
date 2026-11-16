@@ -51,6 +51,50 @@ export type LoanSettings = {
 
 export type Payment = { id: string; amount: number; paidAt: string; method: string }
 
+export type ScoreBand = 'strong' | 'good' | 'fair' | 'weak' | 'limited'
+
+/** The member's own member score (savings, attendance, bills, co-maker record, repayment), worded to them. Never an application's ML score. */
+export type MemberScoreView = {
+  score: number | null
+  band: ScoreBand
+  coverage: number
+  parts: { key: string; label: string; weight: number; value: number | null; detail: string }[]
+  tips: string[]
+  strengths: string[]
+}
+export type MyScore = { linked: false; score: null } | { linked: true; memberId: string; score: MemberScoreView; asOf: string }
+
+/** The co-maker portal (GET /comaker), the same as the web Co-maker page. */
+export type CoMakerRequest = {
+  applicationId: string
+  applicationNo: string
+  borrowerName: string
+  amount: number
+  termMonths: number
+  loanType: string
+  purpose: string | null
+  filedAt: string
+  status: 'pending' | 'approved' | 'denied'
+  waitingFor: string | null
+  myStatus: 'pending' | 'accepted' | 'declined'
+  respondedAt: string | null
+  otherCoMakers: { name: string; status: string }[]
+}
+export type VouchedLoan = {
+  loanId: string
+  loanNo: string
+  borrowerName: string
+  status: string
+  balance: number
+  amountPaid: number
+  totalPayable: number
+  nextDue: { amount: number; dueDate: string } | null
+  pastDue: boolean
+  pastDueAmount: number
+  standing: 'on_track' | 'behind' | 'paid'
+}
+export type CoMakerPortal = { linked: boolean; requests: CoMakerRequest[]; loans: VouchedLoan[]; alerts: { loanId: string; text: string }[] }
+
 let token: string | null = null
 let onUnauthorized: (() => void) | null = null
 
@@ -107,4 +151,9 @@ export const api = {
   // UDEI's loan rules from the office's Settings page: rate per month, longest term, minimum salary.
   settings: () => request<{ settings: LoanSettings }>('/settings'),
   loan: (id: string) => request<{ loan: Loan; payments: Payment[] }>(`/member/loans/${id}`),
+  /** Your own member score with Kuwi's tips. Always your own: the server never takes a member ID. */
+  myScore: () => request<MyScore>('/me/score'),
+  coMaker: () => request<CoMakerPortal>('/comaker'),
+  respondCoMaker: (applicationId: string, decision: 'accepted' | 'declined', note?: string) =>
+    request<{ request: CoMakerRequest }>(`/comaker/requests/${applicationId}`, { method: 'POST', body: { decision, ...(note ? { note } : {}) } }),
 }

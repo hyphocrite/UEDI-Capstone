@@ -32,6 +32,8 @@ export async function scheduleDueReminders(loans: Loan[]): Promise<number> {
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync('due-dates', {
       name: 'Loan due dates',
+      // AndroidImportance is re-exported from the package's types file, which import/namespace can't follow.
+      // eslint-disable-next-line import/namespace
       importance: Notifications.AndroidImportance.DEFAULT,
     })
   }

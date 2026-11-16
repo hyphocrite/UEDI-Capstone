@@ -232,10 +232,12 @@ export function MascotSays({ mood = 'neutral', title, children }: { mood?: keyof
 }
 
 // Kuwi's callouts, as on the web: a left border, a light fill and a coloured heading, so the
-// reasons (red) and the tips (amber) read as separate boxes.
+// reasons (red), the tips (amber) and what's going well (green) read as separate boxes.
 const kuwiBoxTones = {
   against: { border: '#f87171', bg: '#fef2f2', head: '#991b1b', text: '#450a0a', mark: '✕' },
   tips: { border: '#fbbf24', bg: '#fffbeb', head: '#92400e', text: '#451a03', mark: '→' },
+  // "Doing well": the parts of the member score at 80 or more.
+  favor: { border: '#34d399', bg: '#ecfdf5', head: '#065f46', text: '#022c22', mark: '✓' },
 } as const
 
 export function KuwiBox({ kind, title, items }: { kind: keyof typeof kuwiBoxTones; title: string; items: string[] }) {

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import Modal from '../Modal'
+import ScoreParts from './ScoreParts'
 import { useConfirm } from '../../context/ConfirmContext'
 import { api } from '../../lib/api'
 import { bandLabel, bandStyle } from '../../lib/members'
@@ -53,18 +54,7 @@ export default function MemberScoreModal({ member, onClose, onChanged }: { membe
               <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${bandStyle[score.band]}`}>{bandLabel[score.band]}</span>
               <p className="text-xs text-brand-500">based on {Math.round(score.coverage * 100)}% of the possible data</p>
             </div>
-            <ul className="space-y-2 text-sm">
-              {score.parts.map((p, i) => (
-                <li key={p.key}>
-                  <div className="flex justify-between gap-2">
-                    <span className="font-medium text-ink">{p.label} <span className="text-xs font-normal text-brand-500">({p.weight}%)</span></span>
-                    <span className="text-brand-700">{p.value === null ? 'No data' : `${Math.round(p.value * 100)} / 100`}</span>
-                  </div>
-                  {p.value !== null && <div className="mt-1 h-1.5 rounded-full bg-brand-100"><div className="animate-grow-right h-1.5 rounded-full bg-accent" style={{ width: `${Math.round(p.value * 100)}%`, animationDelay: `${i * 60}ms` }} /></div>}
-                  <p className="mt-0.5 text-xs text-brand-600">{p.detail}</p>
-                </li>
-              ))}
-            </ul>
+            <ScoreParts parts={score.parts} />
             <p className="text-xs text-brand-500">Parts with no data are left out instead of counting against the member.</p>
           </>
         )}

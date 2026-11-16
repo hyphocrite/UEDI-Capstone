@@ -115,3 +115,10 @@ export const monthLabel = (key: string) => {
 /** Sorts member IDs as UDEI numbers them: 2 before 10, then S-1, S-2. */
 export const byMemberId = (a: { memberId: string }, b: { memberId: string }) =>
   a.memberId.localeCompare(b.memberId, 'en', { numeric: true })
+
+/** GET /api/me/score: the signed-in member's own score, worded to them, with Kuwi's tips. */
+export type MemberScoreView = MemberScore & { tips: string[]; strengths: string[] }
+export type MyScore = { linked: false; score: null } | { linked: true; memberId: string; score: MemberScoreView; asOf: string }
+
+/** Kuwi's face for a band: happy when it's going well, worried when it's weak. */
+export const moodForBand = (band: ScoreBand) => (band === 'strong' || band === 'good' ? 'happy' : band === 'weak' ? 'concerned' : 'neutral')

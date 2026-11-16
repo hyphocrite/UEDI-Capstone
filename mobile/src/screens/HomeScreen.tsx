@@ -1,21 +1,24 @@
 import { RefreshControl, ScrollView, Text, View } from 'react-native'
-import type { Application, Loan } from '../api'
+import type { Application, Loan, MyScore } from '../api'
 import { useAuth } from '../auth'
 import { centavos, date, daysUntil, LOAN_TYPE_LABEL, pesos } from '../format'
 import { colors } from '../theme'
 import { Badge, Button, Card, Empty, Header, Row, s } from '../ui'
+import { KuwiCard, ScoreCard } from '../score'
 import { applicationBadge } from './status'
 
 type Props = {
   loans: Loan[]
   applications: Application[]
+  /** The member's own member score; null until it loads (pull to refresh reloads it). */
+  score: MyScore | null
   loading: boolean
   onRefresh: () => void
   onApply: () => void
   onOpenLoan: (id: string) => void
 }
 
-export default function HomeScreen({ loans, applications, loading, onRefresh, onApply, onOpenLoan }: Props) {
+export default function HomeScreen({ loans, applications, score, loading, onRefresh, onApply, onOpenLoan }: Props) {
   const { session } = useAuth()
   const active = loans.filter((l) => l.status === 'active')
   const balance = active.reduce((sum, l) => sum + l.balance, 0)
@@ -33,6 +36,9 @@ export default function HomeScreen({ loans, applications, loading, onRefresh, on
         contentContainerStyle={{ padding: 16 }}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={onRefresh} tintColor={colors.primary} />}
       >
+        <ScoreCard data={score} />
+        <KuwiCard data={score} />
+
         <Card style={{ backgroundColor: colors.primary, borderColor: colors.primary }}>
           <Text style={{ color: '#A7D7BF', fontSize: 13 }}>Total loan balance</Text>
           <Text style={{ color: '#fff', fontSize: 30, fontWeight: '800', marginTop: 4 }}>{centavos(balance)}</Text>

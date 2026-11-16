@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { BarChart3, BrainCircuit, CalendarCheck, CalendarDays, ClipboardCheck, FilePlus2, Handshake, HandCoins, History, LayoutDashboard, LogOut, Menu, PiggyBank, ReceiptText, Settings, Siren, UserRound, Users, X } from 'lucide-react'
+import { BarChart3, BrainCircuit, CalendarCheck, CalendarDays, ClipboardCheck, FilePlus2, Handshake, HandCoins, History, House, LayoutDashboard, LogOut, Menu, PiggyBank, ReceiptText, Settings, Siren, UserRound, Users, X } from 'lucide-react'
 import BrandLogo from '../components/BrandLogo'
+import MemberTabBar from '../components/MemberTabBar'
 import SessionTimeout from '../components/SessionTimeout'
 import { useAuth } from '../context/AuthContext'
 import { api } from '../lib/api'
@@ -15,6 +16,7 @@ type Section = 'Overview' | 'Members' | 'Loans' | 'Records' | 'Admin'
 // min: shown to this role and every role above it (see lib/roles.ts). roles: shown only to these roles.
 // Must match the route guards in App.tsx. section: the heading it sits under in the sidebar.
 const nav: { to: string; label: string; icon: typeof Users; section: Section; end?: boolean; min?: Role; roles?: Role[] }[] = [
+  { to: '/home', label: 'Home', icon: House, section: 'Overview', roles: ['staff'] },
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, section: 'Overview', min: 'loan_officer' },
   { to: '/members', label: 'Members', icon: Users, section: 'Members', min: 'loan_officer' },
   { to: '/loans', label: 'Loans', icon: HandCoins, section: 'Loans', end: true },
@@ -83,9 +85,12 @@ export default function AppLayout() {
   const items = nav
     .filter((n) => (n.roles ? !!role && n.roles.includes(role) : atLeast(role, n.min ?? 'staff')))
     .map((n) => (n.to === '/loans' && !atLeast(role, 'loan_officer') ? { ...n, label: 'My Loans' } : n))
-  // Long menus (Treasurer and up) don't fit in one row, so on desktop they go in a sidebar instead.
+  // Long menus (Loan Officer and up) don't fit in one row, so on desktop they go in a sidebar instead.
   const wide = items.length > 6
-  const hide = wide ? 'lg:hidden' : 'xl:hidden'
+  // Members get a bottom tab bar below lg instead of a menu, and their header links from lg up.
+  const member = !atLeast(role, 'loan_officer')
+  const hide = wide || member ? 'lg:hidden' : 'xl:hidden'
+  const desktop = member ? 'lg:flex' : 'xl:flex'
 
   const onLogout = async () => {
     await logout()
@@ -156,7 +161,7 @@ export default function AppLayout() {
           </NavLink>
 
           {!wide && (
-          <nav className={`hidden items-center gap-0.5 xl:flex`} aria-label="Main">
+          <nav className={`hidden items-center gap-0.5 ${desktop}`} aria-label="Main">
             {items.map(({ to, label, icon: Icon, end }) => (
               <NavLink key={to} to={to} end={end} className={linkClass}>
                 {icon(Icon)}
@@ -167,7 +172,7 @@ export default function AppLayout() {
           )}
 
           {!wide && (
-          <div className={`hidden items-center gap-3 xl:flex`}>
+          <div className={`hidden items-center gap-3 ${desktop}`}>
             {profile}
             <button onClick={onLogout} className="btn px-3 text-brand-100 hover:bg-white/10 hover:text-white">
               <LogOut className="h-4 w-4" />
@@ -176,6 +181,7 @@ export default function AppLayout() {
           </div>
           )}
 
+          {!member && (
           <button
             className={`rounded-lg p-2 text-white hover:bg-white/10 ${hide}`}
             onClick={() => setOpen((o) => !o)}
@@ -183,9 +189,10 @@ export default function AppLayout() {
           >
             {open ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
           </button>
+          )}
         </div>
 
-        {open && (
+        {open && !member && (
           <div className={`border-t border-white/10 px-4 pb-4 ${hide}`}>
             <nav className="mt-3 flex flex-col gap-1" aria-label="Mobile">
               {items.map(({ to, label, icon: Icon, end }) => (
@@ -213,10 +220,12 @@ export default function AppLayout() {
         )}
       </header>
 
-      <main className={`mx-auto px-4 py-8 sm:px-6 print:max-w-none print:p-0 ${wide ? 'max-w-[96rem]' : 'max-w-7xl'}`}>
+      {/* Members: room at the bottom for the tab bar below lg, so it never covers content. */}
+      <main className={`mx-auto px-4 py-8 sm:px-6 print:max-w-none print:p-0 ${wide ? 'max-w-[96rem]' : 'max-w-7xl'} ${member ? 'pb-32 lg:pb-8' : ''}`}>
         <Outlet />
         <SessionTimeout />
       </main>
+      {member && <MemberTabBar />}
       </div>
     </div>
   )

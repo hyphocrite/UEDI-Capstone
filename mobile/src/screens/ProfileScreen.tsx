@@ -1,15 +1,17 @@
-import { Text, View } from 'react-native'
-import { API_URL } from '../api'
+import { ScrollView, Text, View } from 'react-native'
+import { API_URL, type MyScore } from '../api'
 import { useAuth } from '../auth'
 import { colors } from '../theme'
+import { ScoreCard } from '../score'
 import { Button, Card, Header, Row } from '../ui'
 
-export default function ProfileScreen({ reminders }: { reminders: number | null }) {
+export default function ProfileScreen({ reminders, score }: { reminders: number | null; score: MyScore | null }) {
   const { session, signOut } = useAuth()
   return (
     <View style={{ flex: 1 }}>
-      <Header title="Account" />
-      <View style={{ padding: 16 }}>
+      <Header title="Profile" />
+      <ScrollView contentContainerStyle={{ padding: 16 }}>
+        <ScoreCard data={score} compact />
         <Card>
           <Row label="Name" value={session?.fullName ?? ''} />
           <Row label="Email" value={session?.email ?? ''} />
@@ -27,7 +29,7 @@ export default function ProfileScreen({ reminders }: { reminders: number | null 
         </Card>
         <Button variant="outline" title="Sign out" onPress={signOut} />
         <Text style={{ color: colors.muted, fontSize: 11, textAlign: 'center', marginTop: 24 }}>Server: {API_URL}</Text>
-      </View>
+      </ScrollView>
     </View>
   )
 }
