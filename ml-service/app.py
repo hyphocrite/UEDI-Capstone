@@ -1,4 +1,4 @@
-"""UEDI loan-risk service. Express calls it; the browser never does.
+"""UDEI credit-score service (regression). Express calls it; the browser never does.
 
     python -m uvicorn app:app --port 8000
 """
@@ -17,13 +17,13 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
 from uedi_ml.early_warning import FEATURE_NAMES as EW_FEATURES, EarlyWarningModel
-from uedi_ml.model import LoanRiskModel
+from uedi_ml.model import CreditScoreModel
 
 MODEL_PATH = Path(os.getenv("MODEL_PATH", Path(__file__).parent / "models" / "model.joblib"))
 # benchmark.py and plot_results.py write their results next to the model.
-BENCHMARKS = {"german_credit": "German Credit (1,000 real loans)", "sample_loans": "UEDI-shaped sample loans"}
+BENCHMARKS = {"uedi_loans": "UDEI loans", "sample_loans": "UDEI-shaped sample loans"}
 
-_model: LoanRiskModel | None = None
+_model: CreditScoreModel | None = None
 EW_PATH = MODEL_PATH.parent / "early_warning.joblib"
 _ew: EarlyWarningModel | None = None
 
@@ -55,10 +55,10 @@ async def lifespan(_app: FastAPI):
     yield
 
 
-app = FastAPI(title="UEDI loan-risk service", lifespan=lifespan)
+app = FastAPI(title="UDEI credit-score service", lifespan=lifespan)
 
 
-def get_model() -> LoanRiskModel:
+def get_model() -> CreditScoreModel:
     global _model
     if _model is None:
         if not MODEL_PATH.exists():
@@ -149,17 +149,17 @@ def model_info():
 
 @app.get("/benchmark")
 def benchmark():
-    """The 8-classifier comparison from benchmark.py and plot_results.py, for the Credit Model page."""
+    """The 8-regressor comparison from benchmark.py and plot_results.py, for the Credit Model page."""
     out_dir = MODEL_PATH.parent
     datasets = []
     for key, name in BENCHMARKS.items():
-        path = out_dir / f"benchmark_{key}_weights.json"
+        path = out_dir / f"benchmark_{key}.json"
         if path.exists():
             datasets.append({"key": key, "name": name, **json.loads(path.read_text())})
     if not datasets:
         raise HTTPException(404, "No benchmark yet. Run benchmark.py, then plot_results.py (see ml-service/README.md).")
-    matrices = out_dir / "figures" / "confusion_matrices.json"
-    return {"datasets": datasets, "confusion": json.loads(matrices.read_text()) if matrices.exists() else None}
+    errors = out_dir / "figures" / "error_types.json"
+    return {"datasets": datasets, "errorTypes": json.loads(errors.read_text()) if errors.exists() else None}
 
 
 @app.post("/reload")

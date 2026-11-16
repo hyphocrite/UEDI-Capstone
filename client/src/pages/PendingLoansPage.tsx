@@ -179,7 +179,7 @@ export default function PendingLoansPage() {
                     </p>
                     <p className="mt-0.5 text-xs text-brand-500">
                       {a.applicationNo}
-                      {s && ` · credit score ${creditScore(s.defaultProbability)}`}
+                      {s && ` · credit score ${creditScore(s).toFixed(2)}`}
                     </p>
                     {a.status === 'pending' && a.currentStep !== 'none' && (
                       <>

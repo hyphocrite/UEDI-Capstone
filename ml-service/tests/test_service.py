@@ -29,23 +29,23 @@ def client():
     return TestClient(service.app)
 
 
-def test_predict_returns_all_three_models_and_ensemble(client):
+def test_predict_returns_each_member_and_ensemble(client):
     r = client.post("/predict", json=GOOD)
     assert r.status_code == 200
     body = r.json()
-    assert [m["key"] for m in body["models"]] == ["xgboost", "random_forest", "logistic_regression"]
+    assert [m["key"] for m in body["models"]] == client.get("/model").json()["members"]
     for m in body["models"] + [body["ensemble"]]:
-        assert 0 <= m["defaultProbability"] <= 1
+        assert 0 <= m["creditScore"] <= 100
         assert m["suggestion"] in {"approve", "review", "deny"}
     assert all(m["topFactors"] for m in body["models"])
 
 
-def test_risky_applicant_scores_higher(client):
-    good = client.post("/predict", json=GOOD).json()["ensemble"]["defaultProbability"]
-    risky = client.post("/predict", json=RISKY).json()["ensemble"]["defaultProbability"]
-    assert risky > good
-    assert client.post("/predict", json=RISKY).json()["ensemble"]["suggestion"] == "deny"
-    assert client.post("/predict", json=GOOD).json()["ensemble"]["suggestion"] == "approve"
+def test_risky_applicant_scores_lower(client):
+    good = client.post("/predict", json=GOOD).json()["ensemble"]
+    risky = client.post("/predict", json=RISKY).json()["ensemble"]
+    assert risky["creditScore"] < good["creditScore"]
+    assert risky["suggestion"] == "deny"
+    assert good["suggestion"] == "approve"
 
 
 def test_rejects_bad_input(client):
@@ -62,36 +62,49 @@ def test_only_form_fields_are_required(client):
 
 def test_model_metrics(client):
     m = client.get("/model").json()
-    assert set(m["models"]) == {"xgboost", "random_forest", "logistic_regression", "ensemble"}
-    assert "fold stratified" in m["validation"]
-    assert m["thresholds"]["approve"] < m["thresholds"]["deny"]
+    assert m["task"] == "regression" and m["target"] == "repaymentScore"
+    assert set(m["models"]) == set(m["members"]) | {"ensemble"}
+    for v in m["models"].values():
+        assert {"mae", "rmse", "r2"} <= set(v)
+    assert "fold cross-validation" in m["validation"]
+    assert m["thresholds"]["deny"] < m["thresholds"]["approve"]
+    assert {"typeIRate", "typeIIRate", "matrix"} <= set(m["errorTypes"])
     assert "deduction_ratio" in m["features"]
 
 
 def test_benchmark(client, tmp_path, monkeypatch):
     monkeypatch.setattr(service, "MODEL_PATH", tmp_path / "model.joblib")
     assert client.get("/benchmark").status_code == 404
-    row = {"model": "XGBoost", "aucRoc": 0.78, "aucRocSd": 0.03}
-    (tmp_path / "benchmark_german_credit_weights.json").write_text(json.dumps({"rows": 1000, "bad": 300, "results": [row]}))
+    row = {"model": "XGBoost", "mae": 16.0, "maeSd": 0.5, "rmse": 22.5, "rmseSd": 0.6, "r2": 0.26, "r2Sd": 0.03}
+    (tmp_path / "benchmark_sample_loans.json").write_text(json.dumps({"rows": 3000, "results": [row]}))
     body = client.get("/benchmark").json()
-    assert [d["key"] for d in body["datasets"]] == ["german_credit"]
+    assert [d["key"] for d in body["datasets"]] == ["sample_loans"]
     assert body["datasets"][0]["results"] == [row]
-    assert body["confusion"] is None
+    assert body["errorTypes"] is None
 
 
-def test_shap_waterfall_adds_up_to_the_xgboost_score(client):
+def test_shap_waterfall_adds_up_to_the_ensemble_score(client):
     body = client.post("/predict", json=RISKY).json()
     w = body["shap"]
-    assert w["model"] == "xgboost" and w["scale"] == "log-odds"
+    assert w["model"] == "ensemble" and w["scale"] == "points"
     assert 0 < len(w["factors"]) <= 8
     assert all(f["label"] and isinstance(f["shap"], float) for f in w["factors"])
     total = w["baseValue"] + sum(f["shap"] for f in w["factors"]) + w["otherFeatures"]
-    assert abs(total - w["output"]) < 1e-3, "base value plus every SHAP value equals the model output"
-    shown = next(m for m in body["models"] if m["key"] == "xgboost")["defaultProbability"]
-    assert abs(w["outputProbability"] - shown) < 1e-3, "the waterfall ends at the XGBoost model's displayed chance of default"
-    # Largest first.
+    assert abs(total - w["output"]) < 1e-2, "base value plus every SHAP value equals the ensemble's score"
+    assert abs(w["creditScore"] - body["ensemble"]["creditScore"]) < 1e-2
     sizes = [abs(f["shap"]) for f in w["factors"]]
     assert sizes == sorted(sizes, reverse=True)
+
+
+def test_ensemble_shap_is_exact_before_any_correction(client):
+    """The weighted sum of the members' SHAP values reproduces the ensemble's prediction."""
+    import pandas as pd
+    from uedi_ml.features import build_features
+
+    model = service.get_model()
+    X = build_features(pd.DataFrame([GOOD, RISKY]), model.features)
+    values, base, _ = model.ensemble_shap(X)
+    assert abs(base + values.sum(axis=1) - model.stack.predict(X)).max() < 0.05
 
 
 def test_metrics_have_a_shap_summary(client):

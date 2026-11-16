@@ -1,4 +1,4 @@
-// The XGBoost SHAP waterfall is saved with the assessment and shown to staff only.
+// The stacked ensemble SHAP waterfall (credit score points) is saved with the assessment and shown to staff only.
 //   TEST_MONGODB_URI=mongodb://127.0.0.1:27017/uedi_test npm test
 const { test, before, after } = require("node:test");
 const assert = require("node:assert/strict");
@@ -26,7 +26,10 @@ test("the SHAP waterfall is saved with the assessment, for staff only", { skip }
 
   const staffView = (await t.call(`/applications/${filed.json.application._id}`, { cookie: staff.officer.cookie })).json.application;
   const w = staffView.assessment.shap;
-  assert.equal(w.model, "xgboost");
+  assert.equal(w.model, "ensemble");
+  assert.equal(w.scale, "points");
+  assert.equal(w.creditScore, 76);
+  assert.equal(typeof staffView.assessment.ensemble.creditScore, "number");
   assert.equal(w.factors.length, 2);
   const total = w.baseValue + w.factors.reduce((s, f) => s + f.shap, 0) + w.otherFeatures;
   assert.ok(Math.abs(total - w.output) < 1e-9, "stored as sent, still adding up");

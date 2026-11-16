@@ -90,16 +90,17 @@ export default function ApplicationDetail({ app, onChange }: { app: LoanApplicat
             <p className="text-xs font-semibold tracking-wider text-brand-200 uppercase">ML suggestion</p>
             <p className={`mt-1 text-4xl font-bold ${suggestionTone[e.suggestion]}`}>{suggestionText[e.suggestion]}</p>
             <p className="mt-2 text-lg text-white">
-              Credit score <b className="text-2xl tabular-nums">{creditScore(e.defaultProbability)}</b> <span className="text-brand-200">/ 100</span>
+              Credit score <b className="text-2xl tabular-nums">{creditScore(e).toFixed(2)}</b> <span className="text-brand-200">/ 100</span>
             </p>
-            {/* The probability the score comes from, for the signers. */}
-            <p className="text-xs text-brand-200">about {Math.round(e.defaultProbability * 100)}% estimated chance of default</p>
+            <p className="text-xs text-brand-200">
+              {e.creditScore != null ? 'predicted Repayment Performance Score (regression)' : `about ${Math.round((e.defaultProbability ?? 0) * 100)}% estimated chance of default (older model)`}
+            </p>
             <div className="text-left">
-              <CreditScoreScale score={creditScore(e.defaultProbability)} approveLine={scoreLine(app.assessment!.thresholds.approve)} denyLine={scoreLine(app.assessment!.thresholds.deny)} />
+              <CreditScoreScale score={creditScore(e)} approveLine={scoreLine(app.assessment!.thresholds.approve)} denyLine={scoreLine(app.assessment!.thresholds.deny)} />
             </div>
             <p className="mx-auto mt-3 max-w-2xl text-sm text-brand-100">
-              <b className="text-white">{agree} of 3 models agree.</b> The final score combines XGBoost, Random Forest and Logistic Regression
-              (stacked ensemble{e.cvMetrics ? `, tested AUC ${e.cvMetrics.aucRoc.toFixed(2)}` : ''}). It is a suggestion; the four signers decide.
+              <b className="text-white">{agree} of {app.assessment!.models.length} models agree.</b> The final score combines {app.assessment!.models.map((m) => m.name).join(', ')}
+              (stacked ensemble{e.cvMetrics?.r2 != null ? `, tested R² ${e.cvMetrics.r2.toFixed(2)}, about ${e.cvMetrics.mae.toFixed(1)} points off on average` : ''}). It is a suggestion; the four signers decide.
             </p>
             {app.explanation && (app.explanation.against.length > 0 || (app.explanation.inFavor?.length ?? 0) > 0) && (
               <div className="mt-4 border-t border-white/15 pt-4 text-left">

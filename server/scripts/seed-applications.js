@@ -58,7 +58,7 @@ async function main() {
     }
     await app.save();
     const e = app.assessment?.ensemble;
-    console.log(`${app.applicationNo} ${s.applicant.fullName}: ${e ? `${e.suggestion} (credit score ${Math.round(100 * (1 - e.defaultProbability))} / 100)` : app.assessmentError}`);
+    console.log(`${app.applicationNo} ${s.applicant.fullName}: ${e ? `${e.suggestion} (credit score ${e.creditScore ?? Math.round(100 * (1 - e.defaultProbability))} / 100)` : app.assessmentError}`);
   }
   await mongoose.disconnect();
 }

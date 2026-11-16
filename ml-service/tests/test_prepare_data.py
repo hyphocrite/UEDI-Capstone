@@ -29,6 +29,8 @@ def messy_export() -> pd.DataFrame:
             "ST Balance": [0, 0, 0, 2000, 0, 3000],
             "Birthday": ["1981-03-02", "1994-07-20", "1981-03-02", "1990-01-01", "1981-03-02", "1994-07-20"],
             "Employment Status": ["Permanent", "JO", "Permanent", "COS", "Permanent", "JO"],
+            "Amortization Due to Date": ["60,000", "10,000", "45,000", "8,000", "20,000", "10,000"],
+            "Paid on Time": ["60,000", "4,000", "45,000", "7,000", "20,000", "1,000"],
             "Status": ["Fully Paid", "Delinquent", "Paid", "Restructured", "Current", "Written Off"],
         }
     )
@@ -41,6 +43,7 @@ def test_prepares_a_messy_export(tmp_path):
     assert list(out["loanType"][:4]) == ["long_term", "emergency", "long_term", "emergency"]
     assert out["loanAmount"][0] == 60000 and out["loanAmount"][1] == 10000
     assert list(out["defaulted"]) == [0, 1, 0, 0, 0, 1]
+    assert list(out["repaymentScore"]) == [100, 40, 100, 87.5, 100, 10]
     # Ana's third loan sees two earlier loans, none bad; Ben's second sees one bad loan.
     assert out["priorLoans"].tolist() == [0, 0, 1, 0, 2, 1]
     assert out["priorLatePayments"].tolist() == [0, 0, 0, 0, 0, 1]
@@ -59,6 +62,7 @@ def test_cli_writes_checked_csv(tmp_path):
     df = pd.read_csv(out)
     assert len(df) == 5  # the "abc" amount row is skipped
     assert df["defaulted"].sum() == 1
+    assert df["repaymentScore"].between(0, 100).all()
 
 
 def test_features_follow_the_columns_present():
