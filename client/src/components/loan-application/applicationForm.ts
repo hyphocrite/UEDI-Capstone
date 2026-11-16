@@ -3,7 +3,7 @@ import { monthlyInstallment } from '../../lib/applications'
 import type { EmploymentStatus, LoanApplication, LoanType } from '../../lib/applications'
 import type { MemberBalances } from '../../lib/loans'
 import type { Member, MemberHistory } from '../../lib/members'
-import { coMakersNeeded, FALLBACK_SETTINGS } from '../../lib/settings'
+import { coMakersRequiredFor, FALLBACK_SETTINGS, MIN_NET_TAKE_HOME_PAY, nonMemberLimit } from '../../lib/settings'
 import type { LoanSettings } from '../../lib/settings'
 import type { Applicant, DocumentAnalysis } from '../../lib/ocr/analyzeDocument'
 
@@ -62,6 +62,17 @@ export const MAX_TERM_MONTHS = 120
 
 /** The loan amounts UDEI offers, in pesos. Keep in step with mobile/src/screens/ApplyScreen.tsx. */
 export const LOAN_AMOUNTS = [25000, 50000, 75000, 100000]
+
+/** Amounts for an applicant who isn't a linked member: up to their limit. Keep in step with mobile/src/screens/ApplyScreen.tsx. */
+export const NON_MEMBER_LOAN_AMOUNTS = [1000, 2000, 3000, 4000, 5000]
+
+/** The amounts this applicant can choose from. */
+export function loanAmountsFor(settings: LoanSettings, linked: boolean): number[] {
+  const limit = nonMemberLimit(settings, linked)
+  if (limit === null) return LOAN_AMOUNTS
+  const under = NON_MEMBER_LOAN_AMOUNTS.filter((a) => a <= limit)
+  return under.includes(limit) ? under : [...under, limit]
+}
 
 /** The rate on the Settings page for a loan type, as the form's string. */
 export const rateFor = (settings: LoanSettings, t: LoanType) => String(settings.products[t].monthlyRate)
@@ -284,36 +295,66 @@ export const applicantOf = (f: ApplicantFields): Applicant => ({
   netTakeHomePay: num(f.netTakeHomePay),
 })
 
-/** Returns the first problem with the typed fields, or '' when they are fine. Documents are checked separately. */
-export function validateForm(f: Form, settings: LoanSettings = FALLBACK_SETTINGS): string {
-  const salary = num(f.monthlySalary)
-  const net = num(f.netTakeHomePay)
-  const term = termMonthsOf(f)
-  const rate = Number(f.monthlyRate)
+/** The pages of the form, in order. Documents are checked by the page (they live outside Form). */
+export const FORM_STEPS = ['applicant', 'loan', 'coMakers', 'documents', 'review'] as const
+export type FormStep = (typeof FORM_STEPS)[number]
 
-  if (!f.lastName.trim()) return 'Enter the last name.'
-  if (!f.firstName.trim()) return 'Enter the first name.'
-  if (f.residenceAddress.trim().length < 5) return 'Enter the residence address.'
-  if (f.employer.trim().length < 2) return 'Enter the employer.'
-  if (salary <= 0) return 'Enter the monthly salary.'
-  if (net <= 0) return 'Enter the net take-home pay.'
-  if (net > salary) return 'Net take-home pay cannot be more than the monthly salary.'
-  if (salary < settings.minMonthlySalary) return `UDEI requires a monthly salary of at least ₱${settings.minMonthlySalary.toLocaleString('en-PH')}.`
-  if (num(f.priorLatePayments) > num(f.priorLoans)) return 'Late payments cannot be more than past loans.'
-  if (!f.applicationDate) return 'Enter the application date.'
-  if (num(f.amount) <= 0) return 'Choose the loan amount.'
-  if (f.purpose.trim().length < 3) return 'Give the reason for the loan.'
-  const maxTerm = Math.min(MAX_TERM_MONTHS, settings.products[f.loanType].maxTermMonths)
-  if (term < 1 || term > maxTerm) return `${settings.products[f.loanType].label} loans run 1 to ${maxTerm} months.`
-  if (f.monthlyRate.trim() === '' || !Number.isFinite(rate) || rate < 0 || rate > 10) return 'The interest rate could not be loaded. Reload the page.'
-  const coMakers = [f.coMaker1, f.coMaker2].map((c) => c.trim()).filter(Boolean)
-  const needed = coMakersNeeded(settings, num(f.amount))
-  if (coMakers.length < needed) {
-    return `Loans of ₱${settings.coMakersFromAmount.toLocaleString('en-PH')} or more need ${needed === 1 ? 'a co-maker: a UDEI member who vouches for this loan' : `${needed} co-makers`}.`
+/**
+ * The first problem with the fields on one page of the form, or '' when they are fine.
+ * linked: the applicant has a full UDEI member number (see isLinkedMemberId).
+ */
+export function validateStep(step: FormStep, f: Form, settings: LoanSettings = FALLBACK_SETTINGS, linked = true): string {
+  const limit = nonMemberLimit(settings, linked)
+  if (step === 'applicant') {
+    const salary = num(f.monthlySalary)
+    const net = num(f.netTakeHomePay)
+    if (!f.lastName.trim()) return 'Enter the last name.'
+    if (!f.firstName.trim()) return 'Enter the first name.'
+    if (f.residenceAddress.trim().length < 5) return 'Enter the residence address.'
+    if (f.employer.trim().length < 2) return 'Enter the employer.'
+    if (salary <= 0) return 'Enter the monthly salary.'
+    if (net <= 0) return 'Enter the net take-home pay.'
+    if (net > salary) return 'Net take-home pay cannot be more than the monthly salary.'
+    if (net < MIN_NET_TAKE_HOME_PAY) return `The net take-home pay must be at least ₱${MIN_NET_TAKE_HOME_PAY.toLocaleString('en-PH')}.`
+    if (salary < settings.minMonthlySalary) return `UDEI requires a monthly salary of at least ₱${settings.minMonthlySalary.toLocaleString('en-PH')}.`
+    if (num(f.priorLatePayments) > num(f.priorLoans)) return 'Late payments cannot be more than past loans.'
+    return ''
   }
-  if (coMakers.length === 2 && coMakers[0] === coMakers[1]) return 'Name two different co-makers.'
-  if (!f.payrollDeduction) return 'The applicant must authorize payroll deduction.'
-  if (!f.autoRestructure) return 'The applicant must agree to automatic re-structuring.'
+  if (step === 'loan') {
+    const term = termMonthsOf(f)
+    const rate = Number(f.monthlyRate)
+    if (!f.applicationDate) return 'Enter the application date.'
+    if (num(f.amount) <= 0) return 'Choose the loan amount.'
+    if (limit !== null && num(f.amount) > limit) return `Applicants who aren't linked to a UDEI member number can borrow at most ₱${limit.toLocaleString('en-PH')}.`
+    if (f.purpose.trim().length < 3) return 'Give the reason for the loan.'
+    const maxTerm = Math.min(MAX_TERM_MONTHS, settings.products[f.loanType].maxTermMonths)
+    if (term < 1 || term > maxTerm) return `${settings.products[f.loanType].label} loans run 1 to ${maxTerm} months.`
+    if (f.monthlyRate.trim() === '' || !Number.isFinite(rate) || rate < 0 || rate > 10) return 'The interest rate could not be loaded. Reload the page.'
+    if (!f.payrollDeduction) return 'The applicant must authorize payroll deduction.'
+    if (!f.autoRestructure) return 'The applicant must agree to automatic re-structuring.'
+    return ''
+  }
+  if (step === 'coMakers') {
+    const coMakers = [f.coMaker1, f.coMaker2].map((c) => c.trim()).filter(Boolean)
+    const needed = coMakersRequiredFor(settings, num(f.amount), linked)
+    if (limit !== null && coMakers.length < needed) {
+      return "Applicants who aren't linked to a UDEI member number need a co-maker: a UDEI member who vouches for this loan."
+    }
+    if (coMakers.length < needed) {
+      return `Loans of ₱${settings.coMakersFromAmount.toLocaleString('en-PH')} or more need ${needed === 1 ? 'a co-maker: a UDEI member who vouches for this loan' : `${needed} co-makers`}.`
+    }
+    if (coMakers.length === 2 && coMakers[0] === coMakers[1]) return 'Name two different co-makers.'
+    return ''
+  }
+  return ''
+}
+
+/** The first problem with the typed fields on any page, or '' when they are fine. Documents are checked separately. */
+export function validateForm(f: Form, settings: LoanSettings = FALLBACK_SETTINGS, linked = true): string {
+  for (const step of FORM_STEPS) {
+    const problem = validateStep(step, f, settings, linked)
+    if (problem) return problem
+  }
   return ''
 }
 

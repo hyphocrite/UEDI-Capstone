@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { FilePlus2, Pencil, Save, Send } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, FilePlus2, Pencil, Printer, Save, Send } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import AgreementSection from '../components/loan-application/AgreementSection'
+import ApplicationPreview from '../components/loan-application/ApplicationPreview'
+import type { PreviewDocument } from '../components/loan-application/ApplicationPreview'
 import ApplicantSection from '../components/loan-application/ApplicantSection'
 import AttachedDocuments from '../components/loan-application/AttachedDocuments'
 import BookkeeperSection from '../components/loan-application/BookkeeperSection'
@@ -11,18 +13,19 @@ import CoMakersSection from '../components/loan-application/CoMakersSection'
 import DocumentsSection from '../components/loan-application/DocumentsSection'
 import SubmittedCard from '../components/loan-application/SubmittedCard'
 import { addDocuments, uploadFiles } from '../components/loan-application/addDocuments'
-import { applicantOf, buildPayload, emptyForm, formFromApplication, fromOwnRecord, rateFor, termMonthsOf, validateForm } from '../components/loan-application/applicationForm'
-import type { Form, OwnRecord } from '../components/loan-application/applicationForm'
+import { FORM_STEPS, applicantOf, buildPayload, emptyForm, formFromApplication, fromOwnRecord, rateFor, termMonthsOf, validateStep } from '../components/loan-application/applicationForm'
+import type { Form, FormStep, OwnRecord } from '../components/loan-application/applicationForm'
 import { useMemberLedger } from '../components/loan-application/useMemberLedger'
 import { useSupportingDocuments } from '../components/loan-application/useSupportingDocuments'
 import { useAuth } from '../context/AuthContext'
-import { useConfirm } from '../context/ConfirmContext'
 import { api } from '../lib/api'
 import { clearDraft, draftKey, loadDraft, saveDraft } from '../lib/drafts'
 import { formatDateTime } from '../lib/format'
 import { atLeast } from '../lib/roles'
-import { coMakersNeeded, fetchSettings, useSettings } from '../lib/settings'
-import { canAddDocuments, canChange, loanTypeLabel } from '../lib/applications'
+import { coMakersRequiredFor, fetchSettings, isLinkedMemberId, nonMemberLimit, useSettings } from '../lib/settings'
+import { documentType } from '../lib/ocr/documentTypes'
+import type { DocumentTypeId } from '../lib/ocr/documentTypes'
+import { canAddDocuments, canChange } from '../lib/applications'
 import type { LoanApplication, LoanType } from '../lib/applications'
 
 export default function LoanApplicationPage() {
@@ -44,7 +47,8 @@ export default function LoanApplicationPage() {
   // A member's own ID always comes from their account, never from the draft.
   const [form, setForm] = useState<Form>(() => ({ ...freshForm(), ...restored?.values, ...(staffView ? {} : { memberId: ownMemberId }) }))
   const [error, setError] = useState('')
-  const confirm = useConfirm()
+  // The form is filled in page by page; the last page previews the whole form before it is sent.
+  const [step, setStep] = useState<FormStep>('applicant')
   const [saving, setSaving] = useState(false)
   const [submitted, setSubmitted] = useState<LoanApplication | null>(null)
   // Documents whose file couldn't be uploaded after filing (the checks were still saved).
@@ -127,12 +131,55 @@ export default function LoanApplicationPage() {
     documents.changeLoanType(loanType)
   }
 
-  const validate = () => {
-    const problem = validateForm(form, settings)
-    if (problem) return problem
-    // Documents support the application but aren't required; wait only so an upload isn't lost mid-read.
+  // A full UDEI member number. Others (no number, or only the N-… ID from sign-up) borrow at most
+  // the non-member limit and need a member as co-maker. The server also checks the number is on record.
+  const linked = isLinkedMemberId(form.memberId)
+
+  /** Supporting documents are required: each type for the loan type, uploaded now or (when changing a filed application) already attached. */
+  const documentsProblem = () => {
     if (documents.reading) return 'Wait for all documents to finish reading.'
+    const attached = new Set((original?.documents ?? []).map((d) => d.type))
+    const missing = documents.checklist.filter((c) => !c.filled && !attached.has(c.typeId))
+    if (missing.length) return `Supporting documents are required. Still missing: ${missing.map((c) => documentType(c.typeId).label).join(', ')}.`
     return ''
+  }
+  const problemAt = (s: FormStep) => (s === 'documents' ? documentsProblem() : validateStep(s, form, settings, linked))
+
+  /**
+   * Moves to a page of the form. Every page before it must be filled in correctly; otherwise it stops
+   * at the first page with a problem and shows it. Returns whether it got there.
+   */
+  const goTo = (target: FormStep) => {
+    const upTo = FORM_STEPS.indexOf(target)
+    for (const s of FORM_STEPS.slice(0, upTo)) {
+      const problem = problemAt(s)
+      if (problem) {
+        setStep(s)
+        setError(problem)
+        window.scrollTo({ top: 0 })
+        return false
+      }
+    }
+    setStep(target)
+    setError('')
+    window.scrollTo({ top: 0 })
+    return true
+  }
+  const stepIndex = FORM_STEPS.indexOf(step)
+  const next = () => goTo(FORM_STEPS[Math.min(stepIndex + 1, FORM_STEPS.length - 1)])
+  const back = (to: FormStep = FORM_STEPS[Math.max(stepIndex - 1, 0)]) => {
+    setStep(to)
+    setError('')
+    window.scrollTo({ top: 0 })
+  }
+
+  /** What the preview lists: documents already on the application, then the ones being added. */
+  const previewDocuments = (): PreviewDocument[] => {
+    const label = (type?: string) => (type ? documentType(type as DocumentTypeId)?.label ?? type : 'Document')
+    return [
+      ...(original?.documents ?? []).map((d) => ({ label: label(d.type), fileName: d.fileName })),
+      ...documents.payload().map((d) => ({ label: label(d.type), fileName: d.fileName })),
+    ]
   }
 
   /** Saves changes to a filed application, then adds any new documents. */
@@ -179,59 +226,12 @@ export default function LoanApplicationPage() {
     }
   }
 
+  // Enter in a field moves to the next page; only the Review page sends.
   const submit = (e: FormEvent) => {
     e.preventDefault()
-    const problem = validate()
-    if (problem) return setError(problem)
-    const name = [form.firstName, form.lastName].filter(Boolean).join(' ')
-    const count = documents.payload().length
-    if (original) {
-      const loanChanged = Number(form.amount) !== original.loan.amount || form.loanType !== original.loan.loanType ||
-        termMonthsOf(form) !== original.loan.termMonths || form.paymentFrequency !== original.loan.paymentFrequency
-      void confirm({
-        title: 'Save your changes?',
-        message: (
-          <>
-            <p>
-              <b>{original.applicationNo}</b> becomes a <b>{loanTypeLabel[form.loanType]}</b> loan of <b>₱{Number(form.amount).toLocaleString('en-PH')}</b> over {form.period} {form.periodUnit}
-              {count ? `, with ${count} more supporting document${count === 1 ? '' : 's'}` : ''}.
-            </p>
-            <p>The models check it again with your changes.{loanChanged && (original.coMakers?.length ?? 0) > 0 ? ' Your co-makers are asked to confirm again, because the loan changed.' : ''}</p>
-            <p>You can keep changing it until the Bookkeeper signs.</p>
-          </>
-        ),
-        confirmLabel: 'Yes, save',
-      }).then((ok) => {
-        if (ok) void send()
-      })
-      return
-    }
-    void confirm({
-      title: 'Submit this application?',
-      message: (
-        <>
-          <p>
-            {staffView ? <>Submit for <b>{name}</b>{form.memberId ? ` (member ${form.memberId})` : ''}: </> : 'Apply for '}
-            <b>{loanTypeLabel[form.loanType]}</b> loan of <b>₱{Number(form.amount).toLocaleString('en-PH')}</b> over {form.period} {form.periodUnit},{' '}
-            with {count ? `${count} supporting document${count === 1 ? '' : 's'}` : 'no supporting documents'}.
-          </p>
-          {documents.mismatched.length > 0 && (
-            <div className="rounded-lg bg-amber-50 p-3 text-amber-900">
-              <p>These don’t match what was typed on the form:</p>
-              <ul className="mt-1 list-disc pl-5">{documents.mismatched.map((d) => <li key={d.key} className="break-words">{d.file.name}</li>)}</ul>
-              <p className="mt-1">Loan officers will see this on Pending Loans.</p>
-            </div>
-          )}
-          <p>
-            It then goes to the Bookkeeper, Treasurer, CreCom Chairman and President to sign. You can change it until the Bookkeeper
-            signs, and add supporting documents until it is decided.
-          </p>
-        </>
-      ),
-      confirmLabel: documents.mismatched.length ? 'Submit anyway' : 'Yes, submit',
-    }).then((ok) => {
-      if (ok) void send()
-    })
+    if (step !== 'review') return void next()
+    // Checks every page again, in case something was changed after it was passed.
+    if (goTo('review')) void send()
   }
 
   const reset = () => {
@@ -244,6 +244,7 @@ export default function LoanApplicationPage() {
     setFilledPatch({})
     setNotUploaded([])
     setSubmitted(null)
+    setStep('applicant')
     fillFromRecord()
   }
 
@@ -293,70 +294,155 @@ export default function LoanApplicationPage() {
     )
   }
 
+  const stepLabels: Record<FormStep, string> = {
+    applicant: 'Applicant',
+    loan: 'Loan',
+    coMakers: staffView ? 'Co-makers & books' : 'Co-makers',
+    documents: 'Documents',
+    review: 'Review',
+  }
+  const loanChanged = !!original && (Number(form.amount) !== original.loan.amount || form.loanType !== original.loan.loanType ||
+    termMonthsOf(form) !== original.loan.termMonths || form.paymentFrequency !== original.loan.paymentFrequency)
+  const onPage = (s: FormStep) => (step === s ? '' : 'hidden')
 
   return (
     <form onSubmit={submit} noValidate className="mx-auto max-w-4xl min-w-0">
-      {original ? (
-        <PageHeader icon={Pencil}
-          title="Change your application"
-          subtitle={`${original.applicationNo}, filed ${formatDateTime(original.createdAt)}. You can change it until the Bookkeeper signs.`}
-        />
-      ) : (
-        <PageHeader icon={FilePlus2}
-          title={staffView ? 'Loan Application' : 'Apply for a Loan'}
-          subtitle="Mutual Assistance Application Form, United DNSC Employees, Inc. Supporting documents are read and checked against the form."
-        />
-      )}
+      <div className="print:hidden">
+        {original ? (
+          <PageHeader icon={Pencil}
+            title="Change your application"
+            subtitle={`${original.applicationNo}, filed ${formatDateTime(original.createdAt)}. You can change it until the Bookkeeper signs.`}
+          />
+        ) : (
+          <PageHeader icon={FilePlus2}
+            title={staffView ? 'Loan Application' : 'Apply for a Loan'}
+            subtitle="Mutual Assistance Application Form, United DNSC Employees, Inc. Supporting documents are read and checked against the form."
+          />
+        )}
 
-      {prefilled && !restoredNotice && (
-        <div className="mb-4 flex flex-col gap-2 rounded-lg bg-sky-50 px-4 py-3 text-sm text-sky-900 sm:flex-row sm:items-center" role="status">
-          <p className="flex-1">
-            Filled in from your UDEI member record{prefilled.fromLast ? ` and your last application (${formatDateTime(prefilled.fromLast)})` : ''}.
-            Check that everything is still correct, especially your salary and take-home pay.
-          </p>
-          <button type="button" className="btn-ghost px-3 py-1.5" onClick={() => setPrefilled(null)}>OK</button>
-        </div>
-      )}
-
-      {restoredNotice && restored && (
-        <div className="mb-4 flex flex-col gap-2 rounded-lg bg-sky-50 px-4 py-3 text-sm text-sky-900 sm:flex-row sm:items-center" role="status">
-          <p className="flex-1">
-            Restored the application you were filling in ({formatDateTime(restored.savedAt)}). Supporting documents
-            aren't kept, so add them again.
-          </p>
-          <div className="flex gap-2">
-            <button type="button" className="btn-ghost px-3 py-1.5" onClick={() => setRestoredNotice(false)}>Keep going</button>
-            <button type="button" className="btn-ghost px-3 py-1.5" onClick={reset}>Start over</button>
+        {prefilled && !restoredNotice && (
+          <div className="mb-4 flex flex-col gap-2 rounded-lg bg-sky-50 px-4 py-3 text-sm text-sky-900 sm:flex-row sm:items-center" role="status">
+            <p className="flex-1">
+              Filled in from your UDEI member record{prefilled.fromLast ? ` and your last application (${formatDateTime(prefilled.fromLast)})` : ''}.
+              Check that everything is still correct, especially your salary and take-home pay.
+            </p>
+            <button type="button" className="btn-ghost px-3 py-1.5" onClick={() => setPrefilled(null)}>OK</button>
           </div>
-        </div>
-      )}
+        )}
+
+        {restoredNotice && restored && (
+          <div className="mb-4 flex flex-col gap-2 rounded-lg bg-sky-50 px-4 py-3 text-sm text-sky-900 sm:flex-row sm:items-center" role="status">
+            <p className="flex-1">
+              Restored the application you were filling in ({formatDateTime(restored.savedAt)}). Supporting documents
+              aren’t kept, so add them again.
+            </p>
+            <div className="flex gap-2">
+              <button type="button" className="btn-ghost px-3 py-1.5" onClick={() => setRestoredNotice(false)}>Keep going</button>
+              <button type="button" className="btn-ghost px-3 py-1.5" onClick={reset}>Start over</button>
+            </div>
+          </div>
+        )}
+
+        {/* Where the applicant is in the form. Earlier pages open straight away; later ones once the pages before are filled in. */}
+        <ol className="mb-5 flex min-w-0 gap-1 sm:gap-2" aria-label="Form pages">
+          {FORM_STEPS.map((s, i) => {
+            const done = i < stepIndex
+            const current = s === step
+            return (
+              <li key={s} className="min-w-0 flex-1">
+                <button
+                  type="button"
+                  onClick={() => (done ? back(s) : goTo(s))}
+                  aria-current={current ? 'step' : undefined}
+                  className={`flex w-full min-w-0 flex-col items-center gap-1 rounded-lg px-1 py-2 text-xs font-medium transition sm:flex-row sm:justify-center sm:gap-2 sm:text-sm ${
+                    current ? 'bg-brand-800 text-white' : done ? 'bg-brand-50 text-brand-800 hover:bg-brand-100' : 'text-brand-500 hover:bg-brand-50'
+                  }`}
+                >
+                  <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs ${current ? 'bg-white text-brand-800' : done ? 'bg-accent text-white' : 'border border-brand-300'}`}>
+                    {done ? <Check className="h-3.5 w-3.5" /> : i + 1}
+                  </span>
+                  <span className="max-w-full truncate">{stepLabels[s]}</span>
+                </button>
+              </li>
+            )
+          })}
+        </ol>
+      </div>
 
       <div className="grid min-w-0 grid-cols-1 gap-6">
-        <ApplicantSection form={form} update={update} lockedMemberId={original ? form.memberId : staffView ? undefined : ownMemberId} />
-        <AgreementSection form={form} update={update} onLoanTypeChange={changeLoanType} />
-        <CoMakersSection form={form} update={update} required={coMakersNeeded(settings, Number(form.amount) || 0)} perLoan={settings.coMakersRequired} fromAmount={settings.coMakersFromAmount} />
-        {staffView && <BookkeeperSection form={form} update={update} ledger={ledger} />}
-        {original && <AttachedDocuments documents={original.documents} />}
-        <DocumentsSection loanType={form.loanType} documents={documents} />
+        {/* The pages stay mounted while hidden, so lookups and files aren't lost when going back and forth. */}
+        <div className={onPage('applicant')}>
+          <ApplicantSection form={form} update={update} lockedMemberId={original ? form.memberId : staffView ? undefined : ownMemberId} />
+        </div>
+        <div className={onPage('loan')}>
+          <AgreementSection form={form} update={update} onLoanTypeChange={changeLoanType} linked={linked} />
+        </div>
+        <div className={`grid min-w-0 grid-cols-1 gap-6 ${onPage('coMakers')}`}>
+          <CoMakersSection form={form} update={update} required={coMakersRequiredFor(settings, Number(form.amount) || 0, linked)} perLoan={settings.coMakersRequired} fromAmount={settings.coMakersFromAmount} nonMemberLimit={nonMemberLimit(settings, linked)} />
+          {staffView && <BookkeeperSection form={form} update={update} ledger={ledger} />}
+        </div>
+        <div className={`grid min-w-0 grid-cols-1 gap-6 ${onPage('documents')}`}>
+          {original && <AttachedDocuments documents={original.documents} />}
+          <DocumentsSection loanType={form.loanType} documents={documents} />
+        </div>
+        {step === 'review' && (
+          <div className="grid min-w-0 grid-cols-1 gap-4">
+            <div className="rounded-lg bg-sky-50 px-4 py-3 text-sm text-sky-900 print:hidden" role="status">
+              <p>
+                Check the form below: this is how it will be {original ? 'saved' : 'filed'}. Go back to any page to change something,
+                or print a copy for your records.
+              </p>
+              {loanChanged && (original?.coMakers?.length ?? 0) > 0 && (
+                <p className="mt-1">Your co-makers will be asked to confirm again, because the loan changed.</p>
+              )}
+            </div>
+            {documents.mismatched.length > 0 && (
+              <div className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900 print:hidden">
+                <p>These documents don’t match what was typed on the form:</p>
+                <ul className="mt-1 list-disc pl-5">{documents.mismatched.map((d) => <li key={d.key} className="break-words">{d.file.name}</li>)}</ul>
+                <p className="mt-1">Loan officers will see this on Pending Loans.</p>
+              </div>
+            )}
+            <ApplicationPreview form={form} documents={previewDocuments()} staffView={staffView} linked={linked} applicationNo={original?.applicationNo} />
+          </div>
+        )}
 
-        <section className="card min-w-0 p-4 sm:p-5">
+        <section className="card min-w-0 p-4 sm:p-5 print:hidden">
           {error && <p className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{error}</p>}
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-xs text-brand-500">
               {documents.reading
                 ? 'Reading documents…'
-                : original
-                  ? 'Saving replaces the form; documents already attached stay, and new ones are added.'
-                  : staffView
-                    ? 'Submitting sends the form and document checks to Pending Loans.'
-                    : 'Submitting sends your application to UDEI for review.'}
+                : step !== 'review'
+                  ? `Page ${stepIndex + 1} of ${FORM_STEPS.length}.`
+                  : original
+                    ? 'Saving replaces the form; documents already attached stay, and new ones are added.'
+                    : staffView
+                      ? 'Submitting sends the form and document checks to Pending Loans.'
+                      : 'Submitting sends your application to UDEI. The Bookkeeper, Treasurer, CreCom Chairman and President then sign it.'}
             </p>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {original && <Link to="/loans" className="btn-ghost">Cancel</Link>}
-              <button type="submit" className="btn-accent px-5" disabled={saving}>
-                {original ? <Save className="h-4 w-4" /> : <Send className="h-4 w-4" />}
-                {saving ? (original ? 'Saving…' : 'Submitting…') : original ? 'Save changes' : 'Submit application'}
-              </button>
+              {stepIndex > 0 && (
+                <button type="button" className="btn-ghost" onClick={() => back()} disabled={saving}>
+                  <ArrowLeft className="h-4 w-4" /> Back
+                </button>
+              )}
+              {step === 'review' ? (
+                <>
+                  <button type="button" className="btn-ghost" onClick={() => window.print()}>
+                    <Printer className="h-4 w-4" /> Print
+                  </button>
+                  <button type="submit" className="btn-accent px-5" disabled={saving}>
+                    {original ? <Save className="h-4 w-4" /> : <Send className="h-4 w-4" />}
+                    {saving ? (original ? 'Saving…' : 'Submitting…') : original ? 'Save changes' : documents.mismatched.length ? 'Submit anyway' : 'Submit application'}
+                  </button>
+                </>
+              ) : (
+                <button type="submit" className="btn-primary px-5">
+                  {step === 'documents' ? 'Review' : 'Next'} <ArrowRight className="h-4 w-4" />
+                </button>
+              )}
             </div>
           </div>
         </section>

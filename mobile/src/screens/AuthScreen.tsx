@@ -3,7 +3,7 @@ import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-na
 import { api, ApiError } from '../api'
 import { useAuth } from '../auth'
 import { colors } from '../theme'
-import { Button, Card, ErrorText, Field } from '../ui'
+import { Button, Card, ErrorText, Field, PasswordField } from '../ui'
 
 export default function AuthScreen() {
   const { signIn, register, verifyEmail } = useAuth()
@@ -154,15 +154,15 @@ export default function AuthScreen() {
                   autoComplete="email"
                   placeholder="you@dnsc.edu.ph"
                 />
-                <Field
+                <PasswordField
                   label="Password"
                   value={form.password}
                   onChangeText={set('password')}
-                  secureTextEntry
+                  autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
                   hint={mode === 'register' ? 'At least 8 characters, with a letter and a number.' : undefined}
                 />
                 {mode === 'register' ? (
-                  <Field label="Confirm password" value={form.confirm} onChangeText={set('confirm')} secureTextEntry />
+                  <PasswordField label="Confirm password" value={form.confirm} onChangeText={set('confirm')} autoComplete="new-password" />
                 ) : null}
                 <Button title={mode === 'login' ? 'Sign in' : 'Create account'} onPress={submit} loading={busy} />
                 <View style={{ height: 8 }} />

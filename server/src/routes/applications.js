@@ -70,6 +70,28 @@ const documentCheckSchema = z.object({
   notes: z.array(z.string().max(300)).max(20).optional(),
 });
 
+// The supporting documents every application must have, by loan type. Kept in step with
+// REQUIRED_DOCUMENTS in client/src/lib/ocr/documentTypes.ts and mobile/src/documents.tsx.
+const REQUIRED_DOCUMENTS = {
+  long_term: ["valid_id", "payslip", "proof_of_address", "application_form"],
+  emergency: ["valid_id", "payslip", "application_form"],
+};
+const DOCUMENT_LABELS = {
+  valid_id: "Valid government ID",
+  payslip: "Latest payslip",
+  proof_of_address: "Proof of address",
+  application_form: "Signed application form",
+};
+
+/** A message naming the required documents missing from these types, or null when all are there. */
+function missingDocuments(loanType, types) {
+  const have = new Set(types);
+  const missing = (REQUIRED_DOCUMENTS[loanType] || []).filter((t) => !have.has(t));
+  return missing.length ? `Supporting documents are required. Still missing: ${missing.map((t) => DOCUMENT_LABELS[t]).join(", ")}.` : null;
+}
+
+const peso = (n) => `₱${Number(n).toLocaleString("en-PH")}`;
+
 // The body mirrors UEDI's Mutual Assistance Application Form.
 const createSchema = z
   .object({
@@ -82,7 +104,9 @@ const createSchema = z
       employer: z.string().trim().min(2, "Enter the employer.").max(120),
       employmentStatus: z.enum(EMPLOYMENT_STATUSES).default("permanent"),
       monthlySalary: money.refine((n) => n > 0, "Enter the monthly salary."),
-      netTakeHomePay: money.refine((n) => n > 0, "Enter the net take-home pay."),
+      netTakeHomePay: money
+        .refine((n) => n > 0, "Enter the net take-home pay.")
+        .refine((n) => n === 0 || n >= settings.MIN_NET_TAKE_HOME_PAY, `The net take-home pay must be at least ${peso(settings.MIN_NET_TAKE_HOME_PAY)}.`),
       dateOfBirth: optionalDate,
       yearsAsMember: z.coerce.number().min(0).max(80).default(0),
       priorLoans: z.coerce.number().int().min(0).max(500).default(0),
@@ -155,11 +179,32 @@ async function bookkeeperFor(memberId, typed) {
   return { ...typed, source: "manual", loans: [] };
 }
 
+/**
+ * The co-makers as stored entries, after the co-maker rules. An applicant who isn't a linked UDEI
+ * member (no member number, or only the provisional one from sign-up) borrows at most
+ * rules.nonMemberMaxAmount and needs a full member as co-maker. Throws CoMakerError, which the
+ * routes answer with 400.
+ */
+async function resolveCoMakers(rules, data) {
+  const memberId = data.applicant.memberId;
+  const needed = settings.coMakersNeeded(rules, data.loan.amount);
+  const limit = rules.nonMemberMaxAmount;
+  if (!limit || (await memberIds.isLinked(memberId))) {
+    return coMakers.resolve(data.coMakers, memberId, needed, rules.coMakersFromAmount);
+  }
+  if (data.loan.amount > limit) {
+    throw new coMakers.CoMakerError(`Applicants who aren't linked to a UDEI member number can borrow at most ${peso(limit)}.`);
+  }
+  if (!data.coMakers.some((c) => String(c).trim())) {
+    throw new coMakers.CoMakerError("Applicants who aren't linked to a UDEI member number need a co-maker: a UDEI member who vouches for this loan.");
+  }
+  return coMakers.resolve(data.coMakers, memberId, Math.max(needed, 1), rules.coMakersFromAmount, { membersOnly: true });
+}
+
 /** Saves a new application from a parsed createSchema body and scores it. Also used by the member app. */
 async function createApplication(data, user) {
   const rules = await settings.get();
-  // Throws CoMakerError, which the routes answer with 400.
-  data.coMakers = await coMakers.resolve(data.coMakers, data.applicant.memberId, settings.coMakersNeeded(rules, data.loan.amount), rules.coMakersFromAmount);
+  data.coMakers = await resolveCoMakers(rules, data);
   const bookkeeper = await bookkeeperFor(data.applicant.memberId, data.bookkeeper);
   let app;
   for (let attempt = 0; attempt < 3 && !app; attempt++) {
@@ -205,6 +250,8 @@ router.post("/", async (req, res, next) => {
     if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0].message });
     const ruleError = applyRules(await settings.get(), parsed.data);
     if (ruleError) return res.status(400).json({ error: ruleError });
+    const missing = missingDocuments(parsed.data.loan.loanType, parsed.data.documents.map((d) => d.type));
+    if (missing) return res.status(400).json({ error: missing });
     // Members apply only for themselves, and the Bookkeeper section is the Bookkeeper's to fill.
     if (!seesAllLoans(req.user)) {
       // Accounts made before new member IDs existed get one now.
@@ -290,7 +337,7 @@ router.put("/:id", async (req, res, next) => {
 
     // Co-makers vouch for a loan of a given amount and term: they keep their answer only if they are
     // still named and the loan they agreed to is unchanged. Everyone else is asked (again).
-    const named = await coMakers.resolve(data.coMakers, data.applicant.memberId, settings.coMakersNeeded(rules, data.loan.amount), rules.coMakersFromAmount);
+    const named = await resolveCoMakers(rules, data);
     const sameLoan = ["loanType", "amount", "termMonths", "paymentFrequency"].every((k) => app.loan[k] === data.loan[k]);
     const kept = (c) => sameLoan && app.coMakers.find((x) => x.memberId === c.memberId && x.status !== "pending");
     const nextCoMakers = named.map((c) => {
@@ -535,3 +582,5 @@ router.post("/:id/approvals", async (req, res, next) => {
 module.exports = router;
 module.exports.createSchema = createSchema;
 module.exports.createApplication = createApplication;
+module.exports.missingDocuments = missingDocuments;
+module.exports.REQUIRED_DOCUMENTS = REQUIRED_DOCUMENTS;

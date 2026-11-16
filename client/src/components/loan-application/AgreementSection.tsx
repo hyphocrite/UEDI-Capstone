@@ -1,7 +1,7 @@
 import { AlertTriangle } from 'lucide-react'
 import Field, { FormSection } from './Field'
 import { useSettings } from '../../lib/settings'
-import { AUTO_RESTRUCTURE_TEXT, LOAN_AMOUNTS, PAYROLL_DEDUCTION_TEXT, affordabilityNote, installmentOf, termMonthsOf } from './applicationForm'
+import { AUTO_RESTRUCTURE_TEXT, PAYROLL_DEDUCTION_TEXT, affordabilityNote, installmentOf, loanAmountsFor, termMonthsOf } from './applicationForm'
 import type { Form, PaymentFrequency, PeriodUnit } from './applicationForm'
 import { loanTypeLabel } from '../../lib/applications'
 import type { LoanType } from '../../lib/applications'
@@ -12,6 +12,8 @@ type Props = {
   form: Form
   update: (patch: Partial<Form>) => void
   onLoanTypeChange: (loanType: LoanType) => void
+  /** The applicant has a full UDEI member number; others choose from smaller amounts. */
+  linked: boolean
 }
 
 const loanTypes = Object.keys(loanTypeLabel) as LoanType[]
@@ -45,8 +47,9 @@ function Choice<T extends string>({ name, value, options, onChange }: {
   )
 }
 
-export default function AgreementSection({ form, update, onLoanTypeChange }: Props) {
+export default function AgreementSection({ form, update, onLoanTypeChange, linked }: Props) {
   const { settings } = useSettings()
+  const amounts = loanAmountsFor(settings, linked)
   const term = termMonthsOf(form)
   const inst = installmentOf(form)
   const note = affordabilityNote(form)
@@ -70,12 +73,16 @@ export default function AgreementSection({ form, update, onLoanTypeChange }: Pro
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field id="amount" label="Amount (₱)">
+          <Field
+            id="amount"
+            label="Amount (₱)"
+            hint={linked ? undefined : `Applicants who aren't linked to a UDEI member number can borrow up to ${formatPeso(Math.max(...amounts))}, with a member as co-maker.`}
+          >
             <select id="amount" className="input" value={form.amount} onChange={(e) => update({ amount: e.target.value })}>
               <option value="">Choose an amount</option>
               {/* An amount from an older draft that isn't offered any more stays visible so it can be changed. */}
-              {form.amount && !LOAN_AMOUNTS.includes(Number(form.amount)) && <option value={form.amount}>{formatPeso(Number(form.amount))}</option>}
-              {LOAN_AMOUNTS.map((a) => <option key={a} value={String(a)}>{formatPeso(a)}</option>)}
+              {form.amount && !amounts.includes(Number(form.amount)) && <option value={form.amount}>{formatPeso(Number(form.amount))}</option>}
+              {amounts.map((a) => <option key={a} value={String(a)}>{formatPeso(a)}</option>)}
             </select>
           </Field>
           <Field id="purpose" label="Reason for the loan">

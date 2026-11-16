@@ -57,6 +57,16 @@ async function ensureFor(user) {
   throw new Error("Could not assign a member ID. Try again.");
 }
 
+/**
+ * Whether this member number belongs to a full UDEI member: on record and not just the provisional
+ * N-… ID an account gets at sign-up before the office links it.
+ */
+async function isLinked(memberId) {
+  if (!memberId || isNewId(memberId)) return false;
+  const member = await Member.findOne({ memberId }).select("provisional").lean();
+  return !!member && !member.provisional;
+}
+
 const FILLABLE = ["firstName", "middleInitial", "lastName", "phone", "email", "branch", "residenceAddress", "employer", "employmentStatus", "dateOfBirth"];
 
 /**
@@ -113,4 +123,4 @@ async function merge(fromId, toId, byName) {
   return moved;
 }
 
-module.exports = { ensureFor, merge, isNewId, splitName, PREFIX };
+module.exports = { ensureFor, merge, isNewId, isLinked, splitName, PREFIX };

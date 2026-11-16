@@ -14,7 +14,12 @@ const DEFAULTS = Object.freeze({
   branches: ["Main Office"],
   coMakersRequired: 1,
   coMakersFromAmount: 50000,
+  // Applicants not linked to a UDEI member number: at most this much, with a member as co-maker.
+  nonMemberMaxAmount: 5000,
 });
+
+// Every application needs at least this net take-home pay (pesos).
+const MIN_NET_TAKE_HOME_PAY = 5000;
 
 /** How many co-makers a loan of this amount (pesos) needs under these rules. */
 function coMakersNeeded(rules, amount) {
@@ -32,6 +37,7 @@ function shape(doc) {
     branches: d.branches?.length ? [...d.branches] : [...DEFAULTS.branches],
     coMakersRequired: d.coMakersRequired ?? DEFAULTS.coMakersRequired,
     coMakersFromAmount: d.coMakersFromAmount ?? DEFAULTS.coMakersFromAmount,
+    nonMemberMaxAmount: d.nonMemberMaxAmount ?? DEFAULTS.nonMemberMaxAmount,
     updatedAt: doc?.updatedAt ?? null,
     updatedByName: doc?.updatedByName ?? null,
   };
@@ -65,4 +71,4 @@ function checkApplication(rules, { monthlySalary, loanType, termMonths }) {
   return null;
 }
 
-module.exports = { DEFAULTS, get, save, checkApplication, coMakersNeeded };
+module.exports = { DEFAULTS, MIN_NET_TAKE_HOME_PAY, get, save, checkApplication, coMakersNeeded };

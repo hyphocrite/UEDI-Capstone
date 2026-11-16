@@ -46,6 +46,7 @@ before(async () => {
     minMonthlySalary: 10000,
     branches: ["Main Office"],
     coMakersRequired: 0,
+    nonMemberMaxAmount: 0,
   });
   server = createApp().listen(0);
   base = `http://127.0.0.1:${server.address().port}/api`;
@@ -84,7 +85,12 @@ const application = (late = 0) => ({
   loan: { loanType: "long_term", amount: 60000, termMonths: 12, monthlyRate: 1, paymentFrequency: "quincenal", purpose: "House repair" },
   bookkeeper: { longTermBalance: 12000, shortTermBalance: 0 },
   agreement: { payrollDeduction: true, autoRestructure: true, applicationDate: "2026-10-19" },
-  documents: [{ fileName: "id.jpg", type: "valid_id", verdict: "verified" }, { fileName: "slip.jpg", type: "payslip", verdict: "mismatch" }],
+  documents: [
+    { fileName: "id.jpg", type: "valid_id", verdict: "verified" },
+    { fileName: "slip.jpg", type: "payslip", verdict: "mismatch" },
+    { fileName: "bill.jpg", type: "proof_of_address", verdict: "verified" },
+    { fileName: "form.pdf", type: "application_form", verdict: "verified" },
+  ],
 });
 
 test("submit, score and list applications", { skip: !uri && "TEST_MONGODB_URI not set" }, async () => {
@@ -111,6 +117,17 @@ test("submit, score and list applications", { skip: !uri && "TEST_MONGODB_URI no
   const netTooHigh = await call("/applications", { method: "POST", cookie: officer, body: { ...application(), applicant: { ...application().applicant, netTakeHomePay: 50000 } } });
   assert.equal(netTooHigh.status, 400);
   assert.match(netTooHigh.json.error, /net take-home/i);
+  const netTooLow = await call("/applications", { method: "POST", cookie: officer, body: { ...application(), applicant: { ...application().applicant, netTakeHomePay: 4999 } } });
+  assert.equal(netTooLow.status, 400);
+  assert.match(netTooLow.json.error, /at least ₱5,000/);
+
+  // Supporting documents are mandatory: every required type for the loan type.
+  const noDocs = await call("/applications", { method: "POST", cookie: officer, body: { ...application(), documents: [] } });
+  assert.equal(noDocs.status, 400);
+  assert.match(noDocs.json.error, /Supporting documents are required/);
+  const noAddress = await call("/applications", { method: "POST", cookie: officer, body: { ...application(), documents: application().documents.filter((d) => d.type !== "proof_of_address") } });
+  assert.equal(noAddress.status, 400);
+  assert.match(noAddress.json.error, /Proof of address/);
 
   const good = await call("/applications", { method: "POST", cookie: officer, body: application(0) });
   assert.equal(good.status, 201);

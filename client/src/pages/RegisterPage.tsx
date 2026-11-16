@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { UserPlus } from 'lucide-react'
 import AuthShell from '../components/AuthShell'
+import PasswordInput from '../components/PasswordInput'
 import { useAuth } from '../context/AuthContext'
 import { useSettings } from '../lib/settings'
 
@@ -81,11 +82,11 @@ export default function RegisterPage() {
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label className="label" htmlFor="password">Password</label>
-            <input id="password" type="password" autoComplete="new-password" className="input" value={form.password} onChange={set('password')} />
+            <PasswordInput id="password" autoComplete="new-password" value={form.password} onChange={set('password')} />
           </div>
           <div>
             <label className="label" htmlFor="confirm">Confirm password</label>
-            <input id="confirm" type="password" autoComplete="new-password" className="input" value={form.confirm} onChange={set('confirm')} />
+            <PasswordInput id="confirm" autoComplete="new-password" value={form.confirm} onChange={set('confirm')} />
           </div>
         </div>
         <p className="text-xs text-brand-500">At least 8 characters, with a letter and a number.</p>

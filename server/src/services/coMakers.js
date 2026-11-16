@@ -13,8 +13,9 @@ class CoMakerError extends Error {}
 /**
  * Checks the co-makers named on an application and returns them as stored entries. Each must be a
  * UDEI member with a linked account (so they can confirm), not the applicant, and named once.
+ * membersOnly: each must also be a full member, not someone with only a provisional sign-up ID.
  */
-async function resolve(memberIds, applicantMemberId, required, fromAmount = 0) {
+async function resolve(memberIds, applicantMemberId, required, fromAmount = 0, { membersOnly = false } = {}) {
   const ids = [...new Set((memberIds || []).map((s) => String(s).trim()).filter(Boolean))];
   if (ids.length !== (memberIds || []).filter((s) => String(s).trim()).length) throw new CoMakerError("Name each co-maker once.");
   if (ids.length < required) {
@@ -29,6 +30,9 @@ async function resolve(memberIds, applicantMemberId, required, fromAmount = 0) {
     const user = users.find((u) => u.memberId === id);
     if (!member) throw new CoMakerError(`No UDEI member with number ${id}.`);
     if (!user) throw new CoMakerError(`Member ${id} (${member.fullName}) has no account yet, so they can't confirm. Ask them to sign up and have the office link it.`);
+    if (membersOnly && (member.provisional || id.startsWith("N-"))) {
+      throw new CoMakerError(`${member.fullName} (${id}) isn't linked to a UDEI member number yet. An applicant who isn't a linked member needs a UDEI member as co-maker.`);
+    }
     return { memberId: id, name: member.fullName, user: user._id, status: "pending" };
   });
 }

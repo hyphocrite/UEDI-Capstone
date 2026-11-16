@@ -42,7 +42,8 @@ const apply = (overrides = {}) => ({
   lastName: "Santos", firstName: "Maria", middleInitial: "C", residenceAddress: "Purok 3, New Visayas, Panabo City",
   employer: "Davao del Norte State College", monthlySalary: 38000, netTakeHomePay: 24000,
   loanType: "long_term", amount: 30000, termMonths: 12, paymentFrequency: "monthly", purpose: "School fees",
-  payrollDeduction: true, autoRestructure: true, ...overrides,
+  payrollDeduction: true, autoRestructure: true,
+  documentTypes: ["valid_id", "payslip", "proof_of_address", "application_form"], ...overrides,
 });
 
 test("a member registers, applies and follows the application to a loan", { skip }, async () => {
@@ -55,6 +56,12 @@ test("a member registers, applies and follows the application to a loan", { skip
   const tooLong = await as(token, "/member/applications", { method: "POST", body: apply({ loanType: "emergency", termMonths: 13 }) });
   assert.equal(tooLong.status, 400);
 
+  const noDocs = await as(token, "/member/applications", { method: "POST", body: apply({ documentTypes: ["valid_id"] }) });
+  assert.equal(noDocs.status, 400);
+  assert.match(noDocs.json.error, /Still missing: Latest payslip/);
+  const lowNet = await as(token, "/member/applications", { method: "POST", body: apply({ netTakeHomePay: 4000 }) });
+  assert.equal(lowNet.status, 400);
+  assert.match(lowNet.json.error, /at least ₱5,000/);
   const noReason = await as(token, "/member/applications", { method: "POST", body: apply({ purpose: "" }) });
   assert.equal(noReason.status, 400, "the reason for the loan is required");
   assert.match(noReason.json.error, /reason for the loan/);

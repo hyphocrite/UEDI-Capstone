@@ -110,7 +110,7 @@ export default function ApplicantSection({ form, update, lockedMemberId }: Props
           <Field id="monthlySalary" label="Monthly Salary (₱)">
             <input {...number('monthlySalary')} />
           </Field>
-          <Field id="netTakeHomePay" label="Net take-home pay (₱)" hint="Per month, after deductions.">
+          <Field id="netTakeHomePay" label="Net take-home pay (₱)" hint="Per month, after deductions. At least ₱5,000.">
             <input {...number('netTakeHomePay')} />
           </Field>
           <Field id="dateOfBirth" label="Date of birth (optional)" hint="The ML model uses age.">
