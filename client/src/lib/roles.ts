@@ -31,7 +31,7 @@ const LEVEL: Record<Role, number> = {
 export const atLeast = (role: Role | undefined, min: Role) => !!role && LEVEL[role] >= LEVEL[min]
 
 /** Where an account lands after signing in. */
-export const homePath = (role: Role | undefined) => (atLeast(role, 'loan_officer') ? '/dashboard' : '/loans')
+export const homePath = (role: Role | undefined) => (atLeast(role, 'loan_officer') ? '/dashboard' : '/home')
 
 /** The four signatures on the Mutual Assistance form, in order. Each is signed by the role of the same name. */
 export const APPROVAL_STEPS = ['bookkeeper', 'treasurer', 'crecom_chair', 'president'] as const

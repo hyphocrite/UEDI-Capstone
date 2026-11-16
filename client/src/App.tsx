@@ -1,13 +1,14 @@
 import { lazy, Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import ProtectedRoute from './components/ProtectedRoute'
-import RequireLevel, { HomeRedirect } from './components/RequireLevel'
+import RequireLevel, { HomeRedirect, MemberOnly } from './components/RequireLevel'
 import AppLayout from './layouts/AppLayout'
 import HomePage from './pages/HomePage'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import VerifyEmailPage from './pages/VerifyEmailPage'
 import DashboardPage from './pages/DashboardPage'
+import MemberHomePage from './pages/MemberHomePage'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import MembersPage from './pages/MembersPage'
 import LoansPage from './pages/LoansPage'
@@ -44,6 +45,7 @@ export default function App() {
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
           <Route path="/dashboard" element={<HomeRedirect staff={<DashboardPage />} />} />
+          <Route path="/home" element={<MemberOnly member={<MemberHomePage />} />} />
 
           {/* Every account: their loans, applying, their profile. */}
           <Route path="/loans" element={<LoansPage />} />

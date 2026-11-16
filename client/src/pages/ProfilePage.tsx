@@ -1,13 +1,16 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { KeyRound, Save, UserRound } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { KeyRound, LogOut, Save, UserRound } from 'lucide-react'
+import MyScoreCard from '../components/members/MyScoreCard'
 import PageHeader from '../components/PageHeader'
 import { useAuth } from '../context/AuthContext'
 import { useConfirm } from '../context/ConfirmContext'
 import type { Session } from '../context/AuthContext'
 import { useSettings } from '../lib/settings'
 import { api } from '../lib/api'
-import { roleLabel } from '../lib/roles'
+import { atLeast, roleLabel } from '../lib/roles'
+import { useMyScore } from '../lib/useMyScore'
 
 type Message = { tone: 'ok' | 'error'; text: string } | null
 
@@ -23,7 +26,11 @@ function Notice({ message }: { message: Message }) {
 
 export default function ProfilePage() {
   const { branches } = useSettings().settings
-  const { session, updateSession } = useAuth()
+  const { session, updateSession, logout } = useAuth()
+  const navigate = useNavigate()
+  // Members see their own member score here, and sign out here (they have no menu below lg).
+  const member = !!session && !atLeast(session.role, 'loan_officer')
+  const score = useMyScore(member)
   const confirm = useConfirm()
   const [details, setDetails] = useState({ fullName: session?.fullName ?? '', branch: session?.branch ?? '' })
   const [detailsMsg, setDetailsMsg] = useState<Message>(null)
@@ -90,6 +97,7 @@ export default function ProfilePage() {
   return (
     <div className="mx-auto max-w-3xl">
       <PageHeader icon={UserRound} title="Profile" subtitle="Your account details and password." />
+      {member && <div className="mb-6"><MyScoreCard state={score} compact /></div>}
 
       <section className="card mb-6 p-5">
         <h2 className="mb-4 font-semibold text-brand-800">Account</h2>
@@ -174,6 +182,13 @@ export default function ProfilePage() {
           </button>
         </div>
       </form>
+      {member && (
+        <div className="mt-6 flex justify-end">
+          <button type="button" className="btn-ghost" onClick={() => void logout().then(() => navigate('/login'))}>
+            <LogOut className="h-4 w-4" /> Log out
+          </button>
+        </div>
+      )}
     </div>
   )
 }

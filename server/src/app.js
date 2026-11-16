@@ -20,6 +20,7 @@ const meetingRoutes = require("./routes/meetings");
 const earlyWarningRoutes = require("./routes/earlyWarning");
 const dashboardRoutes = require("./routes/dashboard");
 const coMakerRoutes = require("./routes/coMaker");
+const meRoutes = require("./routes/me");
 
 function createApp() {
   const app = express();
@@ -58,6 +59,7 @@ function createApp() {
   app.use("/api/early-warning", earlyWarningRoutes);
   app.use("/api/dashboard", dashboardRoutes);
   app.use("/api/comaker", coMakerRoutes);
+  app.use("/api/me", meRoutes);
 
   app.use("/api", (_req, res) => res.status(404).json({ error: "Not found." }));
 

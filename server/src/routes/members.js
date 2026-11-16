@@ -14,6 +14,7 @@ const BillRecord = require("../models/BillRecord");
 const { BILL_KINDS, BILL_STATUSES } = require("../models/BillRecord");
 const { signalsFor } = require("../services/memberSignals");
 const { scoreOf } = require("../services/memberScore");
+const { historyOf, historiesFor } = require("../services/memberHistory");
 const { auditNote } = require("../middleware/audit");
 const { requireStaff, requireLevel, requireRole } = require("../middleware/auth");
 
@@ -123,40 +124,6 @@ async function summaries(members) {
     const moved = ledgerLoan.get(m.memberId) || null;
     const carried = !moved && m.openingLoan?.balance > 0 ? m.openingLoan.balance : 0;
     return { openLoans: info.count, loanBalance: info.balance + carried, plan: plan.get(m.memberId) || null, ledgerLoan: moved };
-  };
-}
-
-/**
- * What the loan form's "History with UDEI" fields need: loans in the system plus those in UDEI's
- * spreadsheet ledger (the carried-over balance counts as one loan, and so does each 2026 release).
- * A member "On Amnesty" had fallen behind, so that counts as a late loan.
- */
-async function historyOf(member) {
-  return (await historiesFor([member])).get(member.memberId);
-}
-
-/** historyOf() for many members with one query, for the members list. */
-async function historiesFor(members) {
-  // A ledger loan is the carried-over balance, already counted below as a spreadsheet loan.
-  const all = await Loan.find({ memberId: { $in: members.map((m) => m.memberId) }, status: { $in: ["active", "paid"] }, source: { $ne: "ledger" } });
-  return new Map(members.map((m) => [m.memberId, historyFrom(m, all.filter((l) => l.memberId === m.memberId))]));
-}
-
-function historyFrom(member, released) {
-  const lateInSystem = released.filter((l) => loans.present(l).pastDue || ["missed", "partial"].includes(l.lastDeduction?.result));
-  const opening = member.openingLoan || {};
-  const spreadsheetLoans = (opening.balanceStartOfYear > 0 ? 1 : 0) + (opening.loansThisYear || 0);
-  const priorLoans = released.length + spreadsheetLoans;
-  const amnesty = /amnesty/i.test(member.remarks || "") ? 1 : 0;
-  const joined = member.joinedAt ? ledger.calendarDay(member.joinedAt).getTime() : null;
-  const years = joined == null ? 0 : Math.max(0, Math.floor((ledger.todayInManila().getTime() - joined) / (365.25 * 86_400_000)));
-  return {
-    yearsAsMember: years,
-    priorLoans,
-    priorLatePayments: Math.min(priorLoans, lateInSystem.length + amnesty),
-    // The spreadsheet balance, for the Bookkeeper section when the member has no loans in the system yet.
-    carriedBalance: opening.balance > 0 ? opening.balance : 0,
-    carriedAsOf: opening.asOf || null,
   };
 }
 

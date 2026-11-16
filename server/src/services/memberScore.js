@@ -22,7 +22,7 @@ const pct = (x) => `${Math.round(x * 100)}%`;
 
 /**
  * @param signals from services/memberSignals.js
- * @param history { priorLoans, priorLatePayments } from the loan history (routes/members.js historyOf)
+ * @param history { priorLoans, priorLatePayments } from the loan history (services/memberHistory.js historyOf)
  */
 function scoreOf(signals, history = { priorLoans: 0, priorLatePayments: 0 }) {
   const s = signals;
@@ -68,4 +68,99 @@ function scoreOf(signals, history = { priorLoans: 0, priorLatePayments: 0 }) {
   return { score, band, coverage: Math.round(coverage * 100) / 100, parts };
 }
 
-module.exports = { scoreOf, WEIGHTS };
+// ---- What the member sees about their own score (GET /api/me/score) ----
+
+const STRONG = 0.8;
+
+/** The detail text, reworded from "them" (written for staff) to "you". */
+function toYou(part) {
+  const d = part.detail;
+  const rules = [
+    [/^No retirement plan \(savings\) with UDEI\.$/, "You don't have a retirement plan (savings) with UDEI yet."],
+    [/^Plan started too recently to judge\.$/, "Your plan started too recently to judge."],
+    [/^Saved in /, "You saved in "],
+    [/^Saved every month/, "You saved every month"],
+    [/^Missed /, "You missed "],
+    [/^Attended the PMES; /, "You attended the PMES; "],
+    [/^Attended /, "You attended "],
+    [/^No meetings recorded\.$/, "No meetings recorded for you yet."],
+    [/^(\d+) of (\d+) bills paid on time\.$/, "You paid $1 of $2 bills on time."],
+    [/^No bills recorded\.$/, "No bills recorded for you yet."],
+    [/^Vouched for /, "You vouched for "],
+    [/^Has not been a co-maker\.$/, "You have not been a co-maker yet."],
+    [/have agreed to be their co-maker\.$/, "have agreed to be your co-maker."],
+    [/^No member has vouched for them yet\.$/, "No member has vouched for you yet."],
+    [/^On amnesty for an earlier loan\.$/, "You are on amnesty for an earlier loan."],
+    [/^(\d+) of (\d+) past loans paid without being late\.$/, "You paid $1 of $2 past loans without being late."],
+    [/^No past loans\.$/, "You have no past loans."],
+  ];
+  return rules.reduce((text, [re, to]) => text.replace(re, to), d);
+}
+
+const youLabel = (label) => label.replace("vouch for them", "vouch for you");
+
+/**
+ * The tip for a part that pulls the score down, as a sentence to the member, or null when there
+ * is nothing they can do about it (e.g. no past loans, or a plan too new to judge).
+ */
+function tipFor(part) {
+  const { key, value, detail } = part;
+  switch (key) {
+    case "savings":
+      if (/^No retirement plan/.test(detail)) return "Open a retirement plan (savings) with UDEI. Savings make up 40% of the score.";
+      return value === null ? null : "Deposit to your retirement plan every month. Regular savings raise your score the most.";
+    case "savingsRecent": {
+      if (value === null) return null;
+      const missed = /^Missed (\d+)/.exec(detail);
+      return missed ? `You missed ${missed[1]} of the last 3 monthly deposits. Catching up helps.` : "Deposit to your retirement plan every month. Regular savings raise your score the most.";
+    }
+    case "attendance":
+      // No PMES in the detail means it hasn't been taken.
+      return /PMES/.test(detail) ? "Attend the next general assembly." : "Attend the PMES.";
+    case "bills":
+      return "Bring proof of your on-time electricity, water, internet or load payments to the UDEI office.";
+    case "coMaker":
+      return value === null ? null : "Help the members you vouch for stay on track. Their missed payments lower your score.";
+    case "network":
+      return "Ask a fellow member to vouch for you as co-maker on your next application.";
+    case "repayment":
+      return value === null ? null : "Keep your current loans up to date. Late payments lower your score.";
+    default:
+      return null;
+  }
+}
+
+/**
+ * Up to 3 tips for the parts that pull the score down most (weight × (1 − value); a part with no
+ * data counts as 0 when the member can act on it), and up to 2 strengths: parts at 0.8 or higher,
+ * as one-line "in favor" sentences.
+ */
+function tipsFor(result) {
+  const weak = result.parts
+    .filter((p) => p.value === null || p.value < STRONG)
+    .map((p) => ({ part: p, tip: tipFor(p), pull: p.weight * (1 - (p.value ?? 0)) }))
+    .filter((x) => x.tip)
+    .sort((a, b) => b.pull - a.pull);
+  const tips = [...new Set(weak.map((x) => x.tip))].slice(0, 3);
+  const strengths = result.parts
+    .filter((p) => p.value !== null && p.value >= STRONG)
+    .sort((a, b) => b.weight * b.value - a.weight * a.value)
+    .slice(0, 2)
+    .map((p) => toYou(p));
+  return { tips, strengths };
+}
+
+/** A score result as the member sees it: worded to "you", with tips and strengths. */
+function memberView(result) {
+  const { tips, strengths } = tipsFor(result);
+  return {
+    score: result.score,
+    band: result.band,
+    coverage: result.coverage,
+    parts: result.parts.map((p) => ({ key: p.key, label: youLabel(p.label), weight: p.weight, value: p.value, detail: toYou(p) })),
+    tips,
+    strengths,
+  };
+}
+
+module.exports = { scoreOf, tipsFor, memberView, WEIGHTS };
