@@ -148,3 +148,38 @@ test("a member must verify their email before the app gets a token", { skip }, a
   assert.equal(login.status, 200);
   assert.ok(login.json.token);
 });
+
+test("a member sends supporting documents from the phone, and the office sees them", { skip }, async () => {
+  const token = await member("doc@uedi.test", "M-0090");
+  const other = await member("nodoc@uedi.test", "M-0091");
+  const id = (await as(token, "/member/applications", { method: "POST", body: apply() })).json.application.id;
+  const png = Buffer.from("89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d4944415478da63f8ffff3f0005fe02fea7d6a4530000000049454e44ae426082", "hex");
+  const send = (tok, body, type = "image/png", query = "?type=payslip&name=payslip.png") =>
+    fetch(`${t.baseUrl}/member/applications/${id}/documents${query}`, { method: "POST", headers: { Authorization: `Bearer ${tok}`, "Content-Type": type }, body });
+
+  const sent = await send(token, png);
+  assert.equal(sent.status, 201);
+  const docs = (await sent.json()).application.documents;
+  assert.deepEqual(docs, [{ fileName: "payslip.png", type: "payslip", uploaded: true, addedAt: null }], "sent at filing, not marked as added later");
+
+  assert.equal((await send(token, png, "text/plain")).status, 415);
+  assert.equal((await send(other, png)).status, 404, "only your own application");
+  const odd = await send(token, png, "image/png", "?type=nonsense&name=a%2Fb.png");
+  assert.equal((await odd.json()).application.documents[1].type, "other");
+
+  // In the member's list, and on the office's application with its file.
+  const mine = (await as(token, "/member/applications")).json.applications[0];
+  assert.equal(mine.documents.length, 2);
+  const staffView = (await t.call(`/applications/${id}`, { cookie: admin.cookie })).json.application;
+  assert.equal(staffView.documents[0].type, "payslip");
+  assert.ok(staffView.documents[0].fileId);
+  assert.equal(staffView.documents[0].verdict, undefined, "not checked automatically");
+  assert.match(staffView.documents[0].notes[0], /member app/);
+  const file = await fetch(`${t.baseUrl}/applications/${id}/documents/0/file`, { headers: { Cookie: admin.cookie } });
+  assert.equal(file.status, 200);
+  assert.deepEqual(Buffer.from(await file.arrayBuffer()), png);
+
+  // Not once the application is decided.
+  await t.call(`/applications/${id}/approvals`, { method: "POST", cookie: signer.bookkeeper.cookie, body: { decision: "denied", note: "Test" } });
+  assert.equal((await send(token, png)).status, 409);
+});

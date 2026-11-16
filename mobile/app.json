@@ -25,7 +25,15 @@
     },
     "plugins": [
       "expo-secure-store",
-      "expo-notifications"
+      "expo-notifications",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "UDEI Member lets you choose photos of your payslip, ID and other supporting documents for a loan application.",
+          "cameraPermission": "UDEI Member lets you take photos of your payslip, ID and other supporting documents for a loan application.",
+          "microphonePermission": false
+        }
+      ]
     ],
     "splash": {
       "backgroundColor": "#0B422A"

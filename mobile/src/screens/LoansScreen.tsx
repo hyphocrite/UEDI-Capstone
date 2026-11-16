@@ -1,6 +1,7 @@
 import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native'
 import type { Application, Loan } from '../api'
 import { centavos, date, LOAN_TYPE_LABEL, pesos } from '../format'
+import { ApplicationDocuments } from '../documents'
 import { colors } from '../theme'
 import { Badge, Card, Empty, Header, KuwiBox, MascotSays, Row, s } from '../ui'
 import { applicationBadge, loanBadge, SIGNERS } from './status'
@@ -59,6 +60,7 @@ export default function LoansScreen({ loans, applications, loading, onRefresh, o
             <Row label="Term" value={`${a.loan.termMonths} months at ${a.loan.monthlyRate}%/mo`} />
             <Row label="Submitted" value={date(a.createdAt)} />
             <Steps app={a} />
+            <ApplicationDocuments app={a} onSent={onRefresh} />
             {a.denialNote ? <Text style={{ color: colors.danger, marginTop: 8 }}>Reason: {a.denialNote}</Text> : null}
             {a.reasons?.against.length ? (
               <MascotSays mood="concerned" title="I looked at your application.">
