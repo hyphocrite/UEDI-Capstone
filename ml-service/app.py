@@ -37,6 +37,16 @@ async def lifespan(_app: FastAPI):
         print("Model loaded and warmed up.")
     except Exception as err:  # noqa: BLE001 - a missing model must not stop the service from starting
         print(f"Model warm-up skipped: {err}")
+    if not EW_PATH.exists():
+        # Hosts that only run train.py at build time (Render) would otherwise have no early warning.
+        # The sample model trains in a few seconds; real snapshots replace it via train_early_warning.py.
+        try:
+            from train_early_warning import train
+
+            train()
+            print("No early-warning model found: trained one on sample snapshots.")
+        except Exception as err:  # noqa: BLE001
+            print(f"Early-warning training skipped: {err}")
     try:
         early_warning_score(EarlyWarningBatch(loans=[LoanSnapshot(id="warm-up")]))
         print("Early-warning model loaded.")

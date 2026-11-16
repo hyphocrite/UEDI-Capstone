@@ -24,6 +24,17 @@ from uedi_ml.early_warning import FEATURE_NAMES, EarlyWarningModel, generate_sam
 OUT = Path(os.getenv("MODEL_PATH", Path(__file__).parent / "models" / "model.joblib")).parent
 
 
+def train(data: pd.DataFrame | None = None, source: str = "sample") -> EarlyWarningModel:
+    """Trains on `data` (the sample snapshots when None) and saves the model and its metrics."""
+    model = EarlyWarningModel.train(generate_sample() if data is None else data, source)
+    model.metrics["version"] = datetime.now(timezone.utc).strftime("ew-%Y%m%d-%H%M%S")
+    model.metrics["trainedAt"] = datetime.now(timezone.utc).isoformat()
+    OUT.mkdir(parents=True, exist_ok=True)
+    joblib.dump(model, OUT / "early_warning.joblib")
+    (OUT / "early_warning_metrics.json").write_text(json.dumps(model.metrics, indent=2))
+    return model
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--data", help="CSV of real loan snapshots")
@@ -42,13 +53,7 @@ def main() -> None:
         data = generate_sample(args.rows)
         source = "sample"
 
-    model = EarlyWarningModel.train(data, source)
-    model.metrics["version"] = datetime.now(timezone.utc).strftime("ew-%Y%m%d-%H%M%S")
-    model.metrics["trainedAt"] = datetime.now(timezone.utc).isoformat()
-    OUT.mkdir(parents=True, exist_ok=True)
-    joblib.dump(model, OUT / "early_warning.joblib")
-    (OUT / "early_warning_metrics.json").write_text(json.dumps(model.metrics, indent=2))
-    m = model.metrics
+    m = train(data, source).metrics
     print(f"Early warning trained on {m['rows']} {source} snapshots ({m['positiveRate']:.1%} went on to miss a payment).")
     print(f"  XGBoost  AUC {m['xgboost']['aucRoc']:.3f}  avg precision {m['xgboost']['averagePrecision']:.3f}  "
           f"high list: precision {m['xgboost']['precision']:.2f}, recall {m['xgboost']['recall']:.2f}")
