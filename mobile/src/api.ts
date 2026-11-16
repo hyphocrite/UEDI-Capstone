@@ -17,7 +17,14 @@ export type Application = {
   loanId: string | null
   loanNo: string | null
   createdAt: string
+  /** Supporting documents on the application (older servers leave this out). */
+  documents?: AppDocument[]
 }
+
+export type AppDocument = { fileName: string; type: string | null; uploaded: boolean; addedAt: string | null }
+
+/** A photo or PDF picked on the phone, waiting to be sent. */
+export type PickedFile = { uri: string; name: string; mimeType: string; type: string }
 
 export type Installment = { no: number; dueDate: string; totalDue: number; paid: number }
 
@@ -112,17 +119,17 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, options: { method?: string; body?: unknown } = {}): Promise<T> {
+async function request<T>(path: string, options: { method?: string; body?: unknown; file?: { data: Blob; type: string } } = {}): Promise<T> {
   let res: Response
   try {
     res = await fetch(API_URL + path, {
       method: options.method || 'GET',
       headers: {
         Accept: 'application/json',
-        ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+        ...(options.file ? { 'Content-Type': options.file.type } : options.body ? { 'Content-Type': 'application/json' } : {}),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      body: options.body ? JSON.stringify(options.body) : undefined,
+      body: options.file ? options.file.data : options.body ? JSON.stringify(options.body) : undefined,
     })
   } catch {
     throw new ApiError(0, "Can't reach the UDEI server. Check your internet connection.")
@@ -147,6 +154,20 @@ export const api = {
   applications: () => request<{ applications: Application[] }>('/member/applications'),
   apply: (body: Record<string, unknown>) =>
     request<{ application: Application }>('/member/applications', { method: 'POST', body }),
+  /** Sends one supporting document to a pending application of yours. */
+  uploadDocument: async (applicationId: string, file: PickedFile) => {
+    let data: Blob
+    try {
+      data = await (await fetch(file.uri)).blob()
+    } catch {
+      throw new ApiError(0, `Couldn't read ${file.name} on this phone.`)
+    }
+    const query = `?type=${encodeURIComponent(file.type)}&name=${encodeURIComponent(file.name)}`
+    return request<{ application: Application }>(`/member/applications/${applicationId}/documents${query}`, {
+      method: 'POST',
+      file: { data, type: file.mimeType },
+    })
+  },
   loans: () => request<{ loans: Loan[] }>('/member/loans'),
   // UDEI's loan rules from the office's Settings page: rate per month, longest term, minimum salary.
   settings: () => request<{ settings: LoanSettings }>('/settings'),

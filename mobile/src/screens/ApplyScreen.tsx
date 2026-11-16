@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
-import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native'
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native'
 import { api } from '../api'
-import type { LoanSettings } from '../api'
+import type { LoanSettings, PickedFile } from '../api'
 import { useAuth } from '../auth'
 import { confirmAction } from '../confirm'
+import { DOCUMENT_LABEL, DocumentSlots, missingTypes, sendAll } from '../documents'
 import { pesos } from '../format'
 import { colors } from '../theme'
 import { Button, Card, Check, Choice, ErrorText, Field, Header, Row, s } from '../ui'
@@ -53,6 +54,7 @@ export default function ApplyScreen({ onDone }: { onDone: () => void }) {
   })
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [files, setFiles] = useState<PickedFile[]>([])
   const [rules, setRules] = useState<LoanSettings>(FALLBACK)
   useEffect(() => {
     api.settings().then((r) => setRules(r.settings)).catch(() => {})
@@ -76,15 +78,17 @@ export default function ApplyScreen({ onDone }: { onDone: () => void }) {
     setError(null)
     if (f.purpose.trim().length < 3) return setError('Give the reason for the loan.')
     const kind = f.loanType === 'long_term' ? 'Long term' : 'Emergency'
+    const missing = missingTypes(f.loanType, files).map((t) => DOCUMENT_LABEL[t])
     const ok = await confirmAction(
       'Submit this application?',
-      `${kind} loan of ${pesos(amount)} over ${num(f.termMonths)} months. It then goes to the Bookkeeper, Treasurer, CreCom Chairman and President to sign, and can't be edited after this.`,
-      'Yes, submit',
+      `${kind} loan of ${pesos(amount)} over ${num(f.termMonths)} months. It then goes to the Bookkeeper, Treasurer, CreCom Chairman and President to sign.` +
+        (missing.length ? `\n\nStill missing: ${missing.join(', ')}. You can add them later from My loans, but the office may wait for them.` : ''),
+      missing.length ? 'Submit anyway' : 'Yes, submit',
     )
     if (!ok) return
     setBusy(true)
     try {
-      await api.apply({
+      const { application } = await api.apply({
         lastName: f.lastName,
         firstName: f.firstName,
         middleInitial: f.middleInitial || undefined,
@@ -101,6 +105,12 @@ export default function ApplyScreen({ onDone }: { onDone: () => void }) {
         autoRestructure: f.autoRestructure,
         coMakers: [f.coMaker1, f.coMaker2].map((c) => c.trim()).filter(Boolean),
       })
+      const failed = await sendAll(application.id, files)
+      if (failed.length) {
+        const text = `Your application was filed, but ${failed.join(', ')} couldn't be sent. Add them again from My loans.`
+        if (Platform.OS === 'web') window.alert(text)
+        else Alert.alert('Some documents were not sent', text)
+      }
       onDone()
     } catch (e) {
       setError((e as Error).message)
@@ -192,6 +202,14 @@ export default function ApplyScreen({ onDone }: { onDone: () => void }) {
           </Card>
 
           <Card>
+            <Text style={s.sectionTitle}>Supporting documents</Text>
+            <Text style={{ color: colors.muted, fontSize: 13, marginBottom: 6 }}>
+              Take a clear photo or choose a file (JPEG, PNG or PDF, up to 10 MB) for each. The office checks them before signing.
+            </Text>
+            <DocumentSlots loanType={f.loanType} files={files} onChange={setFiles} />
+          </Card>
+
+          <Card>
             <Text style={s.sectionTitle}>Agreement</Text>
             <Check
               value={f.payrollDeduction}
@@ -206,7 +224,7 @@ export default function ApplyScreen({ onDone }: { onDone: () => void }) {
           </Card>
 
           <ErrorText text={error} />
-          <Button title="Submit application" onPress={submit} loading={busy} />
+          <Button title={busy && files.length ? 'Sending documents…' : 'Submit application'} onPress={submit} loading={busy} />
         </ScrollView>
       </KeyboardAvoidingView>
     </View>

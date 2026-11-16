@@ -18,6 +18,7 @@ const { auditNote } = require("../middleware/audit");
 const memberIds = require("../services/memberIds");
 const { explain } = require("../services/explain");
 const settings = require("../services/settings");
+const documentFiles = require("../services/documentFiles");
 
 const router = express.Router();
 
@@ -189,6 +190,7 @@ function memberView(app) {
     loanId: app.loanId || null,
     loanNo: app.loanNo || null,
     createdAt: app.createdAt,
+    documents: (app.documents || []).map((d) => ({ fileName: d.fileName, type: d.type || null, uploaded: !!d.fileId, addedAt: d.addedAt || null })),
   };
 }
 
@@ -244,6 +246,59 @@ router.post("/applications", async (req, res, next) => {
     next(err);
   }
 });
+
+// Kept in step with DOCUMENT_TYPES in client/src/lib/ocr/documentTypes.ts.
+const DOCUMENT_TYPES = ["valid_id", "employee_id", "payslip", "certificate_of_employment", "proof_of_address", "application_form", "other"];
+const MAX_DOCUMENTS = 30;
+// Files sent within this long of filing count as part of the filing, not as added later.
+const FILING_WINDOW_MS = 15 * 60 * 1000;
+
+// The app sends one supporting document (a photo or PDF) per request, while the application is
+// still pending, after signatures too. The phone doesn't read the text the way the web form does,
+// so the office checks these by eye.
+router.post(
+  "/applications/:id/documents",
+  express.raw({ type: [...documentFiles.TYPES], limit: documentFiles.MAX_BYTES }),
+  async (req, res, next) => {
+    try {
+      if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ error: "Application not found." });
+      const app = await Application.findOne({ _id: req.params.id, submittedBy: req.user._id });
+      if (!app) return res.status(404).json({ error: "Application not found." });
+      auditNote(res, { target: `${app.applicationNo} · ${app.applicant.fullName}` });
+      if (app.status !== "pending") return res.status(409).json({ error: `This application was already ${app.status}, so documents can't be added.` });
+      const type = req.get("content-type")?.split(";")[0];
+      if (!Buffer.isBuffer(req.body) || !documentFiles.TYPES.has(type) || !req.body.length) {
+        return res.status(415).json({ error: "Send a JPEG, PNG, WebP or PDF file." });
+      }
+      const docType = DOCUMENT_TYPES.includes(req.query.type) ? req.query.type : "other";
+      const fileName = String(req.query.name || "").replace(/[\/\u0000-\u001f]/g, "").trim().slice(0, 255) || `${docType}.${type.split("/")[1]}`;
+      const index = app.documents.length;
+      if (index >= MAX_DOCUMENTS) return res.status(400).json({ error: `An application can have at most ${MAX_DOCUMENTS} documents.` });
+      const fileId = await documentFiles.save(req.body, { fileName, contentType: type, applicationId: app._id, index });
+      const doc = {
+        fileName,
+        type: docType,
+        sha256: documentFiles.sha256(req.body),
+        notes: ["Sent from the member app. It was not checked against the form, so compare it by eye."],
+        fileId,
+        contentType: type,
+        size: req.body.length,
+        ...(Date.now() - app.createdAt.getTime() > FILING_WINDOW_MS ? { addedAt: new Date() } : {}),
+      };
+      // Only onto the list as it was read, so two uploads at once can't take the same place.
+      const updated = await Application.findOneAndUpdate(
+        { _id: app._id, status: "pending", documents: { $size: index } },
+        { $push: { documents: doc } },
+        { returnDocument: "after" },
+      );
+      if (!updated) return res.status(409).json({ error: "The application changed while uploading. Try again." });
+      res.status(201).json({ application: memberView(updated) });
+    } catch (err) {
+      if (err?.type === "entity.too.large") return res.status(413).json({ error: "Files can be at most 10 MB." });
+      next(err);
+    }
+  },
+);
 
 /** Loans that came from this member's own applications. */
 async function ownLoanFilter(user) {

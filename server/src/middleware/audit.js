@@ -51,6 +51,7 @@ const ACTIONS = [
   ["POST", /^\/api\/member\/resend-verification$/, "Verification code resent (mobile)"],
   ["POST", /^\/api\/member\/login$/, "Signed in (mobile)"],
   ["POST", /^\/api\/member\/applications$/, "Application submitted (mobile)"],
+  ["POST", /^\/api\/member\/applications\/[^/]+\/documents$/, "Document uploaded (mobile)"],
 ];
 
 const MUTATING = new Set(["POST", "PUT", "PATCH", "DELETE"]);
