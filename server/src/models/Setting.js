@@ -26,6 +26,9 @@ const settingSchema = new mongoose.Schema(
     coMakersRequired: { type: Number, min: 0, max: 2, default: 1 },
     // Co-makers are needed only for loans of this amount (pesos) or more. 0: every loan.
     coMakersFromAmount: { type: Number, min: 0, max: 10_000_000, default: 50000 },
+    // Applicants not linked to a UDEI member number borrow at most this (pesos) and need a member
+    // as co-maker. 0 turns the rule off.
+    nonMemberMaxAmount: { type: Number, min: 0, max: 10_000_000, default: 5000 },
     updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     updatedByName: String,
   },

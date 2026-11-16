@@ -64,6 +64,8 @@ async function setup() {
     branches: ["Main Office"],
     // Most tests file applications without co-makers; test/comakers.test.js turns this on.
     coMakersRequired: 0,
+    // Most tests file for applicants without a member record; test/nonmember.test.js turns this on.
+    nonMemberMaxAmount: 0,
   });
   const server = createApp().listen(0);
   const base = `http://127.0.0.1:${server.address().port}/api`;
@@ -109,6 +111,14 @@ function lastCode(email) {
   return mail?.subject.match(/\d{6}/)[0];
 }
 
+// The supporting documents every application needs (long term needs them all, emergency a subset).
+const requiredDocuments = () => [
+  { fileName: "id.jpg", type: "valid_id", verdict: "verified" },
+  { fileName: "payslip.jpg", type: "payslip", verdict: "verified" },
+  { fileName: "bill.jpg", type: "proof_of_address", verdict: "verified" },
+  { fileName: "form.pdf", type: "application_form", verdict: "verified" },
+];
+
 const application = (late = 0, overrides = {}) => ({
   applicant: {
     lastName: "Santos", firstName: "Maria", middleInitial: "C", residenceAddress: "Purok 3, New Visayas, Panabo City",
@@ -118,7 +128,7 @@ const application = (late = 0, overrides = {}) => ({
   loan: { loanType: "long_term", amount: 60000, termMonths: 24, monthlyRate: 1, paymentFrequency: "quincenal", purpose: "House repair", ...overrides.loan },
   bookkeeper: overrides.bookkeeper ?? { longTermBalance: 12000, shortTermBalance: 0 },
   agreement: { payrollDeduction: true, autoRestructure: true, applicationDate: "2026-10-19" },
-  documents: [],
+  documents: requiredDocuments(),
 });
 
 const SIGNER_ROLES = ["bookkeeper", "treasurer", "crecom_chair", "president"];
@@ -161,4 +171,4 @@ async function releasedLoan(t, staff, { memberId, loan, releasedAt = daysAgo(40)
   return r.json.loan;
 }
 
-module.exports = { uri, lastCode, setup, application, staffUp, daysAgo, approve, releasedLoan };
+module.exports = { uri, lastCode, setup, application, requiredDocuments, staffUp, daysAgo, approve, releasedLoan };

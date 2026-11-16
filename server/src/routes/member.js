@@ -10,7 +10,7 @@ const Loan = require("../models/Loan");
 const Payment = require("../models/Payment");
 const loans = require("../services/loans");
 const { STEP_LABELS, currentStepOf } = require("../services/approvals");
-const { createSchema, createApplication } = require("./applications");
+const { createSchema, createApplication, missingDocuments } = require("./applications");
 const { signSession, requireAuth } = require("../middleware/auth");
 const { rateLimit } = require("../middleware/rateLimit");
 const verification = require("../services/emailVerification");
@@ -60,6 +60,9 @@ const applySchema = z.object({
   autoRestructure: z.literal(true, { message: "You must agree to automatic restructuring." }),
   // Member numbers of the co-makers (how many are needed is a Loan Setting).
   coMakers: z.array(z.string().trim().max(32)).max(2).default([]),
+  // The types of the supporting documents the app sends right after filing (one per request).
+  // Every required type must be among them.
+  documentTypes: z.array(z.string().trim().max(64)).max(30).default([]),
 });
 
 const codeSchema = z.object({
@@ -212,6 +215,8 @@ router.post("/applications", async (req, res, next) => {
     const rules = await settings.get();
     const ruleError = settings.checkApplication(rules, f);
     if (ruleError) return res.status(400).json({ error: ruleError });
+    const missing = missingDocuments(f.loanType, f.documentTypes);
+    if (missing) return res.status(400).json({ error: missing });
     if (await Application.exists({ submittedBy: req.user._id, status: "pending" })) {
       return res.status(409).json({ error: "You already have an application waiting for approval." });
     }

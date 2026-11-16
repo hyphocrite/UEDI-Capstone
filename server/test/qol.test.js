@@ -28,14 +28,14 @@ test("supporting document files: only the checked file, by the filer, readable b
   const other = Buffer.from("a different file");
   const sha = crypto.createHash("sha256").update(file).digest("hex");
   const body = application(0, {});
-  body.documents = [{ fileName: "payslip.png", type: "payslip", verdict: "verified", sha256: sha }];
+  body.documents = [{ fileName: "payslip.png", type: "payslip", verdict: "verified", sha256: sha }, ...body.documents.filter((d) => d.type !== "payslip")];
   const app = (await t.call("/applications", { method: "POST", cookie: staff.officer.cookie, body })).json.application;
   assert.equal(app.documents[0].fileId, undefined, "the client can't set a file id");
 
   assert.equal((await upload(staff.signer.treasurer.cookie, app._id, 0, file)).status, 403, "only the filer uploads");
   assert.equal((await upload(staff.officer.cookie, app._id, 0, other)).status, 400, "must be the checked file");
   assert.equal((await upload(staff.officer.cookie, app._id, 0, file, "text/html")).status, 415);
-  assert.equal((await upload(staff.officer.cookie, app._id, 3, file)).status, 404);
+  assert.equal((await upload(staff.officer.cookie, app._id, 9, file)).status, 404);
   assert.equal((await upload(staff.officer.cookie, app._id, 0, file)).status, 200);
   assert.equal((await upload(staff.officer.cookie, app._id, 0, file)).status, 409, "once only");
 

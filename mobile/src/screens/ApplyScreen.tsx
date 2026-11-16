@@ -31,8 +31,12 @@ function splitName(full = '') {
 
 const num = (v: string) => Number(v.replace(/[,\s₱]/g, ''))
 
-// The amounts UDEI offers, in pesos. Keep in step with LOAN_AMOUNTS in client/src/components/loan-application/applicationForm.ts.
+// The amounts UDEI offers, in pesos. Keep in step with LOAN_AMOUNTS and NON_MEMBER_LOAN_AMOUNTS in
+// client/src/components/loan-application/applicationForm.ts.
 const LOAN_AMOUNTS = [25000, 50000, 75000, 100000]
+const NON_MEMBER_LOAN_AMOUNTS = [1000, 2000, 3000, 4000, 5000]
+// Every application needs at least this net take-home pay (the server checks it too).
+const MIN_NET_TAKE_HOME_PAY = 5000
 
 export default function ApplyScreen({ onDone }: { onDone: () => void }) {
   const { session } = useAuth()
@@ -59,6 +63,11 @@ export default function ApplyScreen({ onDone }: { onDone: () => void }) {
   useEffect(() => {
     api.settings().then((r) => setRules(r.settings)).catch(() => {})
   }, [])
+  // Until the office links the account to a UDEI member number it only has its own N-… ID: such
+  // applicants borrow at most the non-member limit and need a member as co-maker.
+  const linked = !!session?.memberId && !session.memberId.startsWith('N-')
+  const nonMemberLimit = !linked && (rules.nonMemberMaxAmount ?? 5000) > 0 ? (rules.nonMemberMaxAmount ?? 5000) : null
+  const amounts = nonMemberLimit === null ? LOAN_AMOUNTS : NON_MEMBER_LOAN_AMOUNTS.filter((a) => a <= nonMemberLimit)
   const MAX_TERM = { long_term: rules.products.long_term.maxTermMonths, emergency: rules.products.emergency.maxTermMonths }
   const set = <K extends keyof typeof f>(k: K) => (v: (typeof f)[K]) => setF((x) => ({ ...x, [k]: v }))
 
@@ -76,14 +85,22 @@ export default function ApplyScreen({ onDone }: { onDone: () => void }) {
 
   const submit = async () => {
     setError(null)
+    const net = num(f.netTakeHomePay)
+    if (!(net > 0)) return setError('Enter your net take-home pay.')
+    if (net < MIN_NET_TAKE_HOME_PAY) return setError(`Your net take-home pay must be at least ${pesos(MIN_NET_TAKE_HOME_PAY)}.`)
+    if (!(amount > 0)) return setError('Choose the loan amount.')
     if (f.purpose.trim().length < 3) return setError('Give the reason for the loan.')
-    const kind = f.loanType === 'long_term' ? 'Long term' : 'Emergency'
+    if (nonMemberLimit !== null) {
+      if (amount > nonMemberLimit) return setError(`Until your account is linked to a UDEI member number, you can borrow at most ${pesos(nonMemberLimit)}.`)
+      if (!f.coMaker1.trim() && !f.coMaker2.trim()) return setError('Until your account is linked to a UDEI member number, you need a co-maker: a UDEI member who vouches for this loan.')
+    }
     const missing = missingTypes(f.loanType, files).map((t) => DOCUMENT_LABEL[t])
+    if (missing.length) return setError(`Supporting documents are required. Still missing: ${missing.join(', ')}.`)
+    const kind = f.loanType === 'long_term' ? 'Long term' : 'Emergency'
     const ok = await confirmAction(
       'Submit this application?',
-      `${kind} loan of ${pesos(amount)} over ${num(f.termMonths)} months. It then goes to the Bookkeeper, Treasurer, CreCom Chairman and President to sign.` +
-        (missing.length ? `\n\nStill missing: ${missing.join(', ')}. You can add them later from My loans, but the office may wait for them.` : ''),
-      missing.length ? 'Submit anyway' : 'Yes, submit',
+      `${kind} loan of ${pesos(amount)} over ${num(f.termMonths)} months. It then goes to the Bookkeeper, Treasurer, CreCom Chairman and President to sign.`,
+      'Yes, submit',
     )
     if (!ok) return
     setBusy(true)
@@ -104,6 +121,8 @@ export default function ApplyScreen({ onDone }: { onDone: () => void }) {
         payrollDeduction: f.payrollDeduction,
         autoRestructure: f.autoRestructure,
         coMakers: [f.coMaker1, f.coMaker2].map((c) => c.trim()).filter(Boolean),
+        // The documents sent right after filing; the server checks every required one is there.
+        documentTypes: files.map((d) => d.type),
       })
       const failed = await sendAll(application.id, files)
       if (failed.length) {
@@ -144,7 +163,7 @@ export default function ApplyScreen({ onDone }: { onDone: () => void }) {
               onChangeText={set('netTakeHomePay')}
               keyboardType="numeric"
               placeholder="0.00"
-              hint="As shown on your latest payslip."
+              hint={`As shown on your latest payslip. At least ${pesos(MIN_NET_TAKE_HOME_PAY)}.`}
             />
           </Card>
 
@@ -162,7 +181,7 @@ export default function ApplyScreen({ onDone }: { onDone: () => void }) {
             <Choice
               label="Amount"
               value={f.amount}
-              options={LOAN_AMOUNTS.map((a) => ({ value: String(a), label: `₱${a.toLocaleString('en-PH')}` }))}
+              options={amounts.map((a) => ({ value: String(a), label: `₱${a.toLocaleString('en-PH')}` }))}
               onChange={set('amount')}
             />
             <Field
@@ -182,9 +201,16 @@ export default function ApplyScreen({ onDone }: { onDone: () => void }) {
               ]}
             />
             <Field label="Reason for the loan" value={f.purpose} onChangeText={set('purpose')} placeholder="e.g. tuition, medical" />
+            {nonMemberLimit !== null && (
+              <Text style={{ color: colors.muted, fontSize: 13, marginBottom: 8 }}>
+                {"Your account isn't linked to a UDEI member number yet, so you can borrow up to "}{pesos(nonMemberLimit)} and need a
+                UDEI member as co-maker. Ask the office to link your account for larger loans.
+              </Text>
+            )}
             <Field
               label={
-                (rules.coMakersRequired ?? 1) === 0 ? 'Co-maker (optional)'
+                nonMemberLimit !== null ? "Co-maker's member number"
+                : (rules.coMakersRequired ?? 1) === 0 ? 'Co-maker (optional)'
                   : amount >= (rules.coMakersFromAmount ?? 0) ? "Co-maker's member number"
                     : `Co-maker (optional under ₱${(rules.coMakersFromAmount ?? 0).toLocaleString('en-PH')})`
               }
@@ -204,7 +230,7 @@ export default function ApplyScreen({ onDone }: { onDone: () => void }) {
           <Card>
             <Text style={s.sectionTitle}>Supporting documents</Text>
             <Text style={{ color: colors.muted, fontSize: 13, marginBottom: 6 }}>
-              Take a clear photo or choose a file (JPEG, PNG or PDF, up to 10 MB) for each. The office checks them before signing.
+              Required: take a clear photo or choose a file (JPEG, PNG or PDF, up to 10 MB) for each. The office checks them before signing.
             </Text>
             <DocumentSlots loanType={f.loanType} files={files} onChange={setFiles} />
           </Card>

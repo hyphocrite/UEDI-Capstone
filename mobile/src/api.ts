@@ -2,7 +2,15 @@
 // e.g. http://192.168.1.10:5000/api when the phone and the laptop share the same Wi-Fi.
 export const API_URL = (process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000/api').replace(/\/$/, '')
 
-export type Session = { id: string; fullName: string; email: string; role: string; memberNo: string | null }
+export type Session = {
+  id: string
+  fullName: string
+  email: string
+  role: string
+  memberNo: string | null
+  /** The member number the account is linked to, or its own provisional N-… ID until the office links it. */
+  memberId?: string | null
+}
 
 export type Application = {
   id: string
@@ -54,6 +62,8 @@ export type LoanSettings = {
   /** Co-makers needed for loans of coMakersFromAmount pesos or more. Older servers leave these out. */
   coMakersRequired?: number
   coMakersFromAmount?: number
+  /** Applicants not linked to a UDEI member number borrow at most this, with a member as co-maker. 0: no limit. */
+  nonMemberMaxAmount?: number
 }
 
 export type Payment = { id: string; amount: number; paidAt: string; method: string }

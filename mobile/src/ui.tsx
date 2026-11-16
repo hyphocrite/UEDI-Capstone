@@ -1,3 +1,5 @@
+import Ionicons from '@expo/vector-icons/Ionicons'
+import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, TextInput, View, type TextInputProps, type ViewStyle } from 'react-native'
 import { colors, radius } from './theme'
@@ -53,6 +55,36 @@ export function Field({ label, hint, ...props }: TextInputProps & { label: strin
     <View style={{ marginBottom: 14 }}>
       <Text style={s.label}>{label}</Text>
       <TextInput placeholderTextColor="#9AA8A0" style={s.input} {...props} />
+      {hint ? <Text style={s.hint}>{hint}</Text> : null}
+    </View>
+  )
+}
+
+/** A password field with an eye button that shows or hides what was typed. */
+export function PasswordField({ label, hint, ...props }: Omit<TextInputProps, 'secureTextEntry'> & { label: string; hint?: string }) {
+  const [shown, setShown] = useState(false)
+  return (
+    <View style={{ marginBottom: 14 }}>
+      <Text style={s.label}>{label}</Text>
+      <View style={{ justifyContent: 'center' }}>
+        <TextInput
+          placeholderTextColor="#9AA8A0"
+          autoCapitalize="none"
+          autoCorrect={false}
+          style={[s.input, { paddingRight: 48 }]}
+          {...props}
+          secureTextEntry={!shown}
+        />
+        <Pressable
+          onPress={() => setShown((v) => !v)}
+          accessibilityRole="button"
+          accessibilityLabel={shown ? 'Hide password' : 'Show password'}
+          hitSlop={8}
+          style={{ position: 'absolute', right: 4, padding: 10 }}
+        >
+          <Ionicons name={shown ? 'eye-off-outline' : 'eye-outline'} size={20} color={colors.muted} />
+        </Pressable>
+      </View>
       {hint ? <Text style={s.hint}>{hint}</Text> : null}
     </View>
   )
