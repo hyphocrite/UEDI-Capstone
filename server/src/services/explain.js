@@ -122,7 +122,10 @@ function explain(assessment) {
     const w = weights[m.key] ?? 1 / assessment.models.length;
     for (const f of m.topFactors || []) {
       if (!TEXT[f.feature]) continue;
-      total.set(f.feature, (total.get(f.feature) || 0) + w * f.impact);
+      // Positive = against the applicant. The regression model's impacts are in score points
+      // ("raises score" is good), the older classifier's in risk ("raises risk" is bad).
+      const against = String(f.direction || "").endsWith("score") ? -f.impact : f.impact;
+      total.set(f.feature, (total.get(f.feature) || 0) + w * against);
       if (!value.has(f.feature)) value.set(f.feature, f.value);
     }
   }

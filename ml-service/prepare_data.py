@@ -4,13 +4,16 @@
     python prepare_data.py records.csv  --map column_map.json --out data/uedi_loans.csv
 
 column_map.json says which of UEDI's columns is which form field, how to read the loan
-type, and how to tell a defaulted loan. Copy column_map.example.json and edit it.
+type, and where the repayment record is. Copy column_map.example.json and edit it.
 
 What it does:
   1. Renames columns, converts "₱12,500.00", "1.5%", "2 yrs" and dates into numbers.
   2. Derives fields UEDI may not store directly: termMonths from years, yearsAsMember and
      age from dates, and priorLoans / priorLatePayments from each member's earlier loans.
-  3. Labels `defaulted` with the rule in the map.
+  3. Computes the regression target `repaymentScore` (0 to 100): 100 x the amount paid by
+     each due date / the amount scheduled to date, from the two mapped columns
+     amountPaidOnTime and amountScheduled (or a column mapped straight to repaymentScore).
+     Also labels `defaulted` with the map's rule, if it has one, for the past-loan counts.
   4. Drops names, member IDs and every column the model doesn't use, then runs the same
      checks as train.py and writes the result. The output has no personal details.
 """
@@ -26,13 +29,14 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from uedi_ml.dataset import LABEL, check_training_data
+from uedi_ml.dataset import LABEL, TARGET, check_training_data
 from uedi_ml.features import RAW_FIELDS
 
 HERE = Path(__file__).parent
-KEEP = RAW_FIELDS + [LABEL, "applicationDate"]
+KEEP = RAW_FIELDS + [TARGET, LABEL, "applicationDate"]
 # Fields that help derive others but are never written out.
-HELPERS = {"memberId", "memberSince", "birthDate", "outcome", "daysPastDue", "termYears", "endedLate"}
+HELPERS = {"memberId", "memberSince", "birthDate", "outcome", "daysPastDue", "termYears", "endedLate",
+           "amountScheduled", "amountPaidOnTime"}
 
 
 def to_number(series: pd.Series) -> pd.Series:
@@ -75,12 +79,31 @@ def label_defaults(df: pd.DataFrame, rule: dict) -> pd.Series:
     return to_number(col)
 
 
+def repayment_score(df: pd.DataFrame) -> pd.Series:
+    """The Repayment Performance Score: share of the scheduled amortization paid on time, x 100."""
+    if TARGET in df.columns:
+        return to_number(df[TARGET])
+    if {"amountScheduled", "amountPaidOnTime"} <= set(df.columns):
+        due = to_number(df["amountScheduled"])
+        paid = to_number(df["amountPaidOnTime"])
+        return (100 * paid / due.where(due > 0)).clip(0, 100).round(2)
+    raise SystemExit(
+        f"Map either a column to {TARGET} (0 to 100), or two columns to amountScheduled "
+        "(amortization due so far) and amountPaidOnTime (the part of it paid by each due date)."
+    )
+
+
 def prior_history(df: pd.DataFrame) -> pd.DataFrame:
     """Counts each member's earlier loans, and how many of those went bad or ended late."""
     order = pd.to_datetime(df["applicationDate"], errors="coerce")
     df = df.assign(_order=order).sort_values(["memberId", "_order"])
-    bad = df["endedLate"] if "endedLate" in df.columns else df[LABEL]
-    df["_bad"] = to_number(bad).fillna(0).clip(0, 1)
+    if "endedLate" in df.columns:
+        df["_bad"] = to_number(df["endedLate"]).fillna(0).clip(0, 1)
+    elif LABEL in df.columns:
+        df["_bad"] = to_number(df[LABEL]).fillna(0).clip(0, 1)
+    else:  # a past loan counts as late when its repayment score fell below the poor line
+        from uedi_ml.dataset import POOR_REPAYMENT
+        df["_bad"] = (to_number(df[TARGET]) < POOR_REPAYMENT).astype(float)
     grouped = df.groupby("memberId", sort=False)
     if "priorLoans" not in df.columns:
         df["priorLoans"] = grouped.cumcount()
@@ -123,7 +146,9 @@ def prepare(raw: pd.DataFrame, cfg: dict) -> pd.DataFrame:
         if "birthDate" in df.columns and "age" not in df.columns:
             df["age"] = years_between(df["birthDate"], df["applicationDate"]).round()
 
-    df[LABEL] = label_defaults(df, cfg.get("defaulted", {"from": LABEL}))
+    df[TARGET] = repayment_score(df)
+    if "defaulted" in cfg or LABEL in df.columns:
+        df[LABEL] = label_defaults(df, cfg.get("defaulted", {"from": LABEL}))
 
     if "memberId" in df.columns and "applicationDate" in df.columns:
         df = prior_history(df)
@@ -162,8 +187,8 @@ def main(argv=None):
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
     checked.df.to_csv(args.out, index=False)
-    y = checked.df[LABEL]
-    print(f"Wrote {len(checked.df)} loans to {args.out} ({int(y.sum())} defaulted, {y.mean():.1%}).")
+    y = checked.df[TARGET]
+    print(f"Wrote {len(checked.df)} loans to {args.out} (repayment score mean {y.mean():.1f}, median {y.median():.1f}).")
     print(f"Columns: {', '.join(checked.df.columns)}")
     print(f"Next: python train.py --data {args.out}")
 

@@ -1,5 +1,8 @@
 """Creates a SAMPLE history of past Mutual Assistance loans so the models can be trained and demoed.
 
+Each loan has `repaymentScore` (0 to 100, the regression target the models predict) and,
+for reference, `defaulted` (1 or 0).
+
 These rows are synthetic, shaped like UEDI's form (DNSC employees, payroll-deducted
 long-term and emergency loans). Train on UEDI's real history before presenting any
 accuracy numbers: see README.md, "Training on UEDI's real loans".
@@ -75,7 +78,24 @@ def generate(rows: int, seed: int = 42) -> pd.DataFrame:
         + 0.03 * np.clip(age - 58, 0, 10) * 3
         + rng.normal(0, 0.3, size=rows)
     )
-    defaulted = (rng.random(rows) < 1 / (1 + np.exp(-logit))).astype(int)
+    risk = 1 / (1 + np.exp(-logit))
+    defaulted = (rng.random(rows) < risk).astype(int)
+
+    # The regression target: the Repayment Performance Score, 0 to 100. It is the share of
+    # the loan's scheduled amortization amount that was paid in full by each due date.
+    # Every installment is paid on time with a chance that falls as risk rises; a late one
+    # counts only the part paid by the due date. A loan that went bad stops being paid at
+    # some point, so its later installments count 0.
+    score = np.empty(rows)
+    for i in range(rows):
+        n = int(term[i])
+        on_time = rng.random(n) < (1 - 0.75 * risk[i])
+        paid = np.where(on_time, 1.0, rng.uniform(0, 0.8, size=n))
+        if defaulted[i]:
+            stop = rng.integers(0, n) if n > 1 else 0
+            paid[stop:] *= rng.uniform(0, 0.3)
+        score[i] = 100 * paid.mean()
+    repayment_score = np.round(score, 2)
 
     return pd.DataFrame(
         {
@@ -93,6 +113,7 @@ def generate(rows: int, seed: int = 42) -> pd.DataFrame:
             "age": age,
             "employmentStatus": status,
             "documentsFlagged": flagged,
+            "repaymentScore": repayment_score,
             "defaulted": defaulted,
         }
     )
@@ -106,4 +127,7 @@ if __name__ == "__main__":
     df = generate(args.rows)
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(args.out, index=False)
-    print(f"Wrote {len(df)} rows to {args.out} ({df['defaulted'].mean():.1%} defaulted)")
+    print(
+        f"Wrote {len(df)} rows to {args.out}: repayment score mean {df['repaymentScore'].mean():.1f}, "
+        f"median {df['repaymentScore'].median():.1f} ({df['defaulted'].mean():.1%} defaulted)"
+    )

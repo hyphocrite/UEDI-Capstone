@@ -38,7 +38,7 @@ export default function SubmittedCard({ application: app, onNew, staffView }: Pr
         {ensemble ? (
           <div className="mt-2 flex flex-wrap items-center justify-center gap-3">
             <SuggestionBadge suggestion={ensemble.suggestion} large />
-            <span className="text-sm text-brand-700">Credit score {creditScore(ensemble.defaultProbability)} / 100</span>
+            <span className="text-sm text-brand-700">Credit score {creditScore(ensemble).toFixed(2)} / 100</span>
           </div>
         ) : (
           <p className="mt-2 text-sm text-amber-800">

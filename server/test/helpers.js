@@ -27,18 +27,18 @@ function startFakeMl() {
           return res.end(JSON.stringify({ results, version: "test-ew" }));
         }
         const f = JSON.parse(body || "{}");
-        const p = f.priorLatePayments > 1 ? 0.8 : 0.1;
-        const suggestion = p >= 0.5 ? "deny" : "approve";
-        const model = (key, name) => ({ key, name, defaultProbability: p, suggestion, topFactors: [] });
+        const score = f.priorLatePayments > 1 ? 22.5 : 91.25;
+        const suggestion = score < 60 ? "deny" : "approve";
+        const model = (key, name) => ({ key, name, creditScore: score, suggestion, topFactors: [] });
         res.setHeader("Content-Type", "application/json");
         res.end(
           JSON.stringify({
-            ensemble: { name: "Stacked ensemble", defaultProbability: p, suggestion, modelWeights: {} },
-            models: [model("xgboost", "XGBoost"), model("random_forest", "Random Forest"), model("logistic_regression", "Logistic Regression")],
-            thresholds: { approve: 0.2, deny: 0.5 },
+            ensemble: { name: "Stacked ensemble", creditScore: score, suggestion, modelWeights: {} },
+            models: [model("random_forest", "Random Forest"), model("xgboost", "XGBoost"), model("linear_regression", "Linear Regression")],
+            thresholds: { approve: 80, deny: 60 },
             modelVersion: "test",
-            // A SHAP waterfall that adds up: -2 + 0.9 - 0.4 + 0.1 = -1.4.
-            shap: { model: "xgboost", scale: "log-odds", baseValue: -2, factors: [{ feature: "late_payment_rate", label: "Late payment rate", value: 0.2, shap: 0.9 }, { feature: "years_as_member", label: "Years as member", value: 5, shap: -0.4 }], otherFeatures: 0.1, output: -1.4, outputProbability: 0.1978 },
+            // A SHAP waterfall in score points that adds up: 80 - 9 + 4 + 1 = 76.
+            shap: { model: "ensemble", scale: "points", baseValue: 80, factors: [{ feature: "late_payment_rate", label: "Late payment rate", value: 0.2, shap: -9 }, { feature: "years_as_member", label: "Years as member", value: 5, shap: 4 }], otherFeatures: 1, output: 76, creditScore: 76 },
           }),
         );
       });

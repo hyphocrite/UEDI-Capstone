@@ -87,6 +87,17 @@ test("logging out ends the session for good; Stay signed in swaps it; a password
   assert.equal((await t.call("/auth/me", { cookie: afterPw })).json.session, null, "a copied cookie is useless after logout");
 });
 
+test("regression factors: 'lowers score' counts against the applicant", () => {
+  const factor = (feature, value, impact) => ({ feature, label: feature, value, impact, direction: impact > 0 ? "raises score" : "lowers score" });
+  const e = explain({
+    ensemble: { modelWeights: { random_forest: 0.5, xgboost: 0.2, linear_regression: 0.3 } },
+    models: [{ key: "random_forest", name: "Random Forest", creditScore: 41.5, suggestion: "deny",
+      topFactors: [factor("deduction_ratio", 0.62, -12.3), factor("years_as_member", 12, 4.1)] }],
+  });
+  assert.deepEqual(e.against.map((r) => r.feature), ["deduction_ratio"]);
+  assert.deepEqual(e.inFavor.map((r) => r.feature), ["years_as_member"]);
+});
+
 test("plain-language reasons from the model factors, without age", () => {
   const factor = (feature, value, impact) => ({ feature, label: feature, value, impact, direction: impact > 0 ? "raises risk" : "lowers risk" });
   const model = (key, factors) => ({ key, name: key, defaultProbability: 0.6, suggestion: "deny", topFactors: factors });

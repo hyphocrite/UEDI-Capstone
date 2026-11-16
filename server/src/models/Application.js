@@ -61,6 +61,9 @@ const modelScoreSchema = new mongoose.Schema(
   {
     key: String,
     name: String,
+    // The regression model's predicted credit score (Repayment Performance Score, 0 to 100).
+    creditScore: Number,
+    // Only on applications scored by the older classification model.
     defaultProbability: Number,
     suggestion: { type: String, enum: SUGGESTIONS },
     topFactors: [factorSchema],
@@ -73,6 +76,7 @@ const assessmentSchema = new mongoose.Schema(
   {
     ensemble: {
       name: String,
+      creditScore: Number,
       defaultProbability: Number,
       suggestion: { type: String, enum: SUGGESTIONS },
       modelWeights: mongoose.Schema.Types.Mixed,
@@ -81,8 +85,9 @@ const assessmentSchema = new mongoose.Schema(
     models: [modelScoreSchema],
     thresholds: { approve: Number, deny: Number },
     modelVersion: String,
-    // SHAP waterfall for the XGBoost model (staff only). Log-odds of default, calibrated like
-    // XGBoost's displayed score: baseValue + sum(factors.shap) + otherFeatures = output, and
+    // SHAP waterfall (staff only). Regression model: the stacked ensemble in credit score points
+    // (scale "points"): baseValue + sum(factors.shap) + otherFeatures = output, and creditScore =
+    // output clipped to 0-100. Older classifier: XGBoost log-odds (scale "log-odds") with
     // outputProbability = sigmoid(output). Missing on applications scored before it existed.
     shap: {
       type: new mongoose.Schema(
@@ -93,6 +98,7 @@ const assessmentSchema = new mongoose.Schema(
           factors: [new mongoose.Schema({ feature: String, label: String, value: Number, shap: Number }, { _id: false })],
           otherFeatures: Number,
           output: Number,
+          creditScore: Number,
           outputProbability: Number,
         },
         { _id: false },

@@ -8,10 +8,10 @@ const YES_NO = new Set(['loan_type_emergency', 'employment_not_permanent'])
 const labelOf = (f: Waterfall['factors'][number]) => (YES_NO.has(f.feature) ? `${f.label}: ${f.value ? 'yes' : 'no'}` : f.label)
 
 /**
- * SHAP waterfall for the XGBoost model: starts at the average applicant (the explainer's base value),
- * adds one bar per factor (red pushes toward default, green toward repayment, largest first) and
- * ends at this application, with its credit score. The values are log-odds; the axis says which
- * way each bar pushes instead of showing them.
+ * SHAP waterfall for the stacked ensemble: starts at the average applicant's credit score (the base
+ * value), adds one bar per factor in score points (green raises the score, red lowers it, largest
+ * first) and ends at this application's credit score. Applications scored by the older classifier
+ * still show their XGBoost log-odds waterfall, where up means toward default.
  */
 export default function ShapWaterfall({ data }: { data: Waterfall }) {
   const rows: Row[] = [{ key: 'base', label: 'Average applicant', from: data.baseValue, to: data.baseValue, kind: 'base' }]
@@ -25,20 +25,32 @@ export default function ShapWaterfall({ data }: { data: Waterfall }) {
   }
   rows.push({ key: 'end', label: 'This application', from: data.output, to: data.output, kind: 'end' })
 
-  const points = rows.flatMap((r) => [r.from, r.to])
-  const lo = Math.min(...points)
-  const hi = Math.max(...points)
+  const ends = rows.flatMap((r) => [r.from, r.to])
+  const lo = Math.min(...ends)
+  const hi = Math.max(...ends)
   const pad = Math.max((hi - lo) * 0.06, 0.05)
   const min = lo - pad
   const span = hi + pad - min
   const x = (v: number) => ((v - min) / span) * 100
-  const score = creditScore(data.outputProbability)
+  const points = data.scale === 'points'
+  const score = points ? creditScore({ creditScore: data.creditScore ?? data.output }) : creditScore({ defaultProbability: 1 / (1 + Math.exp(-data.output)) })
+  // On the points scale a bar going up raises the score (good); on log-odds it pushes toward default.
+  const bad = (up: boolean) => (points ? !up : up)
 
   return (
     <figure className="min-w-0">
       <div className="mb-2 flex justify-between gap-2 text-[11px] font-semibold tracking-wide uppercase sm:ml-[40%]">
-        <span className="text-emerald-700">← Pushes toward repayment</span>
-        <span className="text-red-700">Pushes toward default →</span>
+        {points ? (
+          <>
+            <span className="text-red-700">← Lowers the score</span>
+            <span className="text-emerald-700">Raises the score →</span>
+          </>
+        ) : (
+          <>
+            <span className="text-emerald-700">← Pushes toward repayment</span>
+            <span className="text-red-700">Pushes toward default →</span>
+          </>
+        )}
       </div>
       <ol className="space-y-1.5">
         {rows.map((r, i) => {
@@ -53,9 +65,9 @@ export default function ShapWaterfall({ data }: { data: Waterfall }) {
               <div className="relative h-5 rounded bg-brand-50/60">
                 {r.kind === 'factor' ? (
                   <div
-                    className={`animate-grow-right absolute top-0.5 bottom-0.5 rounded-sm ${up ? 'bg-red-400' : 'bg-emerald-500'}`}
+                    className={`animate-grow-right absolute top-0.5 bottom-0.5 rounded-sm ${bad(up) ? 'bg-red-400' : 'bg-emerald-500'}`}
                     style={{ left: `${left}%`, width: `${Math.max(width, 0.6)}%`, animationDelay: `${i * 50}ms`, transformOrigin: up ? 'left' : 'right' }}
-                    title={up ? 'Pushes toward default' : 'Pushes toward repayment'}
+                    title={`${bad(up) ? 'Lowers' : 'Raises'} the score${points ? ` by ${Math.abs(r.to - r.from).toFixed(2)} points` : ''}`}
                   />
                 ) : (
                   <div className={`absolute -top-0.5 -bottom-0.5 w-1 -translate-x-1/2 rounded ${r.kind === 'end' ? 'bg-brand-800' : 'bg-brand-400'}`} style={{ left: `${x(r.to)}%` }} />
@@ -65,7 +77,7 @@ export default function ShapWaterfall({ data }: { data: Waterfall }) {
                     className={`absolute top-1/2 -translate-y-1/2 rounded bg-brand-800 px-1.5 py-0.5 text-[11px] font-semibold whitespace-nowrap text-white ${x(r.to) > 60 ? '-translate-x-full' : ''}`}
                     style={{ left: x(r.to) > 60 ? `calc(${x(r.to)}% - 8px)` : `calc(${x(r.to)}% + 8px)` }}
                   >
-                    Credit score {score}
+                    Credit score {score.toFixed(2)}
                   </span>
                 )}
                 {/* A faint guide at each step's end, so the bars read as one running total. */}
@@ -76,9 +88,17 @@ export default function ShapWaterfall({ data }: { data: Waterfall }) {
         })}
       </ol>
       <figcaption className="mt-3 text-xs text-brand-500">
-        From the average applicant, each factor moves the XGBoost model's estimate toward default (red) or repayment (green), largest first.
-        It ends at this application: XGBoost credit score {score} / 100.
-        SHAP values on the model's log-odds scale.
+        {points ? (
+          <>
+            From the average applicant's score ({data.baseValue.toFixed(2)}), each factor adds points (green) or takes them away (red), largest first.
+            It ends at this application: credit score {score.toFixed(2)} / 100. SHAP values of the stacked ensemble, in credit score points.
+          </>
+        ) : (
+          <>
+            From the average applicant, each factor moves the XGBoost model's estimate toward default (red) or repayment (green), largest first.
+            It ends at this application: XGBoost credit score {score} / 100. SHAP values on the older model's log-odds scale.
+          </>
+        )}
       </figcaption>
     </figure>
   )

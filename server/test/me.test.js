@@ -51,7 +51,7 @@ test("a linked member gets their own score, worded to them, and nobody else's", 
 
   // Never the ML credit score of an application.
   const text = JSON.stringify(mine.json);
-  assert.ok(!/defaultProbability|assessment|ensemble/.test(text));
+  assert.ok(!/defaultProbability|creditScore|assessment|ensemble/.test(text));
 });
 
 test("the mobile app gets its own score with a Bearer token", { skip }, async () => {
