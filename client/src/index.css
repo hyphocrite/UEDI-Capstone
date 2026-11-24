@@ -186,8 +186,17 @@ input::-ms-clear {
   mask: url("./assets/pattern-arc.png") no-repeat 0 0 / 100% 100%;
 }
 
+/* Printed forms (the loan application and co-maker statement) go on A4 with room to bind. */
+@page {
+  size: A4;
+  margin: 14mm 16mm;
+}
+
 /* Print stays plain: gradients drop back to each element's solid colour. */
 @media print {
+  body {
+    background: #fff !important;
+  }
   [class*="bg-grad-"],
   [class*="border-grad-"] {
     background-image: none !important;

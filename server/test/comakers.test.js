@@ -45,7 +45,10 @@ test("co-makers must be members with accounts, confirm before signing, and see t
   assert.match((await file(["C-12"])).json.error, /has no account yet/);
   assert.match((await file(["C-10"])).json.error, /their own co-maker/);
   assert.match((await file(["C-11", "C-11"])).json.error, /once/);
-  assert.equal((await t.call("/comaker/lookup?memberId=C-11", { cookie: borrower.cookie })).json.name, "Bea Backer");
+  const lookedUp = (await t.call("/comaker/lookup?memberId=C-11", { cookie: borrower.cookie })).json;
+  assert.equal(lookedUp.name, "Bea Backer");
+  assert.equal(lookedUp.details, undefined, "members don't see another member's details");
+  assert.ok((await t.call("/comaker/lookup?memberId=C-11", { cookie: staff.officer.cookie })).json.details, "staff get them for the co-maker form");
 
   const filed = await file(["C-11"]);
   assert.equal(filed.status, 201, filed.json.error);

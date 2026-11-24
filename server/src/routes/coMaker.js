@@ -9,6 +9,7 @@ const loans = require("../services/loans");
 const { STEP_LABELS, currentStepOf } = require("../services/approvals");
 const { auditNote } = require("../middleware/audit");
 const { requireAuth } = require("../middleware/auth");
+const { atLeast } = require("../config/access");
 
 // The co-maker portal: what a member has been asked to vouch for, what they vouched for, and how
 // those borrowers are paying. Any signed-in account linked to a member number (web or mobile).
@@ -22,14 +23,20 @@ const respondSchema = z.object({
 });
 
 // Who a member number belongs to, for the application form. Only members with an account, by name.
+// Staff also get the details printed on the co-maker form; members don't see other members' details.
 router.get("/lookup", async (req, res, next) => {
   try {
     const id = typeof req.query.memberId === "string" ? req.query.memberId.trim().slice(0, 32) : "";
     if (!id) return res.status(400).json({ error: "Enter a member number." });
-    const [member, account] = await Promise.all([Member.findOne({ memberId: id }).select("memberId fullName"), User.exists({ memberId: id })]);
+    const [member, account] = await Promise.all([Member.findOne({ memberId: id }).select("memberId fullName residenceAddress employer employmentStatus phone joinedAt"), User.exists({ memberId: id })]);
     if (!member) return res.status(404).json({ error: `No UDEI member with number ${id}.` });
     if (!account) return res.status(404).json({ error: `${member.fullName} has no account yet, so they can't confirm as co-maker.` });
-    res.json({ memberId: member.memberId, name: member.fullName });
+    const body = { memberId: member.memberId, name: member.fullName };
+    if (atLeast(req.user.role, "loan_officer")) {
+      const { residenceAddress, employer, employmentStatus, phone, joinedAt } = member;
+      body.details = { residenceAddress, employer, employmentStatus, phone, joinedAt };
+    }
+    res.json(body);
   } catch (err) {
     next(err);
   }
