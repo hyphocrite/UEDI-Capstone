@@ -104,7 +104,7 @@ function SignForm({ app, step, onChange }: { app: LoanApplication; step: Approva
     const short = Number(balances.shortTermBalance)
     const perMonth = Number(balances.monthlyPayment)
     if (editableBooks && (!(long >= 0) || !(short >= 0) || !(perMonth >= 0))) return setError('Balances must be 0 or more.')
-    const last = step === 'president'
+    const last = step === 'treasurer'
     const ok = await confirm({
       title: decision === 'approved' ? 'Approve this application?' : 'Deny this application?',
       message: (
@@ -116,7 +116,7 @@ function SignForm({ app, step, onChange }: { app: LoanApplication; step: Approva
             {decision === 'denied'
               ? 'Denying ends the application: no one else signs it, and the applicant is told it was denied.'
               : last
-                ? 'This is the final signature: the loan is created and goes to the Treasurer for release.'
+                ? 'This is the final signature: the loan is created, and you can then release the money from Loans.'
                 : 'It then goes to the next signer.'}
             {against ? ' This goes against the ML suggestion.' : ''} Your signature can't be taken back.
           </p>

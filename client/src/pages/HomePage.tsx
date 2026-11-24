@@ -18,7 +18,7 @@ const nav = [
 ] as const
 
 const highlights = [
-  { icon: PenLine, value: '4 signers', text: 'Bookkeeper, Treasurer, Credit Committee Chairman and President' },
+  { icon: PenLine, value: '4 signers', text: 'Bookkeeper, Credit Committee Chairman, President and Treasurer' },
   { icon: Cpu, value: '3 ML models', text: 'A second opinion on every application, explained in plain words' },
   { icon: Wallet, value: 'Every payday', text: 'Loan payments and plan contributions deducted from payroll' },
   { icon: Smartphone, value: 'Phone app', text: 'Members apply and follow their loans from their phone' },
@@ -56,7 +56,7 @@ const faqs = [
   },
   {
     q: 'Does a computer decide my loan?',
-    a: 'No. Three machine learning models suggest approve, review or deny and explain why in plain words, but the Bookkeeper, Treasurer, Credit Committee Chairman and President make the decision.',
+    a: 'No. Three machine learning models suggest approve, review or deny and explain why in plain words, but the Bookkeeper, Credit Committee Chairman, President and Treasurer make the decision.',
   },
   {
     q: 'I already have a UDEI member number. Why do I get a new ID?',

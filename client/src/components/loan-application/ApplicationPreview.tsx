@@ -183,9 +183,9 @@ export default function ApplicationPreview({ form: f, documents, staffView, link
       <Section title="Approvals">
         <div className="grid grid-cols-2 gap-x-10 sm:grid-cols-4 print:grid-cols-4">
           <SignatureLine title="Bookkeeper" />
-          <SignatureLine title="Treasurer" />
           <SignatureLine title="CreCom Chairman" />
           <SignatureLine title="President" />
+          <SignatureLine title="Treasurer" />
         </div>
       </Section>
     </article>

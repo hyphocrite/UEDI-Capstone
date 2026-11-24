@@ -13,4 +13,5 @@ export function loanBadge(l: Loan) {
   return { text: 'Active', tone: 'green' as const }
 }
 
-export const SIGNERS = ['Bookkeeper', 'Treasurer', 'Credit Committee Chairman', 'President']
+// In signing order: the Treasurer signs last, then releases the money.
+export const SIGNERS = ['Bookkeeper', 'Credit Committee Chairman', 'President', 'Treasurer']

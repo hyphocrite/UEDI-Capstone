@@ -1,4 +1,4 @@
-// Loan lifecycle: created on the President's approval, released by the Treasurer, then repaid.
+// Loan lifecycle: created on the Treasurer's final approval, released by the Treasurer, then repaid.
 // The math lives in ledger.js; this module loads and saves.
 const Application = require("../models/Application");
 const Loan = require("../models/Loan");

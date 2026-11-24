@@ -131,7 +131,8 @@ const application = (late = 0, overrides = {}) => ({
   documents: requiredDocuments(),
 });
 
-const SIGNER_ROLES = ["bookkeeper", "treasurer", "crecom_chair", "president"];
+// In signing order: the Treasurer signs last, then releases the money.
+const SIGNER_ROLES = ["bookkeeper", "crecom_chair", "president", "treasurer"];
 
 /** Creates an admin, a loan officer and one user per signer role. */
 async function staffUp(t) {

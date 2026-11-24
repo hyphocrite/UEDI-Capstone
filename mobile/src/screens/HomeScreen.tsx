@@ -84,7 +84,7 @@ export default function HomeScreen({ loans, applications, score, loading, onRefr
           <Card>
             <Text style={s.sectionTitle}>Need financial assistance?</Text>
             <Text style={{ color: colors.muted, marginBottom: 12 }}>
-              Apply for a Long term or Emergency loan. The Bookkeeper, Treasurer, Credit Committee Chairman and President
+              Apply for a Long term or Emergency loan. The Bookkeeper, Credit Committee Chairman, President and Treasurer
               review every application.
             </Text>
             <Button title="Apply for a loan" onPress={onApply} />

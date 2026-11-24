@@ -33,16 +33,19 @@ export const atLeast = (role: Role | undefined, min: Role) => !!role && LEVEL[ro
 /** Where an account lands after signing in. */
 export const homePath = (role: Role | undefined) => (atLeast(role, 'loan_officer') ? '/dashboard' : '/home')
 
-/** The four signatures on the Mutual Assistance form, in order. Each is signed by the role of the same name. */
-export const APPROVAL_STEPS = ['bookkeeper', 'treasurer', 'crecom_chair', 'president'] as const
+/**
+ * The four signatures on the Mutual Assistance form, in order. Each is signed by the role of the same name.
+ * The Treasurer signs last: their signature is the final approval, and they then release the money.
+ */
+export const APPROVAL_STEPS = ['bookkeeper', 'crecom_chair', 'president', 'treasurer'] as const
 export type ApprovalStep = (typeof APPROVAL_STEPS)[number]
 
 /** Short labels for the step tracker. */
 export const stepShortLabel: Record<ApprovalStep, string> = {
   bookkeeper: 'Bookkeeper',
-  treasurer: 'Treasurer',
   crecom_chair: 'CreCom Chairman',
   president: 'President',
+  treasurer: 'Treasurer',
 }
 
 export const isSigner = (role: Role | undefined): role is ApprovalStep =>

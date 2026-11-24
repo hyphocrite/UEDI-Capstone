@@ -24,7 +24,7 @@ before(async () => {
   const app = (await t.call("/applications", { method: "POST", cookie: staff.officer.cookie, body: {
     ...application(0, { applicant: { memberId: "M-0301", lastName: "Dela Cruz, Jr.", firstName: 'Ana "Annie"' }, loan: { amount: 20000, termMonths: 12 } }),
   } })).json.application;
-  for (const role of ["bookkeeper", "treasurer", "crecom_chair", "president"]) {
+  for (const role of ["bookkeeper", "crecom_chair", "president", "treasurer"]) {
     await t.call(`/applications/${app._id}/approvals`, { method: "POST", cookie: staff.signer[role].cookie, body: { decision: "approved" } });
   }
   const loanId = (await t.call(`/applications/${app._id}`, { cookie: staff.officer.cookie })).json.application.loanId;
