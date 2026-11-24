@@ -419,7 +419,7 @@ export default function LoanApplicationPage() {
                     ? 'Saving replaces the form; documents already attached stay, and new ones are added.'
                     : staffView
                       ? 'Submitting sends the form and document checks to Pending Loans.'
-                      : 'Submitting sends your application to UDEI. The Bookkeeper, Treasurer, CreCom Chairman and President then sign it.'}
+                      : 'Submitting sends your application to UDEI. The Bookkeeper, CreCom Chairman, President and Treasurer then sign it.'}
             </p>
             <div className="flex flex-wrap gap-2">
               {original && <Link to="/loans" className="btn-ghost">Cancel</Link>}

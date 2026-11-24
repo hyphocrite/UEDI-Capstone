@@ -18,10 +18,10 @@ form keeps what was typed if the page is reloaded. Each application is scored by
 Random Forest, Logistic Regression) and a stacked ensemble, which suggest approve, review or deny.
 See [ml-service/README.md](ml-service/README.md).
 
-**Four-signature approval.** The Bookkeeper, Treasurer, CreCom Chairman and President sign in that order
+**Four-signature approval.** The Bookkeeper, CreCom Chairman, President and Treasurer sign in that order
 on Pending Loans. The Bookkeeper checks the balances section, which is filled in from the ledger. A
-signer going against the model's suggestion has to give a reason. The President's approval creates
-the loan.
+signer going against the model's suggestion has to give a reason. The Treasurer's signature is the
+final approval: it creates the loan, which the Treasurer then releases.
 
 **Loans and the ledger.** The Treasurer releases an approved loan, which builds its payment schedule
 (quincenal or monthly, interest on the remaining balance) and can pay off the borrower's older loans

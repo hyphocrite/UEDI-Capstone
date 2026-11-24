@@ -28,7 +28,7 @@ const daysAgo = (n) => new Date(ledger.todayInManila().getTime() - n * 86_400_00
 async function approvedLoan(body = application(0)) {
   const app = (await t.call("/applications", { method: "POST", cookie: officer.cookie, body })).json.application;
   let last;
-  for (const role of ["bookkeeper", "treasurer", "crecom_chair", "president"]) {
+  for (const role of ["bookkeeper", "crecom_chair", "president", "treasurer"]) {
     last = await t.call(`/applications/${app._id}/approvals`, { method: "POST", cookie: signer[role].cookie, body: { decision: "approved" } });
     assert.equal(last.status, 200, last.json.error);
   }

@@ -66,7 +66,7 @@ test("co-makers must be members with accounts, confirm before signing, and see t
   assert.equal((await t.call(`/comaker/requests/${app._id}`, { method: "POST", cookie: backer.cookie, body: { decision: "accepted" } })).status, 200);
   assert.equal((await t.call(`/comaker/requests/${app._id}`, { method: "POST", cookie: backer.cookie, body: { decision: "declined" } })).status, 409, "once");
 
-  for (const role of ["bookkeeper", "treasurer", "crecom_chair", "president"]) assert.equal((await sign(app, role)).status, 200, role);
+  for (const role of ["bookkeeper", "crecom_chair", "president", "treasurer"]) assert.equal((await sign(app, role)).status, 200, role);
   const loanId = (await t.call(`/applications/${app._id}`, { cookie: staff.officer.cookie })).json.application.loanId;
   const released = await t.call(`/loans/${loanId}/release`, { method: "POST", cookie: staff.signer.treasurer.cookie, body: { releasedAt: daysAgo(5), voucherNo: "CV-77" } });
   assert.equal(released.status, 200, released.json.error);

@@ -58,7 +58,7 @@ router.get("/", async (req, res, next) => {
     // Applications
     const pending = apps.filter((a) => a.status === "pending");
     const stepOf = (a) => currentStepOf(a);
-    const byStep = { bookkeeper: 0, treasurer: 0, crecom_chair: 0, president: 0 };
+    const byStep = { bookkeeper: 0, crecom_chair: 0, president: 0, treasurer: 0 };
     for (const a of pending) if (byStep[stepOf(a)] !== undefined) byStep[stepOf(a)]++;
     const monthStart = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1) - 8 * HOUR; // Manila midnight
     const decidedThisMonth = { approved: 0, denied: 0 };

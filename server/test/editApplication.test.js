@@ -59,7 +59,7 @@ test("supporting documents can be added after signatures, until the application 
   const member = await t.register("Dan Documents", "dan@uedi.test");
   const app = (await t.call("/applications", { method: "POST", cookie: member.cookie, body: application(0) })).json.application;
   assert.equal((await sign(app, "bookkeeper")).status, 200);
-  assert.equal((await sign(app, "treasurer")).status, 200);
+  assert.equal((await sign(app, "crecom_chair")).status, 200);
 
   const file = Buffer.from("%PDF-1.4 payslip");
   const sha256 = crypto.createHash("sha256").update(file).digest("hex");
@@ -79,7 +79,7 @@ test("supporting documents can be added after signatures, until the application 
   assert.equal(res.status, 200, (await res.json()).error);
 
   // Decided: no more documents.
-  assert.equal((await sign(app, "crecom_chair", "denied")).status, 200);
+  assert.equal((await sign(app, "president", "denied")).status, 200);
   const closed = await addDocs(member.cookie, app, [{ fileName: "late.pdf", sha256 }]);
   assert.equal(closed.status, 409);
 });

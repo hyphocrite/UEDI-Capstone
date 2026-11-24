@@ -3,7 +3,7 @@ import type { LoanApplication } from '../../lib/applications'
 import { formatDate } from '../../lib/format'
 import { APPROVAL_STEPS, stepShortLabel } from '../../lib/roles'
 
-/** Bookkeeper → Treasurer → CreCom Chairman → President, with who signed and when. */
+/** Bookkeeper → CreCom Chairman → President → Treasurer, with who signed and when. */
 export default function ApprovalTracker({ app }: { app: LoanApplication }) {
   // Decided before the chain existed: the old single decision is shown in the approval panel instead.
   if (app.approvals.length === 0 && app.status !== 'pending') return null

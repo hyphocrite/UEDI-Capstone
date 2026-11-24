@@ -99,7 +99,7 @@ export default function ApplyScreen({ onDone }: { onDone: () => void }) {
     const kind = f.loanType === 'long_term' ? 'Long term' : 'Emergency'
     const ok = await confirmAction(
       'Submit this application?',
-      `${kind} loan of ${pesos(amount)} over ${num(f.termMonths)} months. It then goes to the Bookkeeper, Treasurer, CreCom Chairman and President to sign.`,
+      `${kind} loan of ${pesos(amount)} over ${num(f.termMonths)} months. It then goes to the Bookkeeper, CreCom Chairman, President and Treasurer to sign.`,
       'Yes, submit',
     )
     if (!ok) return

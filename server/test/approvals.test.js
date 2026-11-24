@@ -66,42 +66,47 @@ test("signing in order, wrong role, notes, and awaiting=me", { skip }, async () 
   const app = await submit(0); // suggestion: approve
   assert.equal(app.currentStep, "bookkeeper");
 
-  const early = await sign(app, signer.treasurer, { decision: "approved" });
+  const early = await sign(app, signer.crecom_chair, { decision: "approved" });
   assert.equal(early.status, 403);
   assert.match(early.json.error, /Bookkeeper's turn/);
+  assert.equal((await sign(app, signer.treasurer, { decision: "approved" })).status, 403, "the Treasurer signs last");
   assert.equal((await sign(app, officer, { decision: "approved" })).status, 403);
 
   const mine = await t.call("/applications?awaiting=me", { cookie: signer.bookkeeper.cookie });
   assert.ok(mine.json.applications.some((a) => a._id === app._id));
-  assert.equal((await t.call("/applications?awaiting=me", { cookie: signer.treasurer.cookie })).json.applications.some((a) => a._id === app._id), false);
+  assert.equal((await t.call("/applications?awaiting=me", { cookie: signer.crecom_chair.cookie })).json.applications.some((a) => a._id === app._id), false);
 
-  const treasurerBooks = await sign(app, signer.bookkeeper, { decision: "approved", bookkeeper: "not an object" });
-  assert.equal(treasurerBooks.status, 400);
+  const badBooks = await sign(app, signer.bookkeeper, { decision: "approved", bookkeeper: "not an object" });
+  assert.equal(badBooks.status, 400);
 
   const booked = await sign(app, signer.bookkeeper, {
     decision: "approved",
     bookkeeper: { longTermBalance: 15000, longTermDueDate: "2027-06-30", shortTermBalance: 2500 },
   });
   assert.equal(booked.status, 200);
-  assert.equal(booked.json.application.currentStep, "treasurer");
+  assert.equal(booked.json.application.currentStep, "crecom_chair");
   assert.equal(booked.json.application.bookkeeper.longTermBalance, 15000, "the Bookkeeper's correction is saved");
   assert.equal(booked.json.application.approvals[0].followedSuggestion, true);
+  assert.ok((await t.call("/applications?awaiting=me", { cookie: signer.crecom_chair.cookie })).json.applications.some((a) => a._id === app._id));
 
-  const booksLater = await sign(app, signer.treasurer, { decision: "approved", bookkeeper: { longTermBalance: 0 } });
+  const booksLater = await sign(app, signer.crecom_chair, { decision: "approved", bookkeeper: { longTermBalance: 0 } });
   assert.equal(booksLater.status, 400, "balances can only change at the Bookkeeper step");
 
-  const againstNoNote = await sign(app, signer.treasurer, { decision: "denied" });
+  const againstNoNote = await sign(app, signer.crecom_chair, { decision: "denied" });
   assert.equal(againstNoNote.status, 400);
 
-  assert.equal((await sign(app, signer.treasurer, { decision: "approved" })).json.application.currentStep, "crecom_chair");
   assert.equal((await sign(app, signer.crecom_chair, { decision: "approved" })).json.application.currentStep, "president");
-  const done = await sign(app, signer.president, { decision: "approved" });
+  const toTreasurer = await sign(app, signer.president, { decision: "approved" });
+  assert.equal(toTreasurer.json.application.currentStep, "treasurer");
+  assert.equal(toTreasurer.json.application.status, "pending", "the President's signature isn't the last one");
+  assert.equal(toTreasurer.json.application.loanNo, undefined);
+  const done = await sign(app, signer.treasurer, { decision: "approved" });
   assert.equal(done.json.application.status, "approved");
   assert.equal(done.json.application.currentStep, "none");
-  assert.deepEqual(done.json.application.approvals.map((a) => a.step), ["bookkeeper", "treasurer", "crecom_chair", "president"]);
-  assert.match(done.json.application.loanNo, /^MA-\d{4}-0001$/);
+  assert.deepEqual(done.json.application.approvals.map((a) => a.step), ["bookkeeper", "crecom_chair", "president", "treasurer"]);
+  assert.match(done.json.application.loanNo, /^MA-\d{4}-0001$/, "the Treasurer's final signature creates the loan");
 
-  const after = await sign(app, signer.president, { decision: "approved" });
+  const after = await sign(app, signer.treasurer, { decision: "approved" });
   assert.equal(after.status, 409);
 });
 
@@ -112,29 +117,54 @@ test("going against the suggestion needs a note at every step, and a denial ends
   assert.match(noNote.json.error, /against the suggestion/);
   const withNote = await sign(risky, signer.bookkeeper, { decision: "approved", note: "Balances checked; co-maker is a long-time member." });
   assert.equal(withNote.json.application.approvals[0].followedSuggestion, false);
-  assert.equal((await sign(risky, signer.treasurer, { decision: "approved" })).status, 400, "the rule applies at the Treasurer too");
+  assert.equal((await sign(risky, signer.crecom_chair, { decision: "approved" })).status, 400, "the rule applies at the CreCom Chairman too");
 
-  const deniedNoNote = await sign(risky, signer.treasurer, { decision: "denied" });
+  const deniedNoNote = await sign(risky, signer.crecom_chair, { decision: "denied" });
   assert.equal(deniedNoNote.status, 400, "a denial always needs a note");
-  const denied = await sign(risky, signer.treasurer, { decision: "denied", note: "Net pay too low after deductions." });
+  const denied = await sign(risky, signer.crecom_chair, { decision: "denied", note: "Net pay too low after deductions." });
   assert.equal(denied.json.application.status, "denied");
   assert.equal(denied.json.application.currentStep, "none");
   assert.equal(denied.json.application.loanNo, undefined, "no loan for a denied application");
-  assert.equal((await sign(risky, signer.crecom_chair, { decision: "approved" })).status, 409);
+  assert.equal((await sign(risky, signer.president, { decision: "approved" })).status, 409);
 });
 
 test("one person can't sign two steps, even after a role change", { skip }, async () => {
   const app = await submit(0);
   await sign(app, signer.bookkeeper, { decision: "approved" });
-  const moved = await t.call(`/auth/users/${signer.bookkeeper.id}/role`, { method: "PATCH", cookie: admin.cookie, body: { role: "treasurer" } });
+  const moved = await t.call(`/auth/users/${signer.bookkeeper.id}/role`, { method: "PATCH", cookie: admin.cookie, body: { role: "crecom_chair" } });
   assert.equal(moved.status, 200);
 
   assert.equal((await t.call("/applications?awaiting=me", { cookie: signer.bookkeeper.cookie })).json.applications.some((a) => a._id === app._id), false);
   const twice = await sign(app, signer.bookkeeper, { decision: "approved" });
   assert.equal(twice.status, 403);
   assert.match(twice.json.error, /already signed/);
-  assert.equal((await sign(app, signer.treasurer, { decision: "approved" })).status, 200, "a different Treasurer can sign");
+  assert.equal((await sign(app, signer.crecom_chair, { decision: "approved" })).status, 200, "a different CreCom Chairman can sign");
   await t.call(`/auth/users/${signer.bookkeeper.id}/role`, { method: "PATCH", cookie: admin.cookie, body: { role: "bookkeeper" } });
+});
+
+test("applications signed partly in the old order carry on with whoever is left", { skip }, async () => {
+  const Application = mongoose.model("Application");
+  const at = (app, approvals, currentStep) =>
+    Application.collection.updateOne(
+      { _id: new mongoose.Types.ObjectId(app._id) },
+      { $set: { currentStep, approvals: approvals.map((step) => ({ step, decision: "approved", signedByName: `Old ${step}`, signedAt: new Date() })) } },
+    );
+  const has = async (who, app) => (await t.call("/applications?awaiting=me", { cookie: who.cookie })).json.applications.some((a) => a._id === app._id);
+
+  // Old order: the Bookkeeper signed, so it was waiting for the Treasurer. Now the CreCom Chairman is next.
+  const one = await submit(0);
+  await at(one, ["bookkeeper"], "treasurer");
+  assert.equal((await t.call(`/applications/${one._id}`, { cookie: officer.cookie })).json.application.currentStep, "crecom_chair");
+  assert.equal(await has(signer.treasurer, one), false);
+  assert.equal(await has(signer.crecom_chair, one), true);
+
+  // Old order: the Bookkeeper and Treasurer signed. The CreCom Chairman and President finish it.
+  const two = await submit(0);
+  await at(two, ["bookkeeper", "treasurer"], "crecom_chair");
+  assert.equal((await sign(two, signer.crecom_chair, { decision: "approved" })).json.application.currentStep, "president");
+  const done = await sign(two, signer.president, { decision: "approved" });
+  assert.equal(done.json.application.status, "approved", "the Treasurer already signed, so this completes the chain");
+  assert.ok(done.json.application.loanNo);
 });
 
 test("applications saved before the chain start at the Bookkeeper; old decisions still show", { skip }, async () => {
@@ -149,7 +179,7 @@ test("applications saved before the chain start at the Bookkeeper; old decisions
   assert.equal(got.currentStep, "bookkeeper");
   assert.deepEqual(got.approvals, []);
   assert.ok((await t.call("/applications?awaiting=me", { cookie: signer.bookkeeper.cookie })).json.applications.some((a) => a._id === fresh._id));
-  assert.equal((await sign(got, signer.bookkeeper, { decision: "approved" })).json.application.currentStep, "treasurer");
+  assert.equal((await sign(got, signer.bookkeeper, { decision: "approved" })).json.application.currentStep, "crecom_chair");
 
   const old = (await t.call(`/applications/${legacyDecided._id}`, { cookie: officer.cookie })).json.application;
   assert.equal(old.currentStep, "none");

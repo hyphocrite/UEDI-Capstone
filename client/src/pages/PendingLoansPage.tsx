@@ -102,7 +102,7 @@ export default function PendingLoansPage() {
     <>
       <PageHeader icon={ClipboardCheck}
         title="Pending Loans"
-        subtitle="Applications waiting for the Bookkeeper, Treasurer, Credit Committee Chairman and President to sign, with suggestions from three machine learning models."
+        subtitle="Applications waiting for the Bookkeeper, Credit Committee Chairman, President and Treasurer to sign, with suggestions from three machine learning models."
         actions={<Link to="/loans/apply" className="btn-primary"><FilePlus2 className="h-4 w-4" /> New application</Link>}
       />
 
@@ -218,7 +218,6 @@ function ModelBanner({ model }: { model: ModelInfo | null }) {
     <p className="mb-4 flex flex-wrap items-center gap-2 rounded-lg bg-brand-50 px-4 py-3 text-sm text-brand-800">
       <Cpu className="h-4 w-4 shrink-0 text-accent" />
       Models trained {formatDate(model.trainedAt)} on {model.rows.toLocaleString()} past loans, checked with {model.validation}.
-      {model.sampleData && <strong className="font-semibold text-amber-700"></strong>}
     </p>
   )
 }

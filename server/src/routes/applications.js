@@ -5,7 +5,7 @@ const Application = require("../models/Application");
 const { EMPLOYMENT_STATUSES, LOAN_TYPES, PAYMENT_FREQUENCIES } = require("../models/Application");
 const ml = require("../services/mlClient");
 const loans = require("../services/loans");
-const { STEPS, STEP_LABELS, currentStepOf, nextStep, followsSuggestion } = require("../services/approvals");
+const { STEPS, STEP_LABELS, currentStepOf, nextStep, awaitingStepFilter, followsSuggestion } = require("../services/approvals");
 const { requireStaff, requireLevel } = require("../middleware/auth");
 const { seesAllLoans } = require("../config/access");
 const { auditNote } = require("../middleware/audit");
@@ -275,8 +275,7 @@ router.get("/", async (req, res, next) => {
       // Pending applications at the caller's step that they have not already signed.
       const role = req.user.role;
       if (!STEPS.includes(role)) return res.json({ applications: [] });
-      const atStep = role === STEPS[0] ? { $or: [{ currentStep: role }, { currentStep: { $exists: false } }, { currentStep: null }] } : { currentStep: role };
-      filter = { status: "pending", ...atStep, "approvals.signedBy": { $ne: req.user._id } };
+      filter = { ...awaitingStepFilter(role), "approvals.signedBy": { $ne: req.user._id } };
     }
     if (!seesAllLoans(req.user)) filter = { $and: [filter, ownApplications(req.user)] };
     const apps = await Application.find(filter).sort({ createdAt: -1 }).limit(200);
@@ -482,7 +481,8 @@ const sameBooks = (a = {}, b = {}) =>
   ["longTermBalance", "shortTermBalance", "monthlyPayment"].every((k) => (a[k] || 0) === (b[k] || 0)) &&
   ["longTermDueDate", "shortTermDueDate"].every((k) => String(a[k] ?? "") === String(b[k] ?? ""));
 
-// Signs the current step of the approval chain: Bookkeeper, Treasurer, CreCom Chairman, President.
+// Signs the current step of the approval chain: Bookkeeper, CreCom Chairman, President, then the
+// Treasurer, whose signature is the final approval before they release the money.
 router.post("/:id/approvals", async (req, res, next) => {
   try {
     const parsed = approvalSchema.safeParse(req.body || {});
@@ -528,7 +528,7 @@ router.post("/:id/approvals", async (req, res, next) => {
       return res.status(400).json({ error: "Add a note explaining why you are going against the suggestion." });
     }
 
-    const next = decision === "approved" ? nextStep(step) : null;
+    const next = decision === "approved" ? nextStep(app, step) : null;
     const set = { currentStep: next ?? "none" };
     if (decision === "denied") set.status = "denied";
     else if (!next) set.status = "approved";
