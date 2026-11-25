@@ -215,7 +215,7 @@ export default function DeductionRunPage() {
 
         <div className="space-y-6">
           {run.status === 'sent' && canWrite && (
-            <RemittancePanel runId={run._id} value={remittance} onChange={(p) => setRemittance((r) => ({ ...r, ...p }))} totalRemitted={t.remitted} onImported={applyImport} />
+            <RemittancePanel runId={run._id} value={remittance} onChange={(p) => setRemittance((r) => ({ ...r, ...p }))} totalRemitted={t.remitted} lines={run.lines} onImported={applyImport} />
           )}
 
           <section className="card min-w-0">

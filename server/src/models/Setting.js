@@ -29,6 +29,22 @@ const settingSchema = new mongoose.Schema(
     // Applicants not linked to a UDEI member number borrow at most this (pesos) and need a member
     // as co-maker. 0 turns the rule off.
     nonMemberMaxAmount: { type: Number, min: 0, max: 10_000_000, default: 5000 },
+    // The remittance list from DNSC Accounting: which sheet and which header is which column, as the
+    // Bookkeeper last confirmed it (services/remittanceImport.js), so the next upload fills itself in.
+    remittanceImport: {
+      sheet: { type: String, trim: true, maxlength: 120 },
+      mapping: {
+        amount: { type: String, trim: true, maxlength: 120 },
+        loanNo: { type: String, trim: true, maxlength: 120 },
+        memberNo: { type: String, trim: true, maxlength: 120 },
+        employeeNo: { type: String, trim: true, maxlength: 120 },
+        name: { type: String, trim: true, maxlength: 120 },
+        lastName: { type: String, trim: true, maxlength: 120 },
+        firstName: { type: String, trim: true, maxlength: 120 },
+      },
+      savedByName: String,
+      savedAt: Date,
+    },
     updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     updatedByName: String,
   },

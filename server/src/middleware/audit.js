@@ -40,6 +40,8 @@ const ACTIONS = [
   ["POST", /^\/api\/deductions\/[^/]+\/send$/, "Deduction run sent to payroll"],
   ["PUT", /^\/api\/deductions\/[^/]+\/remittance$/, "Remittance saved"],
   ["POST", /^\/api\/deductions\/[^/]+\/import$/, "Remittance file read"],
+  ["POST", /^\/api\/deductions\/[^/]+\/remittance-file$/, "Remittance list read"],
+  ["PUT", /^\/api\/deductions\/import-settings$/, "Remittance list columns remembered"],
   ["POST", /^\/api\/deductions\/[^/]+\/post$/, "Deduction run posted"],
   ["POST", /^\/api\/deductions\/[^/]+\/unpost$/, "Deduction run unposted"],
   ["POST", /^\/api\/members$/, "Member added"],

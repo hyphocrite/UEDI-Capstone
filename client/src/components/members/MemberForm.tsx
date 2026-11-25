@@ -13,6 +13,7 @@ type Fields = {
   lastName: string
   firstName: string
   middleInitial: string
+  employeeNo: string
   phone: string
   email: string
   branch: string
@@ -31,6 +32,7 @@ const FIELD_LABELS: Record<Exclude<keyof Fields, 'memberId'>, string> = {
   lastName: 'Last name',
   firstName: 'First name',
   middleInitial: 'Middle initial',
+  employeeNo: 'DNSC employee no.',
   phone: 'Mobile number',
   email: 'Email',
   branch: 'Branch or office',
@@ -47,6 +49,7 @@ const fieldsOf = (m: Member | null, branch: string): Fields => ({
   lastName: m?.lastName ?? '',
   firstName: m?.firstName ?? '',
   middleInitial: m?.middleInitial ?? '',
+  employeeNo: m?.employeeNo ?? '',
   phone: m?.phone ?? '',
   email: m?.email ?? '',
   branch: m?.branch ?? branch,
@@ -152,6 +155,7 @@ export default function MemberForm({ member, nextMemberId, branches, open, onClo
           {input('firstName', 'First name', { maxLength: 60, autoComplete: 'off' })}
           {input('middleInitial', 'M.I.', { maxLength: 3 })}
         </div>
+        {input('employeeNo', 'DNSC employee no. (as on Accounting’s remittance list)', { maxLength: 32, autoComplete: 'off' })}
         <div className="grid gap-4 sm:grid-cols-2">
           {input('phone', 'Mobile number', { inputMode: 'numeric', placeholder: '09XXXXXXXXX', maxLength: 11 })}
           {input('email', 'Email', { type: 'email', maxLength: 254 })}

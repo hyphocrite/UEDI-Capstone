@@ -10,6 +10,8 @@ export type Member = {
   lastName?: string
   firstName?: string
   middleInitial?: string
+  /** DNSC employee number, for matching Accounting's remittance list. */
+  employeeNo?: string
   phone?: string
   email?: string
   branch?: string

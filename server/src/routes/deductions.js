@@ -2,6 +2,9 @@ const express = require("express");
 const mongoose = require("mongoose");
 const { z } = require("zod");
 const DeductionRun = require("../models/DeductionRun");
+const Member = require("../models/Member");
+const Setting = require("../models/Setting");
+const remittanceImport = require("../services/remittanceImport");
 const d = require("../services/deductions");
 const runs = require("../services/deductionRuns");
 const ledger = require("../services/ledger");
@@ -43,6 +46,14 @@ const remittanceSchema = z.object({
     .optional(),
 });
 const importSchema = z.object({ csv: z.string().min(1, "The file is empty.").max(2_000_000) });
+const mappingText = z.string().trim().max(120).optional();
+const importSettingsSchema = z.object({
+  sheet: z.string().trim().max(120).optional(),
+  mapping: z.object({ amount: mappingText, loanNo: mappingText, memberNo: mappingText, employeeNo: mappingText, name: mappingText, lastName: mappingText, firstName: mappingText }),
+});
+// Accounting's remittance list: .xlsx or .csv (old .xls gets a message asking for .xlsx).
+const SPREADSHEET_TYPES = ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/vnd.ms-excel", "text/csv", "application/csv", "text/plain", "application/octet-stream"];
+const MAX_LIST_BYTES = 5 * 1024 * 1024;
 const unpostSchema = z.object({ reason: z.string().trim().min(3, "Give a reason for unposting.").max(300) });
 
 /** Runs a handler; RunError becomes its status, with every problem listed when there are several. */
@@ -51,6 +62,8 @@ const handle = (fn) => async (req, res, next) => {
     await fn(req, res);
   } catch (err) {
     if (err instanceof runs.RunError) return res.status(err.status).json({ error: err.message, problems: err.problems });
+    if (err instanceof remittanceImport.ImportError) return res.status(400).json({ error: err.message });
+    if (err?.type === "entity.too.large") return res.status(413).json({ error: "The remittance list can be at most 5 MB." });
     next(err);
   }
 };
@@ -89,6 +102,19 @@ router.post(
     if (!body) return;
     const run = await runs.createRun(body.cutoffDate, req.user);
     res.status(201).json({ run: runs.present(run) });
+  }),
+);
+
+// Remembers which sheet and columns the Bookkeeper confirmed on the last remittance list.
+router.put(
+  "/import-settings",
+  canWrite,
+  handle(async (req, res) => {
+    const body = parse(importSettingsSchema, req, res);
+    if (!body) return;
+    const remembered = { ...body, savedByName: req.user.fullName, savedAt: new Date() };
+    await Setting.updateOne({ key: "loan" }, { $set: { remittanceImport: remembered } });
+    res.json({ remittanceImport: remembered });
   }),
 );
 
@@ -157,6 +183,36 @@ router.post(
     if (!run) return;
     if (run.status !== "sent") return res.status(409).json({ error: "Remitted amounts can only be imported on a sent run." });
     res.json(d.parseRemittedCsv(body.csv, run.lines));
+  }),
+);
+
+// Reads DNSC Accounting's remittance list (.xlsx or .csv) and matches each row to a line of this sent
+// run. Returns the review (matched, ambiguous, not found, lines with no row); nothing is saved here.
+// ?sheet= and ?amount= re-read it with another sheet or amount column.
+router.post(
+  "/:id/remittance-file",
+  canWrite,
+  express.raw({ type: SPREADSHEET_TYPES, limit: MAX_LIST_BYTES }),
+  handle(async (req, res) => {
+    const run = await findRun(req, res);
+    if (!run) return;
+    if (run.status !== "sent") return res.status(409).json({ error: "The remittance list can only be read on a sent run." });
+    if (!Buffer.isBuffer(req.body) || !req.body.length) return res.status(400).json({ error: "Upload the remittance list as .xlsx or .csv." });
+    const fileName = String(req.query.name || "").slice(0, 255);
+    const sheets = await remittanceImport.readWorkbook(req.body, fileName);
+    const memberIds = [...new Set(d.activeLines(run.lines).map((l) => l.memberId).filter(Boolean))];
+    const [members, setting] = await Promise.all([
+      Member.find({ memberId: { $in: memberIds } }).select("memberId employeeNo").lean(),
+      Setting.findOne({ key: "loan" }).select("remittanceImport").lean(),
+    ]);
+    const saved = setting?.remittanceImport || {};
+    const result = remittanceImport.preview(sheets, run.lines.map((l) => l.toObject()), members, {
+      sheet: typeof req.query.sheet === "string" ? req.query.sheet : saved.sheet,
+      amountColumn: typeof req.query.amount === "string" ? req.query.amount : undefined,
+      mapping: saved.mapping,
+    });
+    auditNote(res, { details: { fileName, size: req.body.length, sheet: result.sheet, amountColumn: result.amountColumn, counts: result.counts } });
+    res.json({ ...result, fileName, remembered: !!saved.mapping?.amount });
   }),
 );
 
