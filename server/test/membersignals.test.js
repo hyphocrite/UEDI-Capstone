@@ -84,8 +84,10 @@ test("a member with no data gets 'limited', not a low score", () => {
 test("early warning flags an active loan whose borrower stopped saving, before any missed payment", { skip }, async () => {
   await planFor("W-1", [1, 2, 3, 4, 5, 6]);
   await planFor("W-2", [4, 5, 6, 7]);
-  const steady = await releasedLoan(t, staff, { memberId: "W-1", releasedAt: daysAgo(20), loan: { amount: 20000, termMonths: 12 } });
-  const slipping = await releasedLoan(t, staff, { memberId: "W-2", releasedAt: daysAgo(20), loan: { amount: 20000, termMonths: 12 } });
+  // Released 5 days ago: the first installment falls due at least 10 days after release, so nothing
+  // is due yet whatever today's date (20 days ago made the test fail after the 15th of a month).
+  const steady = await releasedLoan(t, staff, { memberId: "W-1", releasedAt: daysAgo(5), loan: { amount: 20000, termMonths: 12 } });
+  const slipping = await releasedLoan(t, staff, { memberId: "W-2", releasedAt: daysAgo(5), loan: { amount: 20000, termMonths: 12 } });
   const outsider = await t.register("Xavier Outsider", "x-ew@uedi.test");
   assert.equal((await t.call("/early-warning", { cookie: outsider.cookie })).status, 403);
   const res = await t.call("/early-warning", { cookie: staff.officer.cookie });

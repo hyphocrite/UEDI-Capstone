@@ -46,10 +46,11 @@ test("quincenal loans are on both cutoffs, monthly loans only at month-end; expe
   assert.equal(end[0].expected, 175_525);
   assert.equal(end[0].arrears, 175_525);
 
-  // Paid up to and including half of Sep 15: expected is the unpaid part, arrears are zero.
+  // Paid up to and including half of Sep 15: payroll still deducts the full installment (the
+  // rest goes to the next ones), and arrears are zero.
   const { schedule } = ledger.allocate(q.schedule, [{ amount: 140_910 * 2 + 50_000 }]);
   const partly = d.amountsFor(schedule, "2026-09-15");
-  assert.deepEqual(partly, { expected: 90_910, arrears: 0 });
+  assert.deepEqual(partly, { expected: 140_910, arrears: 0 });
   assert.equal(d.amountsFor(q.schedule, "2026-09-14"), null, "nothing due that day");
 
   const separated = d.buildLines([{ ...q, collectFrom: { source: "final_pay" } }], "2026-09-15")[0];
@@ -111,4 +112,44 @@ test("results and remittance checks", () => {
 
   const t = d.totals([{ memberId: "M-1", expected: 100, remitted: 0, reason: "lwop" }, { memberId: "M-1", expected: 50, remitted: 50 }, { memberId: "M-2", expected: 10, remitted: 5, reason: "other" }]);
   assert.deepEqual(t, { members: 2, lines: 3, expected: 160, arrears: 0, remitted: 55, missed: 1, partial: 1 });
+});
+
+// Section 4 of the bookkeeper interview: payments outside payroll are advances. Payroll keeps
+// deducting the same amount every cutoff; the loan just finishes earlier.
+test("advance payments: payroll keeps the full installment, the last run takes only the balance", () => {
+  const q = loan({ loanNo: "MA-9", principal: 1_000_000, termMonths: 3 }); // 6 quincenal installments
+  const inst = q.schedule.map((x) => x.totalDue);
+  const total = inst.reduce((a, b) => a + b, 0);
+  const due = (k) => q.schedule[k].dueDate.toISOString().slice(0, 10);
+
+  // Payroll paid the first two; a cash advance of one installment paid the third ahead of time.
+  const advanced = ledger.allocate(q.schedule, [{ amount: inst[0] + inst[1] }, { amount: inst[2] }]).schedule;
+  const third = d.amountsFor(advanced, due(2));
+  assert.equal(third.expected, inst[2], "the cutoff whose installment the advance covered still expects the full amount");
+  assert.equal(third.arrears, 0);
+  const lines = d.buildLines([{ ...q, schedule: advanced }], due(2));
+  assert.equal(lines.length, 1, "the loan stays on the run while it has a balance");
+  assert.equal(lines[0].expected, inst[2]);
+
+  // Five payroll cutoffs plus an advance of half an installment: less than one installment is left.
+  const half = Math.round(inst[2] / 2);
+  const late = ledger.allocate(q.schedule, [{ amount: inst[0] + inst[1] + inst[2] + inst[3] + inst[4] }, { amount: half }]).schedule;
+  const left = total - (inst[0] + inst[1] + inst[2] + inst[3] + inst[4] + half);
+  assert.ok(left > 0 && left < inst[5]);
+  assert.equal(d.amountsFor(late, due(5)).expected, left, "the last run deducts only the remaining balance");
+  const dayAfter = new Date(q.schedule[4].dueDate.getTime() + 86_400_000);
+  assert.equal(ledger.summarize(late, dayAfter).finishesAround.toISOString().slice(0, 10), due(5));
+
+  // The advance shows as installments paid ahead, and the loan finishes a cutoff early.
+  const ahead = ledger.summarize(advanced, due(1));
+  assert.deepEqual(ahead.paidAhead, { count: 1, amount: inst[2] });
+  assert.equal(ahead.pastDue, false, "an advance is never lateness");
+  assert.ok(ahead.finishesAround < q.schedule[5].dueDate, "finishes before the last scheduled date");
+
+  // Fully prepaid: the loan is paid and drops off the run.
+  assert.equal(d.buildLines([{ ...q, status: "paid", schedule: ledger.allocate(q.schedule, [{ amount: total }]).schedule }], due(3)).length, 0);
+
+  // Arrears are still shown: nothing paid after the first two cutoffs.
+  const behind = ledger.allocate(q.schedule, [{ amount: inst[0] }]).schedule;
+  assert.deepEqual(d.amountsFor(behind, due(2)), { expected: inst[2], arrears: inst[1] });
 });

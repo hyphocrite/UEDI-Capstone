@@ -63,24 +63,30 @@ function suggestCutoff(today, existing) {
 const unpaid = (x) => x.totalDue - x.paid;
 
 /**
- * What one loan owes on a cutoff: `expected` is the unpaid part of the installment(s) due on that
- * date, `arrears` what is still unpaid from earlier due dates. Arrears are shown, not added, because
- * payroll deducts a fixed amount. Null when nothing falls due on the cutoff.
+ * What one loan owes on a cutoff. `expected` is the scheduled installment(s) due on that date, in
+ * full, capped at the loan's remaining balance: payments outside payroll are advances, and UDEI
+ * keeps deducting the same amount every cutoff so the loan finishes earlier (it only drops when the
+ * balance is smaller than the installment). `arrears` is what is still unpaid from earlier due
+ * dates; it is shown, not added, because payroll deducts a fixed amount. Null when nothing falls
+ * due on the cutoff.
  */
 function amountsFor(schedule, cutoff) {
   const t = ledger.calendarDay(cutoff).getTime();
   const at = (x) => ledger.calendarDay(x.dueDate).getTime();
   const due = schedule.filter((x) => at(x) === t);
   if (due.length === 0) return null;
+  const balance = ledger.summarize(schedule).balance;
   return {
-    expected: due.reduce((s, x) => s + unpaid(x), 0),
+    expected: Math.min(balance, due.reduce((s, x) => s + x.totalDue, 0)),
     arrears: schedule.filter((x) => at(x) < t).reduce((s, x) => s + unpaid(x), 0),
   };
 }
 
 /**
  * The run's lines: every active loan with an installment due on the cutoff (quincenal loans on both
- * cutoffs, monthly loans only at month-end), sorted by borrower name. Loans flagged for collection
+ * cutoffs, monthly loans only at month-end), sorted by borrower name. A loan stays on the run while
+ * it has a balance, even when an advance already covered this cutoff's installment; a loan an
+ * advance paid off is "paid" and drops off. Loans flagged for collection
  * from final pay stay listed with nothing to deduct, because payroll won't deduct again.
  */
 function buildLines(loans, cutoff) {
