@@ -148,7 +148,7 @@ export default function LoansPage() {
                     <Link to={`/loans/${l._id}`} className="font-semibold text-ink hover:text-accent-dark" onClick={(e) => e.stopPropagation()}>
                       {l.loanNo}
                     </Link>
-                    <p className="text-xs text-brand-500">{l.source === 'ledger' ? 'Carried over from the ledger' : loanTypeLabel[l.loanType]}</p>
+                    <p className="text-xs text-brand-500">{l.source === 'ledger' ? 'Carried over from the ledger' : loanTypeLabel[l.loanType]}{l.paymentModeLabel ? ` · ${l.paymentModeLabel}` : ''}</p>
                   </td>
                   <td className="px-4 py-3">
                     {l.borrowerName}

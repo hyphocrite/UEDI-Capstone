@@ -1,11 +1,13 @@
 // Payroll deduction runs as /api/deductions returns them. Amounts are integer centavos.
+import type { BonusType } from './paymentModes'
 import type { LoanType } from './applications'
 
 export type RunStatus = 'draft' | 'sent' | 'posted'
 export type LineResult = 'full' | 'partial' | 'missed'
-export type MissReason = 'lwop' | 'separated' | 'insufficient_pay' | 'not_in_payroll' | 'other'
+export type MissReason = 'lwop' | 'separated' | 'insufficient_pay' | 'not_in_payroll' | 'not_on_payroll' | 'other'
 
 export const reasonLabel: Record<MissReason, string> = {
+  not_on_payroll: 'Paying by cash / bank / bonus this month',
   lwop: 'Leave without pay',
   separated: 'Separated from DNSC',
   insufficient_pay: 'Insufficient pay',
@@ -36,6 +38,9 @@ export type RunTotals = { members: number; lines: number; expected: number; arre
 
 export type DeductionRun = {
   _id: string
+  /** "bonus": a run for one bonus release (Mid-year, Year-end, CNA or SRI). Older runs leave it out. */
+  kind?: 'payroll' | 'bonus'
+  bonusType?: BonusType
   cutoff: string
   cutoffDate: string
   status: RunStatus

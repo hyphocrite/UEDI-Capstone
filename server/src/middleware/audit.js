@@ -30,6 +30,8 @@ const ACTIONS = [
   ["POST", /^\/api\/loans\/[^/]+\/release$/, "Loan released"],
   ["POST", /^\/api\/loans\/[^/]+\/payments\/[^/]+\/void$/, "Payment voided"],
   ["POST", /^\/api\/loans\/[^/]+\/payments$/, "Payment recorded"],
+  ["POST", /^\/api\/loans\/[^/]+\/payment-mode$/, "Payment mode changed"],
+  ["POST", /^\/api\/member\/loans\/[^/]+\/payment-mode$/, "Payment mode changed (mobile)"],
   ["POST", /^\/api\/payments$/, "Payment submitted"],
   ["PUT", /^\/api\/payments\/[^/]+\/proof$/, "Proof of payment uploaded"],
   ["POST", /^\/api\/payments\/[^/]+\/receive$/, "Payment received, OR issued"],

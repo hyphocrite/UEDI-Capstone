@@ -16,6 +16,7 @@ async function connectDb(uri = env.mongoUri) {
   }
   console.log(`MongoDB connected: ${mongoose.connection.host}/${mongoose.connection.name}`);
   await dropOldLoanIndex();
+  await dropOldRunIndex();
   return mongoose.connection;
 }
 
@@ -24,6 +25,17 @@ async function dropOldLoanIndex() {
   const loans = mongoose.connection.collection("loans");
   const indexes = await loans.indexes().catch(() => []);
   if (indexes.some((i) => i.name === "application_1")) await loans.dropIndex("application_1");
+}
+
+/**
+ * Runs were once one per cutoff (unique cutoffDate_1); bonus runs share dates with payroll runs now,
+ * so the unique key is cutoff + kind + bonus. Runs made before have no kind: they are payroll runs.
+ */
+async function dropOldRunIndex() {
+  const runs = mongoose.connection.collection("deductionruns");
+  const indexes = await runs.indexes().catch(() => []);
+  if (indexes.some((i) => i.name === "cutoffDate_1")) await runs.dropIndex("cutoffDate_1");
+  await runs.updateMany({ kind: { $exists: false } }, { $set: { kind: "payroll" } }).catch(() => {});
 }
 
 module.exports = { connectDb };

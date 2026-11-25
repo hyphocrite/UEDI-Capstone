@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
-import { AUTO_RESTRUCTURE_TEXT, PAYROLL_DEDUCTION_TEXT, installmentOf, longDate, termMonthsOf } from './applicationForm'
+import { AUTO_RESTRUCTURE_TEXT, PAYROLL_DEDUCTION_TEXT, bonusOf, installmentOf, longDate, termMonthsOf } from './applicationForm'
+import { BONUS_TYPES } from '../../lib/paymentModes'
+import { useSettings } from '../../lib/settings'
 import type { Form } from './applicationForm'
 import CoMakerForm from './CoMakerForm'
 import type { CoMakerInfo } from './CoMakerForm'
@@ -51,7 +53,9 @@ function useCoMakers(ids: string[]): CoMakerInfo[] {
  */
 export default function ApplicationPreview({ form: f, documents, staffView, linked, applicationNo }: Props) {
   const inst = installmentOf(f)
-  const term = termMonthsOf(f)
+  const { settings } = useSettings()
+  const bonus = bonusOf(f, settings)
+  const term = bonus ? bonus.months : termMonthsOf(f)
   const amount = Number(f.amount) || 0
   const quincenal = f.paymentFrequency === 'quincenal'
   const coMakers = useCoMakers([f.coMaker1, f.coMaker2].map((c) => c.trim()).filter(Boolean))
@@ -107,7 +111,7 @@ export default function ApplicationPreview({ form: f, documents, staffView, link
           <p className="flex flex-wrap gap-x-4 gap-y-1">
             <span>Type of Mutual Assistance:</span>
             <Box checked={f.loanType === 'long_term'}>Long term</Box>
-            <Box checked={f.loanType === 'emergency'}>Emergency</Box>
+            <Box checked={f.loanType === 'emergency'}>Short term (Emergency)</Box>
           </p>
           <p>
             I hereby apply for a Mutual Assistance in the amount of <Fill className="min-w-[7rem]">{amount > 0 ? formatPeso(amount) : ''}</Fill>{' '}
@@ -116,14 +120,36 @@ export default function ApplicationPreview({ form: f, documents, staffView, link
             <Fill className="min-w-[3rem] text-center">{f.monthlyRate}</Fill>% per month on the remaining balance, for the purpose of{' '}
             <Fill className="min-w-[12rem]">{f.purpose.trim()}</Fill>.
           </p>
-          <p className="flex flex-wrap gap-x-4 gap-y-1">
-            <span>Payroll deduction:</span>
-            <Box checked={quincenal}>Quincenal (15th and 30th)</Box>
-            <Box checked={!quincenal}>Monthly</Box>
-          </p>
-          <Field label="Installment">
-            {inst ? `${formatPeso(Math.round(inst.monthly))} per month${quincenal ? `, ${formatPeso(Math.round(inst.quincenal))} per quincena` : ''}` : ''}
-          </Field>
+          <div className="space-y-1">
+            <p className="flex flex-wrap gap-x-4 gap-y-1">
+              <span>Mode of payment:</span>
+              <Box checked={f.paymentMode === 'payroll'}>Payroll deduction</Box>
+              <Box checked={f.paymentMode === 'cash'}>Cash</Box>
+              <Box checked={f.paymentMode === 'bank_transfer'}>Bank transfer</Box>
+              <Box checked={f.paymentMode === 'e_money'}>E-money</Box>
+            </p>
+            <p className="flex flex-wrap gap-x-4 gap-y-1 pl-4">
+              {BONUS_TYPES.map((b) => (
+                <Box key={b.value} checked={f.paymentMode === 'bonus' && f.bonusType === b.value}>Charge to {b.short} bonus</Box>
+              ))}
+            </p>
+          </div>
+          {f.paymentMode === 'bonus' ? (
+            <Field label="Payment">
+              {bonus ? `${formatPeso(Math.round(bonus.total))} in one payment on ${longDate(bonus.dueDate)} (${bonus.label})` : ''}
+            </Field>
+          ) : (
+            <>
+              <p className="flex flex-wrap gap-x-4 gap-y-1">
+                <span>{f.paymentMode === 'payroll' ? 'Payroll deduction:' : 'Installments:'}</span>
+                <Box checked={quincenal}>Quincenal (15th and 30th)</Box>
+                <Box checked={!quincenal}>Monthly</Box>
+              </p>
+              <Field label="Installment">
+                {inst ? `${formatPeso(Math.round(inst.monthly))} per month${quincenal ? `, ${formatPeso(Math.round(inst.quincenal))} per quincena` : ''}` : ''}
+              </Field>
+            </>
+          )}
           <div className="space-y-1.5 pt-1 sm:text-justify print:text-justify">
             <p><Box checked={f.payrollDeduction}>{PAYROLL_DEDUCTION_TEXT}</Box></p>
             <p><Box checked={f.autoRestructure}>{AUTO_RESTRUCTURE_TEXT}</Box></p>

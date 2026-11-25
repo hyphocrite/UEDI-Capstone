@@ -1,5 +1,6 @@
 // Loans as GET /api/loans returns them. Every amount is an integer number of centavos (₱1 = 100).
 import type { LoanType } from './applications'
+import type { BonusType, PaymentMode, PaymentModeChange } from './paymentModes'
 import { reasonLabel } from './deductions'
 import type { MissReason } from './deductions'
 
@@ -57,6 +58,12 @@ export type Loan = {
   paidAhead?: { count: number; amount: number }
   /** When payroll, deducting the same amount every cutoff, pays off the rest. Null when paid or past the schedule. */
   finishesAround?: string | null
+  /** The mode filed, then the latest change asked for. paymentModeNow/Label: the mode this month. */
+  paymentMode?: PaymentMode
+  bonusType?: BonusType
+  paymentModeHistory?: PaymentModeChange[]
+  paymentModeNow?: PaymentMode
+  paymentModeLabel?: string
 }
 
 export type PaymentMethod = 'payroll' | 'cash' | 'e_money' | 'bank_transfer' | 'other' | 'offset'

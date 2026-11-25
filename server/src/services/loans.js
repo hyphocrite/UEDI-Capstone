@@ -4,6 +4,8 @@ const Application = require("../models/Application");
 const Loan = require("../models/Loan");
 const Payment = require("../models/Payment");
 const ledger = require("./ledger");
+const settings = require("./settings");
+const paymentModes = require("./paymentModes");
 
 class LoanError extends Error {
   constructor(status, message) {
@@ -40,6 +42,10 @@ async function createFromApplication(app) {
         monthlyRate: app.loan.monthlyRate,
         termMonths: app.loan.termMonths,
         paymentFrequency: app.loan.paymentFrequency || "monthly",
+        paymentMode: app.loan.paymentMode || "payroll",
+        bonusType: app.loan.paymentMode === "bonus" ? app.loan.bonusType : undefined,
+        // The mode filed on the application, in effect from the start.
+        paymentModeHistory: [{ mode: app.loan.paymentMode || "payroll", bonusType: app.loan.paymentMode === "bonus" ? app.loan.bonusType : undefined, effectiveFrom: new Date(Date.UTC(2000, 0, 1)), requestedBy: app.submittedBy, requestedByName: app.submittedByName, requestedAt: app.createdAt, note: "On the application" }],
         existingBalances: ledger.toCentavos((books.longTermBalance || 0) + (books.shortTermBalance || 0)),
       });
     } catch (err) {
@@ -108,7 +114,15 @@ async function fromCarriedBalance(member, { perCutoff, paymentFrequency, firstDu
 
 /** The loan as the API returns it: stored fields plus balance, amount paid, next due and past due. */
 function present(loan, today = ledger.todayInManila()) {
-  return { ...loan.toJSON(), ...ledger.summarize(loan.schedule, today) };
+  const now = paymentModes.modeOn(loan, today);
+  return {
+    ...loan.toJSON(),
+    ...ledger.summarize(loan.schedule, today),
+    // How it is paid this month, and the label shown everywhere ("Bonus: Year-end bonus").
+    paymentModeNow: now.mode,
+    bonusTypeNow: now.bonusType ?? null,
+    paymentModeLabel: paymentModes.modeLabel(now.mode, now.bonusType),
+  };
 }
 
 function assertNotFuture(date, what) {
@@ -157,13 +171,7 @@ async function release(loan, { releasedAt, voucherNo, offsetLoanIds = [] }, user
     throw new LoanError(400, `The old balances (${peso(totalOffsets)}) are more than this mutual assistance (${peso(loan.principal)}). Deduct fewer.`);
   }
 
-  const schedule = ledger.buildSchedule({
-    principal: loan.principal,
-    monthlyRate: loan.monthlyRate,
-    termMonths: loan.termMonths,
-    paymentFrequency: loan.paymentFrequency,
-    releasedAt,
-  });
+  const schedule = await scheduleFor(loan, releasedAt);
   const updated = await Loan.findOneAndUpdate(
     { _id: loan._id, status: "for_release" },
     {
@@ -199,6 +207,30 @@ async function release(loan, { releasedAt, voucherNo, offsetLoanIds = [] }, user
     await recompute(old);
   }
   return updated;
+}
+
+/**
+ * The repayment schedule from a release date: equal installments on the cutoffs, or, for a loan
+ * charged to a bonus, one installment on the next release of that bonus at least 10 days after.
+ */
+async function scheduleFor(loan, releasedAt) {
+  if (loan.paymentMode === "bonus") {
+    const rules = await settings.get();
+    let due;
+    try {
+      due = paymentModes.bonusTerm(rules, loan.loanType, loan.bonusType, releasedAt);
+    } catch (err) {
+      throw new LoanError(400, err.message);
+    }
+    return ledger.buildBonusSchedule({ principal: loan.principal, monthlyRate: loan.monthlyRate, dueDate: due.dueDate, months: due.termMonths });
+  }
+  return ledger.buildSchedule({
+    principal: loan.principal,
+    monthlyRate: loan.monthlyRate,
+    termMonths: loan.termMonths,
+    paymentFrequency: loan.paymentFrequency,
+    releasedAt,
+  });
 }
 
 /** Re-applies every non-voided payment to the schedule and updates the status. */
@@ -278,6 +310,50 @@ async function voidPayment(loan, paymentId, reason, user) {
   return { loan: updated, payment };
 }
 
+/**
+ * The borrower or the Bookkeeper changes how the loan is paid. It takes effect this month when
+ * made on or before Settings.modeChangeCutoffDay (Manila), otherwise next month, because HR is
+ * billed in the first week. Moving to or from a bonus rebuilds the unpaid part of the schedule
+ * from that month (ledger.rebuildFrom); payroll, cash, e-money and bank keep the same schedule.
+ * Returns the loan, when it starts, and the sentence to show the member.
+ */
+async function changePaymentMode(loan, { mode, bonusType, note }, user, today = ledger.todayInManila()) {
+  if (loan.status !== "active") throw new LoanError(409, "Only active mutual assistance can change how it is paid.");
+  if (mode === "bonus" && !bonusType) throw new LoanError(400, "Choose which bonus it is charged to: Mid-year, Year-end, CNA or SRI.");
+  if (mode !== "bonus") bonusType = undefined;
+  const rules = await settings.get();
+  const from = paymentModes.effectiveFrom(today, rules.modeChangeCutoffDay);
+  const before = paymentModes.modeOn(loan, from);
+  if (before.mode === mode && before.bonusType === bonusType) {
+    throw new LoanError(409, `That is already how it is paid from ${paymentModes.MONTHS[from.getUTCMonth()]}.`);
+  }
+  const rebuild = mode === "bonus" || before.mode === "bonus";
+  if (rebuild) {
+    let plan;
+    if (mode === "bonus") {
+      try {
+        const due = paymentModes.bonusTerm(rules, loan.loanType, bonusType, from);
+        plan = { bonus: { dueDate: due.dueDate, months: due.termMonths } };
+      } catch (err) {
+        throw new LoanError(400, err.message);
+      }
+    } else {
+      // From a bonus back to installments: spread over the months up to the old bonus date
+      // (at least one). UDEI to confirm
+      const lastDue = loan.schedule.length ? loan.schedule[loan.schedule.length - 1].dueDate : from;
+      const termMonths = new Date(lastDue) > from ? paymentModes.monthsBetween(from, lastDue) : 1;
+      plan = { installments: { termMonths, paymentFrequency: loan.paymentFrequency } };
+    }
+    loan.schedule = ledger.rebuildFrom(loan.schedule.map((x) => (x.toObject ? x.toObject() : x)), from, { monthlyRate: loan.monthlyRate, ...plan });
+  }
+  loan.paymentModeHistory.push({ mode, bonusType, effectiveFrom: from, requestedBy: user._id, requestedByName: user.fullName, requestedAt: new Date(), note });
+  loan.paymentMode = mode;
+  loan.bonusType = bonusType;
+  if (rebuild) await recompute(loan);
+  else await loan.save();
+  return { loan, effectiveFrom: from, message: paymentModes.whenItStarts(today, from) };
+}
+
 const perMonth = (l, installment) => (l.paymentFrequency === "quincenal" ? 2 * installment : installment);
 
 /**
@@ -341,6 +417,7 @@ module.exports = {
   release,
   recordPayment,
   voidPayment,
+  changePaymentMode,
   recompute,
   balancesFor,
   bookkeeperFromLedger,

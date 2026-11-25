@@ -45,6 +45,28 @@ const settingSchema = new mongoose.Schema(
       savedByName: String,
       savedAt: Date,
     },
+    // When each bonus is expected to be released (month and day), for mutual assistance charged to a
+    // bonus. Defaults in services/settings.js (UDEI to confirm).
+    bonusCalendar: {
+      type: new mongoose.Schema(
+        Object.fromEntries(["mid_year", "year_end", "cna", "sri"].map((k) => [k, { month: { type: Number, min: 1, max: 12 }, day: { type: Number, min: 1, max: 31 } }])),
+        { _id: false },
+      ),
+      default: undefined,
+    },
+    // A change of payment mode made on or before this day of the month starts that month; later, the next.
+    modeChangeCutoffDay: { type: Number, min: 1, max: 28 },
+    // Short term still unpaid this many days after its last due date becomes long term.
+    shortTermGraceDays: { type: Number, min: 0, max: 365 },
+    // The term (months) a converted short-term balance is spread over at the long-term rate.
+    conversionTermMonths: { type: Number, min: 1, max: 120 },
+    // The service fee taken from payments: rate in percent, and which payment methods it applies to.
+    serviceFee: {
+      type: new mongoose.Schema({ rate: { type: Number, min: 0, max: 10 }, appliesTo: [{ type: String, enum: ["payroll", "cash", "e_money", "bank_transfer"] }] }, { _id: false }),
+      default: undefined,
+    },
+    // One-time data fixes already applied to this document (see services/settings.js migrate()).
+    migrations: { type: [String], default: [] },
     updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     updatedByName: String,
   },

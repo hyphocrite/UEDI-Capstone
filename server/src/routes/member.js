@@ -13,7 +13,7 @@ const paymentSubmissions = require("../services/paymentSubmissions");
 const { memberSubmit } = require("./payments");
 const loans = require("../services/loans");
 const { STEP_LABELS, currentStepOf } = require("../services/approvals");
-const { createSchema, createApplication, missingDocuments, setCoMakers } = require("./applications");
+const { createSchema, createApplication, missingDocuments, setCoMakers, applyRules } = require("./applications");
 const { signSession, requireAuth } = require("../middleware/auth");
 const { rateLimit } = require("../middleware/rateLimit");
 const verification = require("../services/emailVerification");
@@ -58,6 +58,8 @@ const applySchema = z.object({
   amount: z.coerce.number().positive("Enter the amount."),
   termMonths: z.coerce.number().int().min(1, "Enter the term in months."),
   paymentFrequency: z.enum(["quincenal", "monthly"]).default("monthly"),
+  paymentMode: z.enum(["payroll", "bonus", "cash", "e_money", "bank_transfer"]).default("payroll"),
+  bonusType: z.enum(["mid_year", "year_end", "cna", "sri"]).optional(),
   purpose: z.string({ message: "Give the reason for the mutual assistance." }).trim().min(3, "Give the reason for the mutual assistance.").max(300),
   payrollDeduction: z.literal(true, { message: "You must authorize payroll deduction." }),
   autoRestructure: z.literal(true, { message: "You must agree to automatic restructuring." }),
@@ -248,12 +250,16 @@ router.post("/applications", async (req, res, next) => {
         termMonths: f.termMonths,
         monthlyRate: rules.products[f.loanType].monthlyRate,
         paymentFrequency: f.paymentFrequency,
+        paymentMode: f.paymentMode,
+        bonusType: f.bonusType,
         purpose: f.purpose,
       },
       agreement: { payrollDeduction: true, autoRestructure: true, applicationDate: new Date() },
       coMakers: f.coMakers,
     });
     if (!full.success) return res.status(400).json({ error: firstIssue(full) });
+    const bonusError = applyRules(rules, full.data);
+    if (bonusError) return res.status(400).json({ error: bonusError });
     const app = await createApplication(full.data, req.user);
     res.status(201).json({ application: memberView(app) });
   } catch (err) {
@@ -346,6 +352,11 @@ const loanView = (loan) => {
     // Advances show as installments paid before their due date; payroll keeps deducting the same
     // amount, so the loan finishes around finishesAround.
     paidAhead: l.paidAhead,
+    paymentMode: l.paymentMode,
+    bonusType: l.bonusType || null,
+    paymentModeNow: l.paymentModeNow,
+    paymentModeLabel: l.paymentModeLabel,
+    paymentModeHistory: (l.paymentModeHistory || []).map(({ mode, bonusType, effectiveFrom, requestedAt, note }) => ({ mode, bonusType: bonusType || null, effectiveFrom, requestedAt, note: note || null })),
     finishesAround: l.finishesAround,
     schedule: (l.schedule || []).map(({ no, dueDate, totalDue, paid }) => ({ no, dueDate, totalDue, paid })),
   };
@@ -384,5 +395,7 @@ router.get("/loans/:id", async (req, res, next) => {
 // The member reports a payment made outside payroll (cash, e-money, bank transfer). The proof photo
 // follows with PUT /api/payments/:id/proof. The Treasurer receives it, then the Bookkeeper posts it.
 router.post("/loans/:id/payments", memberSubmit((req) => req.params.id));
+// How the loan is paid from a coming month (cash, bank, bonus or payroll).
+router.post("/loans/:id/payment-mode", require("./loans").paymentModeHandler((req) => req.params.id));
 
 module.exports = router;

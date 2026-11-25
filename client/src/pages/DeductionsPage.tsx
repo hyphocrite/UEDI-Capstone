@@ -11,6 +11,13 @@ import { api } from '../lib/api'
 import { formatCutoff, runStatusLabel } from '../lib/deductions'
 import type { DeductionRun, RunSummary } from '../lib/deductions'
 import { formatCentavos } from '../lib/loans'
+import { BONUS_TYPES, FALLBACK_BONUS_CALENDAR, nextBonusDate } from '../lib/paymentModes'
+import type { BonusType } from '../lib/paymentModes'
+import { useSettings } from '../lib/settings'
+
+/** "Year-end bonus run" or the cutoff, for a run's name. */
+const runName = (r: { kind?: string; bonusType?: BonusType; cutoff: string }) =>
+  r.kind === 'bonus' ? `${BONUS_TYPES.find((b) => b.value === r.bonusType)?.label ?? 'Bonus'}, ${formatCutoff(r.cutoff)}` : formatCutoff(r.cutoff)
 
 /** One payroll deduction run per cutoff (the 15th and the month-end). */
 export default function DeductionsPage() {
@@ -25,6 +32,11 @@ export default function DeductionsPage() {
   const [cutoff, setCutoff] = useState('')
   const [busy, setBusy] = useState(false)
   const [formError, setFormError] = useState('')
+  const [kind, setKind] = useState<'payroll' | 'bonus'>('payroll')
+  const [bonusType, setBonusType] = useState<BonusType>('year_end')
+  const { settings } = useSettings()
+  const [today] = useState(() => new Date().toLocaleDateString('en-CA'))
+  const bonusDateFor = (b: BonusType) => nextBonusDate(settings.bonusCalendar ?? FALLBACK_BONUS_CALENDAR, b, today, -31)
 
   useEffect(() => {
     api<{ runs: RunSummary[]; suggestedCutoff: string }>('/api/deductions')
@@ -38,24 +50,28 @@ export default function DeductionsPage() {
       })
   }, [])
 
-  const openNew = () => {
-    setCutoff(suggested)
+  const openNew = (k: 'payroll' | 'bonus' = 'payroll') => {
+    setKind(k)
+    setCutoff(k === 'bonus' ? bonusDateFor(bonusType) : suggested)
     setFormError('')
     setCreating(true)
   }
 
   const create = async (e: FormEvent) => {
     e.preventDefault()
+    const bonusLabel = BONUS_TYPES.find((b) => b.value === bonusType)?.label
     const ok = await confirm({
-      title: 'Start this deduction run?',
-      message: <p>Build the payroll deduction list for the <b>{formatCutoff(cutoff)}</b> cutoff from every mutual assistance with an installment due that day. There can only be one run per cutoff.</p>,
+      title: kind === 'bonus' ? 'Start this bonus run?' : 'Start this deduction run?',
+      message: kind === 'bonus'
+        ? <p>Build the list of mutual assistance charged to the <b>{bonusLabel}</b>, with what is due by <b>{formatCutoff(cutoff)}</b>. It goes through the same send, remittance and posting as a payroll run.</p>
+        : <p>Build the payroll deduction list for the <b>{formatCutoff(cutoff)}</b> cutoff from every mutual assistance with an installment due that day. There can only be one run per cutoff.</p>,
       confirmLabel: 'Yes, start it',
     })
     if (!ok) return
     setBusy(true)
     setFormError('')
     try {
-      const { run } = await api<{ run: DeductionRun }>('/api/deductions', { method: 'POST', body: JSON.stringify({ cutoffDate: cutoff }) })
+      const { run } = await api<{ run: DeductionRun }>('/api/deductions', { method: 'POST', body: JSON.stringify(kind === 'bonus' ? { cutoffDate: cutoff, kind, bonusType } : { cutoffDate: cutoff }) })
       navigate(`/deductions/${run._id}`)
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'Could not create the run.')
@@ -69,9 +85,14 @@ export default function DeductionsPage() {
         title="Payroll Deductions"
         subtitle="Each cutoff, send DNSC's Payroll Officer the list of installments to deduct, then record what payroll remitted."
         actions={canCreate && (
-          <button className="btn-primary" onClick={openNew} disabled={!suggested}>
-            <Plus className="h-4 w-4" /> New run
-          </button>
+          <>
+            <button className="btn-ghost" onClick={() => openNew('bonus')}>
+              <Plus className="h-4 w-4" /> New bonus run
+            </button>
+            <button className="btn-primary" onClick={() => openNew('payroll')} disabled={!suggested}>
+              <Plus className="h-4 w-4" /> New run
+            </button>
+          </>
         )}
       />
 
@@ -93,7 +114,7 @@ export default function DeductionsPage() {
             {runs?.map((r) => (
               <tr key={r._id} className="cursor-pointer hover:bg-brand-50/50" onClick={() => navigate(`/deductions/${r._id}`)}>
                 <td className="px-4 py-3 font-semibold whitespace-nowrap text-ink">
-                  <Link to={`/deductions/${r._id}`} onClick={(e) => e.stopPropagation()} className="hover:text-accent-dark">{formatCutoff(r.cutoff)}</Link>
+                  <Link to={`/deductions/${r._id}`} onClick={(e) => e.stopPropagation()} className="hover:text-accent-dark">{runName(r)}</Link>
                 </td>
                 <td className="px-4 py-3"><StatusBadge status={runStatusLabel[r.status]} /></td>
                 <td className="px-4 py-3 text-right">{r.totals.lines}</td>
@@ -114,12 +135,22 @@ export default function DeductionsPage() {
         </table>
       </div>
 
-      <Modal title="New deduction run" open={creating} onClose={() => setCreating(false)}>
+      <Modal title={kind === 'bonus' ? 'New bonus run' : 'New deduction run'} open={creating} onClose={() => setCreating(false)}>
         <form onSubmit={create} noValidate>
-          <label className="label" htmlFor="cutoff">Cutoff date</label>
+          {kind === 'bonus' && (
+            <>
+              <label className="label" htmlFor="bonusType">Bonus</label>
+              <select id="bonusType" className="input mb-4" value={bonusType} onChange={(e) => { const b = e.target.value as BonusType; setBonusType(b); setCutoff(bonusDateFor(b)) }}>
+                {BONUS_TYPES.map((b) => <option key={b.value} value={b.value}>{b.label}</option>)}
+              </select>
+            </>
+          )}
+          <label className="label" htmlFor="cutoff">{kind === 'bonus' ? 'Bonus release date' : 'Cutoff date'}</label>
           <input id="cutoff" type="date" className="input" value={cutoff} onChange={(e) => setCutoff(e.target.value)} />
           <p className="mt-1 text-xs text-brand-500">
-            The 15th or the last day of a month. Suggested: {suggested ? formatCutoff(suggested) : '—'}, the next cutoff without a run.
+            {kind === 'bonus'
+              ? 'The date in Settings for this bonus, or the day it was actually released. Lists mutual assistance charged to this bonus that is due by then.'
+              : <>The 15th or the last day of a month. Suggested: {suggested ? formatCutoff(suggested) : '—'}, the next cutoff without a run.</>}
           </p>
           {formError && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{formError}</p>}
           <div className="mt-5 flex flex-wrap justify-end gap-2">

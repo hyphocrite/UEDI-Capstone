@@ -10,6 +10,7 @@ const Loan = require("../models/Loan");
 const PaymentSubmission = require("../models/PaymentSubmission");
 const User = require("../models/User");
 const ledger = require("./ledger");
+const { seesAllLoans } = require("../config/access");
 const loans = require("./loans");
 const mailer = require("./mailer");
 
@@ -27,11 +28,14 @@ const METHOD_LABELS = {
 
 const peso = (c) => `PHP ${(c / 100).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-/** Whether the user is the borrower: their linked member ID, or the account that filed the application. */
+/**
+ * Whether the user is the borrower: their linked member ID, or a member's own account that filed
+ * the application. Office staff who typed in someone's application are not the borrower.
+ */
 async function ownsLoan(user, loan) {
   const memberId = user.memberId || null;
   if (memberId && loan.memberId === memberId) return true;
-  if (!loan.application) return false;
+  if (!loan.application || seesAllLoans(user)) return false;
   return !!(await Application.exists({ _id: loan.application, submittedBy: user._id }));
 }
 

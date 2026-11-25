@@ -6,6 +6,8 @@ import type { Member, MemberHistory } from '../../lib/members'
 import { coMakersRequiredFor, FALLBACK_SETTINGS, MIN_NET_TAKE_HOME_PAY, nonMemberLimit } from '../../lib/settings'
 import type { LoanSettings } from '../../lib/settings'
 import type { Applicant, DocumentAnalysis } from '../../lib/ocr/analyzeDocument'
+import { BONUS_TYPES, FALLBACK_BONUS_CALENDAR, monthsBetween, nextBonusDate } from '../../lib/paymentModes'
+import type { BonusType, PaymentMode } from '../../lib/paymentModes'
 
 export type PeriodUnit = 'years' | 'months'
 
@@ -42,6 +44,9 @@ export type Form = {
   /** Always the Loan Settings rate for the loan type: shown, not typed. The server sets it too. */
   monthlyRate: string
   paymentFrequency: PaymentFrequency
+  /** How the member will pay. Bonus: one payment on the chosen bonus's release date. */
+  paymentMode: PaymentMode
+  bonusType: BonusType | ''
 
   longTermBalance: string
   longTermDueDate: string
@@ -106,6 +111,8 @@ export const emptyForm = (): Form => ({
   periodUnit: 'years',
   monthlyRate: rateFor(FALLBACK_SETTINGS, 'long_term'),
   paymentFrequency: 'quincenal',
+  paymentMode: 'payroll',
+  bonusType: '',
 
   longTermBalance: '0',
   longTermDueDate: '',
@@ -129,6 +136,20 @@ export function termMonthsOf(f: Pick<Form, 'period' | 'periodUnit'>) {
   const n = num(f.period)
   if (n <= 0) return 0
   return Math.round(f.periodUnit === 'years' ? n * 12 : n)
+}
+
+/**
+ * A bonus-charged application: the bonus date (the next release at least 10 days after the
+ * application date), the months to it, and the single payment with interest on the whole amount.
+ */
+export function bonusOf(f: Form, settings: LoanSettings = FALLBACK_SETTINGS) {
+  if (f.paymentMode !== 'bonus' || !f.bonusType || !f.applicationDate) return null
+  const dueDate = nextBonusDate(settings.bonusCalendar ?? FALLBACK_BONUS_CALENDAR, f.bonusType, f.applicationDate)
+  const months = monthsBetween(f.applicationDate, dueDate)
+  const amount = num(f.amount)
+  const total = amount > 0 ? Math.round(amount * (1 + (num(f.monthlyRate) / 100) * months) * 100) / 100 : 0
+  const label = BONUS_TYPES.find((b) => b.value === f.bonusType)?.label ?? 'bonus'
+  return { dueDate, months, total, label }
 }
 
 export function installmentOf(f: Form) {
@@ -270,6 +291,8 @@ export function formFromApplication(a: LoanApplication): Form {
     periodUnit: years ? 'years' : 'months',
     monthlyRate: String(a.loan.monthlyRate),
     paymentFrequency: a.loan.paymentFrequency,
+    paymentMode: a.loan.paymentMode ?? 'payroll',
+    bonusType: a.loan.bonusType ?? '',
     longTermBalance: String(b?.longTermBalance ?? 0),
     longTermDueDate: day(b?.longTermDueDate),
     shortTermBalance: String(b?.shortTermBalance ?? 0),
@@ -328,7 +351,11 @@ export function validateStep(step: FormStep, f: Form, settings: LoanSettings = F
     if (limit !== null && num(f.amount) > limit) return `Applicants who aren't linked to a UDEI member number can borrow at most ₱${limit.toLocaleString('en-PH')}.`
     if (f.purpose.trim().length < 3) return 'Give the reason for the mutual assistance.'
     const maxTerm = Math.min(MAX_TERM_MONTHS, settings.products[f.loanType].maxTermMonths)
-    if (term < 1 || term > maxTerm) return `${settings.products[f.loanType].label} mutual assistance run 1 to ${maxTerm} months.`
+    if (f.paymentMode === 'bonus') {
+      if (!f.bonusType) return 'Choose which bonus it is charged to: Mid-year, Year-end, CNA or SRI.'
+      const b = bonusOf(f, settings)
+      if (b && b.months > maxTerm) return `The next ${b.label} is ${b.months} months away, more than the ${maxTerm} months ${settings.products[f.loanType].label} can run. Choose another bonus or mode of payment.`
+    } else if (term < 1 || term > maxTerm) return `${settings.products[f.loanType].label} mutual assistance run 1 to ${maxTerm} months.`
     if (f.monthlyRate.trim() === '' || !Number.isFinite(rate) || rate < 0 || rate > 10) return 'The interest rate could not be loaded. Reload the page.'
     if (!f.payrollDeduction) return 'The applicant must authorize payroll deduction.'
     if (!f.autoRestructure) return 'The applicant must agree to automatic re-structuring.'
@@ -390,6 +417,8 @@ export function buildPayload(f: Form, documents: DocumentPayload[]) {
       termMonths: termMonthsOf(f),
       monthlyRate: Number(f.monthlyRate),
       paymentFrequency: f.paymentFrequency,
+      paymentMode: f.paymentMode,
+      bonusType: f.paymentMode === 'bonus' && f.bonusType ? f.bonusType : undefined,
       purpose: f.purpose.trim(),
     },
     bookkeeper: {

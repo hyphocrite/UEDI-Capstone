@@ -6,6 +6,7 @@ import { colors } from '../theme'
 import { Badge, Card, Empty, ErrorText, Header, Row, s } from '../ui'
 import { loanBadge } from './status'
 import SendPayment, { SubmissionRow } from './SendPayment'
+import PaymentModeCard from './PaymentModeCard'
 
 const METHOD: Record<string, string> = { payroll: 'Payroll', cash: 'Cash', e_money: 'E-money', bank_transfer: 'Bank transfer', other: 'Other', offset: 'Offset' }
 
@@ -48,7 +49,8 @@ export default function LoanDetailScreen({ id, onBack }: { id: string; onBack: (
               {loan.totalPayable > 0 ? <Progress paid={loan.amountPaid} total={loan.totalPayable} /> : null}
               <Row label="Principal" value={centavos(loan.principal)} />
               <Row label="Rate" value={`${loan.monthlyRate}% per month`} />
-              <Row label="Term" value={`${loan.termMonths} months, ${loan.paymentFrequency}`} />
+              <Row label="Term" value={loan.paymentMode === 'bonus' && loan.schedule.length === 1 ? `One payment on ${date(loan.schedule[0].dueDate)}` : `${loan.termMonths} months, ${loan.paymentFrequency}`} />
+              <Row label="Mode of payment" value={loan.paymentModeLabel ?? 'Payroll deduction'} />
               <Row label="Released" value={date(loan.releasedAt)} />
               <Row label="Matures" value={date(loan.maturesOn)} />
               {loan.pastDue ? <Row label="Overdue" value={centavos(loan.pastDueAmount)} strong /> : null}
@@ -63,6 +65,7 @@ export default function LoanDetailScreen({ id, onBack }: { id: string; onBack: (
             </Card>
 
             {loan.status === 'active' ? <SendPayment loan={loan} onSent={reload} /> : null}
+            {loan.status !== 'for_release' ? <PaymentModeCard loan={loan} onChanged={reload} /> : null}
 
             {data!.submissions?.length ? (
               <>

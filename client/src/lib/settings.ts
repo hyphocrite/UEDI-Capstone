@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { api } from './api'
 import type { LoanType } from './applications'
+import { FALLBACK_BONUS_CALENDAR } from './paymentModes'
+import type { BonusCalendar } from './paymentModes'
 
 export type LoanProduct = { label: string; monthlyRate: number; maxTermMonths: number }
 
@@ -15,6 +17,13 @@ export type LoanSettings = {
   coMakersFromAmount: number
   /** Applicants not linked to a UDEI member number borrow at most this (pesos), with a member as co-maker. 0: no limit. */
   nonMemberMaxAmount: number
+  /** Expected bonus release dates. UDEI to confirm. */
+  bonusCalendar: BonusCalendar
+  /** Mode changes on or before this day start this month; later, next month. */
+  modeChangeCutoffDay: number
+  shortTermGraceDays: number
+  conversionTermMonths: number
+  serviceFee: { rate: number; appliesTo: string[] }
   updatedAt: string | null
   updatedByName: string | null
 }
@@ -49,13 +58,18 @@ export function coMakersRequiredFor(s: LoanSettings, linked: boolean): number {
 export const FALLBACK_SETTINGS: LoanSettings = {
   products: {
     long_term: { label: 'Long term', monthlyRate: 2, maxTermMonths: 12 },
-    emergency: { label: 'Emergency', monthlyRate: 3, maxTermMonths: 6 },
+    emergency: { label: 'Short term (Emergency)', monthlyRate: 3, maxTermMonths: 5 },
   },
   minMonthlySalary: 10000,
   branches: ['Main Office'],
   coMakersRequired: 0,
   coMakersFromAmount: 50000,
   nonMemberMaxAmount: 5000,
+  bonusCalendar: FALLBACK_BONUS_CALENDAR,
+  modeChangeCutoffDay: 7,
+  shortTermGraceDays: 0,
+  conversionTermMonths: 12,
+  serviceFee: { rate: 1, appliesTo: ['payroll'] },
   updatedAt: null,
   updatedByName: null,
 }

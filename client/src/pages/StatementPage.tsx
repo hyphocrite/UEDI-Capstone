@@ -70,7 +70,8 @@ export default function StatementPage() {
           <Row label="Type" value={loan.source === 'ledger' ? 'Balance carried over from the ledger' : loanTypeLabel[loan.loanType]} />
           <Row label="Principal" value={formatCentavos(loan.principal)} />
           <Row label="Rate and term" value={`${loan.monthlyRate}% a month · ${loan.termMonths} months`} />
-          <Row label="Deducted" value={loan.paymentFrequency === 'quincenal' ? 'Every payday (15th and month-end)' : 'Monthly (month-end)'} />
+          <Row label="Mode of payment" value={loan.paymentModeLabel ?? 'Payroll deduction'} />
+          {loan.paymentModeNow !== 'bonus' && <Row label="Installments" value={loan.paymentFrequency === 'quincenal' ? 'Every payday (15th and month-end)' : 'Monthly (month-end)'} />}
           <Row label="Released" value={loan.release?.releasedAt ? formatDay(loan.release.releasedAt) : 'Not yet released'} />
         </section>
 

@@ -14,6 +14,7 @@ const { explain } = require("../services/explain");
 const documentFiles = require("../services/documentFiles");
 const coMakers = require("../services/coMakers");
 const settings = require("../services/settings");
+const paymentModes = require("../services/paymentModes");
 const { idCheckStatus, idCheckState, ID_MISMATCH } = require("../services/idCheck");
 
 const router = express.Router();
@@ -126,6 +127,9 @@ const createSchema = z
       termMonths: z.coerce.number().int().min(1).max(120),
       monthlyRate: z.coerce.number().min(0).max(10),
       paymentFrequency: z.enum(PAYMENT_FREQUENCIES).default("monthly"),
+      // How the member will pay (services/paymentModes.js); a bonus needs its type.
+      paymentMode: z.enum(paymentModes.PAYMENT_MODES, { message: "Choose how the member will pay." }).default("payroll"),
+      bonusType: z.enum(paymentModes.BONUS_TYPES, { message: "Choose which bonus it is charged to." }).optional(),
       // Required: the signers read it next to the ML suggestion.
       purpose: z.string({ message: "Give the reason for the mutual assistance." }).trim().min(3, "Give the reason for the mutual assistance.").max(300),
     }),
@@ -138,6 +142,9 @@ const createSchema = z
     // Member numbers of 1 or 2 co-makers (how many is a Loan Setting). Checked in createApplication.
     coMakers: z.array(z.string().trim().max(32)).max(2).default([]),
     documents: z.array(documentCheckSchema).max(MAX_DOCUMENTS).default([]),
+  })
+  .refine((v) => v.loan.paymentMode !== "bonus" || !!v.loan.bonusType, {
+    message: "Choose which bonus it is charged to: Mid-year, Year-end, CNA or SRI.",
   })
   .refine((v) => v.applicant.priorLatePayments <= v.applicant.priorLoans, {
     message: "Late payments cannot be more than past mutual assistance.",
@@ -250,6 +257,16 @@ function applyRules(rules, data) {
   // The rate is always the one in Loan Settings, whatever the form sent.
   const product = rules.products[data.loan.loanType];
   if (product) data.loan.monthlyRate = product.monthlyRate;
+  if (data.loan.paymentMode === "bonus") {
+    // One installment on the bonus date: the term is the months up to it, from the application date.
+    try {
+      data.loan.termMonths = paymentModes.bonusTerm(rules, data.loan.loanType, data.loan.bonusType, data.agreement.applicationDate).termMonths;
+    } catch (err) {
+      return err.message;
+    }
+  } else {
+    data.loan.bonusType = undefined;
+  }
   return settings.checkApplication(rules, {
     monthlySalary: data.applicant.monthlySalary,
     loanType: data.loan.loanType,
@@ -737,3 +754,4 @@ module.exports.createSchema = createSchema;
 module.exports.createApplication = createApplication;
 module.exports.missingDocuments = missingDocuments;
 module.exports.REQUIRED_DOCUMENTS = REQUIRED_DOCUMENTS;
+module.exports.applyRules = applyRules;

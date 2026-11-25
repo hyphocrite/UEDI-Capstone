@@ -3,13 +3,17 @@
 // Amounts are integer centavos. Dates are calendar days at UTC midnight (see ledger.js), so a
 // cutoff on the 15th or the month-end never shifts a day; "today" is the date in Manila.
 const ledger = require("./ledger");
+const paymentModes = require("./paymentModes");
 
-const REASONS = ["lwop", "separated", "insufficient_pay", "not_in_payroll", "other"];
+// "not_on_payroll": the member pays this month by cash, bank or a bonus (Loan.paymentModeHistory),
+// so payroll deducts nothing on purpose. It never counts as a missed deduction.
+const REASONS = ["lwop", "separated", "insufficient_pay", "not_in_payroll", "not_on_payroll", "other"];
 const REASON_LABELS = {
   lwop: "Leave without pay",
   separated: "Separated from DNSC",
   insufficient_pay: "Insufficient pay",
   not_in_payroll: "Not in payroll",
+  not_on_payroll: "Paying by cash / bank / bonus this month",
   other: "Other",
 };
 
@@ -96,6 +100,21 @@ function buildLines(loans, cutoff) {
     const amounts = amountsFor(loan.schedule, cutoff);
     if (!amounts) continue;
     const separated = loan.collectFrom?.source === "final_pay";
+    // Paying by cash, bank or a bonus this month: listed so the Bookkeeper sees it, with nothing to deduct.
+    if (!separated && !paymentModes.onPayroll(loan, cutoff)) {
+      lines.push({
+        loan: loan._id,
+        loanNo: loan.loanNo,
+        memberId: loan.memberId,
+        borrowerName: loan.borrowerName,
+        loanType: loan.loanType,
+        expected: 0,
+        arrears: amounts.arrears,
+        reason: "not_on_payroll",
+        reasonNote: paymentModes.modeLabel(paymentModes.modeOn(loan, cutoff).mode, paymentModes.modeOn(loan, cutoff).bonusType),
+      });
+      continue;
+    }
     lines.push({
       loan: loan._id,
       loanNo: loan.loanNo,
@@ -110,10 +129,33 @@ function buildLines(loans, cutoff) {
   return lines.sort((a, b) => a.borrowerName.localeCompare(b.borrowerName, "en") || a.loanNo.localeCompare(b.loanNo));
 }
 
+/**
+ * A bonus run's lines: loans charged to `bonusType` in that month, with what is unpaid on the
+ * installments due by the bonus date (normally the one installment on the bonus date).
+ */
+function buildBonusLines(loans, date, bonusType) {
+  const t = ledger.calendarDay(date).getTime();
+  const lines = [];
+  for (const loan of loans) {
+    if (loan.status !== "active") continue;
+    const m = paymentModes.modeOn(loan, date);
+    if (m.mode !== "bonus" || m.bonusType !== bonusType) continue;
+    const due = loan.schedule.filter((x) => ledger.calendarDay(x.dueDate).getTime() <= t);
+    const expected = due.reduce((s, x) => s + unpaid(x), 0);
+    if (expected <= 0) continue;
+    lines.push({ loan: loan._id, loanNo: loan.loanNo, memberId: loan.memberId, borrowerName: loan.borrowerName, loanType: loan.loanType, expected, arrears: 0 });
+  }
+  return lines.sort((a, b) => a.borrowerName.localeCompare(b.borrowerName, "en") || a.loanNo.localeCompare(b.loanNo));
+}
+
 const activeLines = (lines) => lines.filter((l) => !l.removed);
 
-/** full when payroll deducted at least the expected amount, partial when some, missed when none. */
+/**
+ * full when payroll deducted at least the expected amount, partial when some, missed when none.
+ * A loan not on payroll that month (not_on_payroll) is never missed.
+ */
 function resultFor({ expected, remitted, reason }) {
+  if (reason === "not_on_payroll" && !(expected > 0)) return "full";
   if (remitted === 0 && (expected > 0 || reason)) return "missed";
   if (remitted < expected) return "partial";
   return "full";
@@ -273,6 +315,7 @@ module.exports = {
   suggestCutoff,
   amountsFor,
   buildLines,
+  buildBonusLines,
   activeLines,
   resultFor,
   totals,

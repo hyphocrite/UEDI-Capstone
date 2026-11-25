@@ -5,6 +5,7 @@ import Modal from '../components/Modal'
 import PageHeader from '../components/PageHeader'
 import SendPaymentForm from '../components/payments/SendPaymentForm'
 import SubmissionList from '../components/payments/SubmissionList'
+import PaymentModePanel from '../components/loans/PaymentModePanel'
 import StatusBadge from '../components/StatusBadge'
 import { PaymentForm, ReleaseForm } from '../components/loans/LoanForms'
 import PaymentHistory from '../components/loans/PaymentHistory'
@@ -112,7 +113,8 @@ export default function LoanDetailPage() {
         <dl className="grid grid-cols-1 gap-x-6 gap-y-3 text-sm min-[420px]:grid-cols-2 lg:grid-cols-4">
           <Item label="Principal" value={formatCentavos(loan.principal)} />
           <Item label="Rate" value={`${loan.monthlyRate}% a month (add-on)`} />
-          <Item label="Term" value={`${loan.termMonths} months, ${loan.paymentFrequency === 'quincenal' ? 'quincenal' : 'monthly'} deduction`} />
+          <Item label="Term" value={loan.paymentMode === 'bonus' && loan.schedule.length === 1 ? `One payment on ${formatDay(loan.schedule[0].dueDate)}` : `${loan.termMonths} months, ${loan.paymentFrequency === 'quincenal' ? 'quincenal' : 'monthly'}`} />
+          <Item label="Mode of payment" value={loan.paymentModeLabel ?? 'Payroll deduction'} />
           <Item label="Total payable" value={loan.status === 'for_release' ? 'Set on release' : formatCentavos(loan.totalPayable)} />
           <Item label="Paid" value={formatCentavos(loan.amountPaid)} />
           <Item label="Balance" value={loan.status === 'for_release' ? '—' : formatCentavos(loan.balance)} strong />
@@ -145,6 +147,10 @@ export default function LoanDetailPage() {
           ) : (
             <p className="card p-4 text-sm text-brand-700 sm:p-5">Waiting for the Treasurer to release this mutual assistance.</p>
           ))}
+
+        {loan.status !== 'for_release' && (
+          <PaymentModePanel loan={loan} canChange={borrower || role === 'bookkeeper'} onChanged={setLoan} />
+        )}
 
         {loan.status === 'active' && borrower && (
           <section className="card min-w-0 p-4 sm:p-5">

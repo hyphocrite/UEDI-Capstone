@@ -6,6 +6,8 @@ import { useAuth } from '../auth'
 import { confirmAction } from '../confirm'
 import { DOCUMENT_LABEL, DocumentSlots, missingTypes, sendAll } from '../documents'
 import { pesos } from '../format'
+import { BONUS_OPTIONS, FALLBACK_BONUS_CALENDAR, MODE_OPTIONS, monthsBetween, nextBonusDate } from '../paymentModes'
+import type { BonusType, PaymentMode } from '../paymentModes'
 import { colors } from '../theme'
 import { Button, Card, Check, Choice, ErrorText, Field, Header, Row, s } from '../ui'
 
@@ -13,7 +15,7 @@ import { Button, Card, Check, Choice, ErrorText, Field, Header, Row, s } from '.
 const FALLBACK: LoanSettings = {
   products: {
     long_term: { label: 'Long term', monthlyRate: 2, maxTermMonths: 12 },
-    emergency: { label: 'Emergency', monthlyRate: 3, maxTermMonths: 6 },
+    emergency: { label: 'Short term (Emergency)', monthlyRate: 3, maxTermMonths: 5 },
   },
   minMonthlySalary: 10000,
 }
@@ -50,6 +52,8 @@ export default function ApplyScreen({ onDone }: { onDone: () => void }) {
     amount: '',
     termMonths: '12',
     paymentFrequency: 'quincenal' as Frequency,
+    paymentMode: 'payroll' as PaymentMode,
+    bonusType: '' as BonusType | '',
     purpose: '',
     coMaker1: '',
     coMaker2: '',
@@ -72,6 +76,14 @@ export default function ApplyScreen({ onDone }: { onDone: () => void }) {
   const set = <K extends keyof typeof f>(k: K) => (v: (typeof f)[K]) => setF((x) => ({ ...x, [k]: v }))
 
   const amount = num(f.amount)
+  // Charged to a bonus: one payment on its next release at least 10 days from today.
+  const todayIso = new Date().toLocaleDateString('en-CA')
+  const bonus = f.paymentMode === 'bonus' && f.bonusType
+    ? (() => {
+        const dueDate = nextBonusDate(rules.bonusCalendar ?? FALLBACK_BONUS_CALENDAR, f.bonusType, todayIso)
+        return { dueDate, months: monthsBetween(todayIso, dueDate), label: BONUS_OPTIONS.find((b) => b.value === f.bonusType)!.long }
+      })()
+    : null
   const term = Math.max(1, Math.min(num(f.termMonths) || 1, MAX_TERM[f.loanType]))
   const rate = rules.products[f.loanType].monthlyRate
   // Interest on the remaining balance each month, as UDEI's ledger charges it.
@@ -96,10 +108,12 @@ export default function ApplyScreen({ onDone }: { onDone: () => void }) {
     }
     const missing = missingTypes(f.loanType, files).map((t) => DOCUMENT_LABEL[t])
     if (missing.length) return setError(`Supporting documents are required. Still missing: ${missing.join(', ')}.`)
-    const kind = f.loanType === 'long_term' ? 'Long term' : 'Emergency'
+    if (f.paymentMode === 'bonus' && !f.bonusType) return setError('Choose which bonus it is charged to: Mid-year, Year-end, CNA or SRI.')
+    if (bonus && bonus.months > MAX_TERM[f.loanType]) return setError(`The next ${bonus.label} is ${bonus.months} months away, more than ${MAX_TERM[f.loanType]} months. Choose another bonus or mode of payment.`)
+    const kind = f.loanType === 'long_term' ? 'Long term' : 'Short term (Emergency)'
     const ok = await confirmAction(
       'Submit this application?',
-      `${kind} mutual assistance of ${pesos(amount)} over ${num(f.termMonths)} months. It then goes to the Bookkeeper, CreCom Chairman, President and Treasurer to sign.`,
+      `${kind} mutual assistance of ${pesos(amount)} ${bonus ? `charged to the ${bonus.label} (${bonus.dueDate})` : `over ${num(f.termMonths)} months`}. It then goes to the Bookkeeper, CreCom Chairman, President and Treasurer to sign.`,
       'Yes, submit',
     )
     if (!ok) return
@@ -115,8 +129,10 @@ export default function ApplyScreen({ onDone }: { onDone: () => void }) {
         netTakeHomePay: num(f.netTakeHomePay),
         loanType: f.loanType,
         amount,
-        termMonths: num(f.termMonths),
+        termMonths: bonus ? bonus.months : num(f.termMonths),
         paymentFrequency: f.paymentFrequency,
+        paymentMode: f.paymentMode,
+        bonusType: f.paymentMode === 'bonus' && f.bonusType ? f.bonusType : undefined,
         purpose: f.purpose.trim(),
         payrollDeduction: f.payrollDeduction,
         autoRestructure: f.autoRestructure,
@@ -175,15 +191,26 @@ export default function ApplyScreen({ onDone }: { onDone: () => void }) {
               onChange={changeType}
               options={[
                 { value: 'long_term', label: 'Long term' },
-                { value: 'emergency', label: 'Emergency' },
+                { value: 'emergency', label: 'Short term (Emergency)' },
               ]}
             />
+            <Choice label="Mode of payment" value={f.paymentMode} onChange={set('paymentMode')} options={MODE_OPTIONS} />
+            {f.paymentMode === 'bonus' ? (
+              <>
+                <Choice label="Charge to" value={f.bonusType} onChange={set('bonusType')} options={BONUS_OPTIONS} />
+                <Text style={{ color: colors.muted, fontSize: 13, marginBottom: 10 }}>
+                  {bonus ? `One payment on the ${bonus.label}, expected ${bonus.dueDate} (${bonus.months} month${bonus.months === 1 ? '' : 's'} of interest). Payroll doesn't deduct every cutoff.` : 'Choose the bonus it is charged to.'}
+                </Text>
+              </>
+            ) : null}
             <Choice
               label="Amount"
               value={f.amount}
               options={amounts.map((a) => ({ value: String(a), label: `₱${a.toLocaleString('en-PH')}` }))}
               onChange={set('amount')}
             />
+            {f.paymentMode !== 'bonus' ? (
+              <>
             <Field
               label="Term (months)"
               value={f.termMonths}
@@ -200,6 +227,8 @@ export default function ApplyScreen({ onDone }: { onDone: () => void }) {
                 { value: 'monthly', label: 'Monthly' },
               ]}
             />
+              </>
+            ) : null}
             <Field label="Reason for the mutual assistance" value={f.purpose} onChangeText={set('purpose')} placeholder="e.g. tuition, medical" />
             {nonMemberLimit !== null && (
               <Text style={{ color: colors.muted, fontSize: 13, marginBottom: 8 }}>
@@ -217,8 +246,17 @@ export default function ApplyScreen({ onDone }: { onDone: () => void }) {
 
             <View style={{ backgroundColor: colors.bg, borderRadius: 10, padding: 12, marginTop: 4 }}>
               <Row label="Interest rate" value={`${rate}% per month`} />
-              <Row label="Interest for the term" value={pesos(interest)} />
-              <Row label={`Estimated per ${f.paymentFrequency === 'quincenal' ? 'payday' : 'month'}`} value={pesos(perInstallment)} strong />
+              {bonus ? (
+                <>
+                  <Row label="Interest to the bonus date" value={pesos(amount * r * bonus.months)} />
+                  <Row label="One payment from the bonus" value={pesos(amount * (1 + r * bonus.months))} strong />
+                </>
+              ) : (
+                <>
+                  <Row label="Interest for the term" value={pesos(interest)} />
+                  <Row label={`Estimated per ${f.paymentFrequency === 'quincenal' ? 'payday' : 'month'}`} value={pesos(perInstallment)} strong />
+                </>
+              )}
               <Text style={{ color: colors.muted, fontSize: 12, marginTop: 4 }}>
                 Estimate only. The Bookkeeper confirms your existing balances before approval.
               </Text>
