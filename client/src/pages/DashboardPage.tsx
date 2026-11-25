@@ -87,7 +87,7 @@ export default function DashboardPage() {
           <Attention data={data} risk={risk} signer={signer} />
 
           <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <StatCard icon={HandCoins} label="Active loans" value={String(data.loans.active)} hint={`${formatCentavos(data.loans.outstanding)} outstanding`} />
+            <StatCard icon={HandCoins} label="Active mutual assistance" value={String(data.loans.active)} hint={`${formatCentavos(data.loans.outstanding)} outstanding`} />
             <StatCard icon={ClipboardCheck} label="Pending applications" value={String(data.applications.pending)}
               hint={`${data.applications.decidedThisMonth.approved} approved, ${data.applications.decidedThisMonth.denied} denied this month`} />
             <StatCard icon={Users} label="Members" value={String(data.members.total)} hint={`${data.members.active} active`} />
@@ -116,7 +116,7 @@ function Attention({ data, risk, signer }: { data: Dashboard; risk: { high: numb
     { show: data.applications.overdue > 0, icon: Clock, tone: 'red', title: plural(data.applications.overdue, 'application'), text: 'waiting more than 48 hours at one step', to: '/loans/pending' },
     { show: data.loans.pastDue > 0, icon: AlertTriangle, tone: 'red', title: plural(data.loans.pastDue, 'loan'), text: `past due, ${formatCentavos(data.loans.pastDueAmount)} unpaid`, to: '/loans?status=Past%20due' },
     { show: (risk?.high ?? 0) > 0, icon: Siren, tone: 'amber', title: plural(risk?.high ?? 0, 'loan'), text: 'at high risk of missing a payment', to: '/early-warning' },
-    { show: data.loans.forRelease > 0, icon: Wallet, tone: 'brand', title: plural(data.loans.forRelease, 'approved loan'), text: 'waiting to be released', to: '/loans?status=For%20release' },
+    { show: data.loans.forRelease > 0, icon: Wallet, tone: 'brand', title: plural(data.loans.forRelease, 'approved mutual assistance', 'approved mutual assistance'), text: 'waiting to be released', to: '/loans?status=For%20release' },
     { show: data.members.accountsToLink > 0, icon: KeyRound, tone: 'amber', title: plural(data.members.accountsToLink, 'account'), text: 'waiting to be linked to a member number', to: '/members?tab=accounts' },
     { show: data.plans.behind > 0, icon: PiggyBank, tone: 'amber', title: plural(data.plans.behind, 'retirement plan'), text: 'behind on contributions', to: '/retirement-plans' },
   ]
@@ -133,7 +133,7 @@ function Attention({ data, risk, signer }: { data: Dashboard; risk: { high: numb
       {shown.length === 0 ? (
         <div className="card p-5">
           <MascotSays mood="happy" title="All clear for now.">
-            <p className="text-brand-600">No signatures waiting, nothing overdue, and no loans past due. I'll point things out here as they come in.</p>
+            <p className="text-brand-600">No signatures waiting, nothing overdue, and no mutual assistance past due. I'll point things out here as they come in.</p>
           </MascotSays>
         </div>
       ) : (
@@ -212,7 +212,7 @@ function Collections({ rows }: { rows: NonNullable<Dashboard['collections']> }) 
         {rows.map((r, i) => {
           const t = r.loans + r.plans
           return (
-            <div key={r.label} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end" title={`${r.label}: ${formatCentavos(r.loans)} loan collections, ${formatCentavos(r.plans)} plan contributions and dues`}>
+            <div key={r.label} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end" title={`${r.label}: ${formatCentavos(r.loans)} mutual assistance collections, ${formatCentavos(r.plans)} plan contributions and dues`}>
               {t > 0 ? (
                 <div className="animate-grow-up flex w-full max-w-10 flex-col-reverse overflow-hidden rounded-t-md" style={{ height: `${(t / top) * 100}%`, animationDelay: `${i * 60}ms` }}>
                   <div className="bg-brand-800 bg-grad-bar-brand" style={{ height: `${(r.loans / t) * 100}%` }} />
@@ -229,7 +229,7 @@ function Collections({ rows }: { rows: NonNullable<Dashboard['collections']> }) 
         {rows.map((r) => <span key={r.label} className="min-w-0 flex-1 truncate text-center text-[11px] text-brand-500">{r.label.split(' ')[0]}</span>)}
       </div>
       <p className="mt-auto flex flex-wrap items-center gap-x-4 gap-y-1 pt-4 text-xs text-brand-600">
-        <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-brand-800" /> Loan collections</span>
+        <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-brand-800" /> Mutual assistance collections</span>
         <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-accent" /> Plan contributions and dues</span>
         <span className="ml-auto font-semibold text-brand-800">{formatCentavos(total)}</span>
       </p>
@@ -295,7 +295,7 @@ function DueSoon({ data }: { data: Dashboard }) {
 /** For Loan Officers and Bookkeepers (no money chart): quick ways to the daily pages. */
 function Shortcuts({ role }: { role: string | undefined }) {
   const links: [string, string, LucideIcon][] = [
-    ['/loans/pending', 'Pending Loans', ClipboardCheck],
+    ['/loans/pending', 'Pending Applications', ClipboardCheck],
     ['/members', 'Members', Users],
     ['/early-warning', 'Early Warning', Siren],
     ['/retirement-plans', 'Retirement Plans', PiggyBank],

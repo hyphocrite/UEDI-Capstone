@@ -20,15 +20,15 @@ const nav = [
 const highlights = [
   { icon: PenLine, value: '4 signers', text: 'Bookkeeper, Credit Committee Chairman, President and Treasurer' },
   { icon: Cpu, value: '3 ML models', text: 'A second opinion on every application, explained in plain words' },
-  { icon: Wallet, value: 'Every payday', text: 'Loan payments and plan contributions deducted from payroll' },
-  { icon: Smartphone, value: 'Phone app', text: 'Members apply and follow their loans from their phone' },
+  { icon: Wallet, value: 'Every payday', text: 'Mutual assistance payments and plan contributions deducted from payroll' },
+  { icon: Smartphone, value: 'Phone app', text: 'Members apply and follow their mutual assistance from their phone' },
 ]
 
 const features = [
-  { icon: HandCoins, title: 'Member loans', text: 'Record loan releases, track payments and see every balance at a glance.' },
+  { icon: HandCoins, title: 'Mutual assistance', text: 'Record mutual assistance releases, track payments and see every balance at a glance.' },
   { icon: PiggyBank, title: 'Retirement plans', text: "Follow each member's plan and how much is left to pay until it is complete." },
   { icon: BarChart3, title: 'Daily, monthly and yearly reports', text: 'Collections, releases and plan payments summarized for management, ready to print or export.' },
-  { icon: BellRing, title: 'Early warning', text: 'Active loans that start to look risky are flagged early, so the office can talk to the member in time.' },
+  { icon: BellRing, title: 'Early warning', text: 'Mutual assistance that starts to look risky is flagged early, so the office can talk to the member in time.' },
   { icon: CalendarCheck, title: 'Meetings and attendance', text: 'Keep attendance for general assemblies and meetings with the member records.' },
   { icon: ShieldCheck, title: 'Secure staff accounts', text: 'Each staff member signs in with their own account and role. Every change is kept in the audit log.' },
 ]
@@ -36,26 +36,26 @@ const features = [
 const steps = [
   { icon: UserPlus, title: 'Create an account', text: 'Sign up on the website or the phone app. You get your own member ID right away.' },
   { icon: Link2, title: 'Get linked by the office', text: 'The office links your account to your UDEI member number, and your records come together.' },
-  { icon: HandCoins, title: 'Apply for a loan', text: 'Fill in the form, add your co-makers for larger loans and upload your documents.' },
+  { icon: HandCoins, title: 'Apply for mutual assistance', text: 'Fill in the form, add your co-makers for larger mutual assistance and upload your documents.' },
   { icon: CircleCheck, title: 'Four signatures, then release', text: 'The machine learning models give a suggestion; the four signers decide. You can follow each step.' },
 ]
 
 const audiences = [
-  { icon: Users, title: 'For members', text: 'Apply, follow and pay your loans without visiting the office.' },
+  { icon: Users, title: 'For members', text: 'Apply, follow and pay your mutual assistance without visiting the office.' },
   { icon: ShieldCheck, title: 'For the office', text: 'Every application arrives complete, scored and ready to sign.' },
 ]
 
 const faqs = [
   {
     q: 'Who can use the system?',
-    a: 'UDEI members, to apply for loans and follow their loans and retirement plan, and UDEI office staff, to manage members, loans, deductions and reports.',
+    a: 'UDEI members, to apply for mutual assistance and follow their mutual assistance and retirement plan, and UDEI office staff, to manage members, mutual assistance, deductions and reports.',
   },
   {
     q: 'Do I need a co-maker?',
-    a: "For UDEI members a co-maker is optional; the signers may ask for one case by case, and you'll see why on My Loans. Applicants who aren't UDEI members yet always need a member as co-maker.",
+    a: "For UDEI members a co-maker is optional; the signers may ask for one case by case, and you'll see why on My Mutual Assistance. Applicants who aren't UDEI members yet always need a member as co-maker.",
   },
   {
-    q: 'Does a computer decide my loan?',
+    q: 'Does a computer decide my mutual assistance?',
     a: 'No. Three machine learning models suggest approve, review or deny and explain why in plain words, but the Bookkeeper, Credit Committee Chairman, President and Treasurer make the decision.',
   },
   {
@@ -64,7 +64,7 @@ const faqs = [
   },
   {
     q: 'How are payments made?',
-    a: 'Loan installments and retirement plan contributions are deducted from your pay every payday, and the office records each deduction.',
+    a: 'Mutual assistance installments and retirement plan contributions are deducted from your pay every payday, and the office records each deduction.',
   },
 ]
 
@@ -112,10 +112,10 @@ export default function HomePage() {
               UDEI member services
             </p>
             <h1 className="text-4xl leading-tight font-bold sm:text-5xl">
-              Loans and retirement plans, managed in one place.
+              Mutual assistance (loans) and retirement plans, managed in one place.
             </h1>
             <p className="mt-4 max-w-xl text-lg text-brand-100">
-              A single system for UDEI staff to manage members, release and collect loans, follow
+              A single system for UDEI staff to manage members, release and collect mutual assistance, follow
               retirement plan payments and report to management.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
@@ -153,7 +153,7 @@ export default function HomePage() {
             <p className="mt-2 text-xs text-brand-600">47% of ₱540,000 paid</p>
             <div className="mt-6 grid grid-cols-3 gap-3 text-center">
               {[
-                ['Active loans', '6'],
+                ['Active mutual assistance', '6'],
                 ['Collected today', '₱58,400'],
                 ['Plans on track', '4 of 7'],
               ].map(([k, v]) => (
@@ -204,7 +204,7 @@ export default function HomePage() {
       <section id="how-it-works" className="scroll-mt-4 border-y border-brand-100 bg-white">
         <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:py-20">
           <p className="text-center text-xs font-semibold tracking-wider text-accent-dark uppercase">How it works</p>
-          <h2 className="mt-2 text-center text-2xl font-bold text-brand-800 sm:text-3xl">From sign-up to loan release</h2>
+          <h2 className="mt-2 text-center text-2xl font-bold text-brand-800 sm:text-3xl">From sign-up to mutual assistance release</h2>
           <ol className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {steps.map(({ icon: Icon, title, text }, i) => (
               <li key={title} className="relative">
@@ -226,15 +226,15 @@ export default function HomePage() {
         <div className="grid gap-10 lg:grid-cols-2 lg:items-center">
           <div>
             <p className="text-xs font-semibold tracking-wider text-accent-dark uppercase">Member app</p>
-            <h2 className="mt-2 text-2xl font-bold text-brand-800 sm:text-3xl">Your loans, on your phone</h2>
+            <h2 className="mt-2 text-2xl font-bold text-brand-800 sm:text-3xl">Your mutual assistance, on your phone</h2>
             <p className="mt-3 text-brand-600">
               The UDEI member app for Android uses the same account as this website.
             </p>
             <ul className="mt-6 space-y-3">
               {[
-                'Apply for a loan and upload your documents',
+                'Apply for mutual assistance and upload your documents',
                 'See where your application is and who has signed',
-                'Check your loan balances and your retirement plan',
+                'Check your mutual assistance balances and your retirement plan',
                 'Agree or decline when someone asks you to be their co-maker',
               ].map((t) => (
                 <li key={t} className="flex items-start gap-2 text-brand-700">
@@ -295,7 +295,7 @@ export default function HomePage() {
         <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:grid-cols-3 sm:px-6">
           <div>
             <BrandLogo light />
-            <p className="mt-3 text-sm">United DNSC Employees, Inc. Loans and retirement plans for UDEI members.</p>
+            <p className="mt-3 text-sm">United DNSC Employees, Inc. Mutual assistance and retirement plans for UDEI members.</p>
           </div>
           <nav aria-label="Footer">
             <p className="text-xs font-semibold tracking-wider text-white uppercase">On this page</p>

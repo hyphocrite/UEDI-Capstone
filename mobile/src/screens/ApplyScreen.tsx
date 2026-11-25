@@ -88,18 +88,18 @@ export default function ApplyScreen({ onDone }: { onDone: () => void }) {
     const net = num(f.netTakeHomePay)
     if (!(net > 0)) return setError('Enter your net take-home pay.')
     if (net < MIN_NET_TAKE_HOME_PAY) return setError(`Your net take-home pay must be at least ${pesos(MIN_NET_TAKE_HOME_PAY)}.`)
-    if (!(amount > 0)) return setError('Choose the loan amount.')
-    if (f.purpose.trim().length < 3) return setError('Give the reason for the loan.')
+    if (!(amount > 0)) return setError('Choose the amount.')
+    if (f.purpose.trim().length < 3) return setError('Give the reason for the mutual assistance.')
     if (nonMemberLimit !== null) {
       if (amount > nonMemberLimit) return setError(`Until your account is linked to a UDEI member number, you can borrow at most ${pesos(nonMemberLimit)}.`)
-      if (!f.coMaker1.trim() && !f.coMaker2.trim()) return setError('Until your account is linked to a UDEI member number, you need a co-maker: a UDEI member who vouches for this loan.')
+      if (!f.coMaker1.trim() && !f.coMaker2.trim()) return setError('Until your account is linked to a UDEI member number, you need a co-maker: a UDEI member who vouches for this mutual assistance.')
     }
     const missing = missingTypes(f.loanType, files).map((t) => DOCUMENT_LABEL[t])
     if (missing.length) return setError(`Supporting documents are required. Still missing: ${missing.join(', ')}.`)
     const kind = f.loanType === 'long_term' ? 'Long term' : 'Emergency'
     const ok = await confirmAction(
       'Submit this application?',
-      `${kind} loan of ${pesos(amount)} over ${num(f.termMonths)} months. It then goes to the Bookkeeper, CreCom Chairman, President and Treasurer to sign.`,
+      `${kind} mutual assistance of ${pesos(amount)} over ${num(f.termMonths)} months. It then goes to the Bookkeeper, CreCom Chairman, President and Treasurer to sign.`,
       'Yes, submit',
     )
     if (!ok) return
@@ -126,7 +126,7 @@ export default function ApplyScreen({ onDone }: { onDone: () => void }) {
       })
       const failed = await sendAll(application.id, files)
       if (failed.length) {
-        const text = `Your application was filed, but ${failed.join(', ')} couldn't be sent. Add them again from My loans.`
+        const text = `Your application was filed, but ${failed.join(', ')} couldn't be sent. Add them again from My mutual assistance.`
         if (Platform.OS === 'web') window.alert(text)
         else Alert.alert('Some documents were not sent', text)
       }
@@ -140,7 +140,7 @@ export default function ApplyScreen({ onDone }: { onDone: () => void }) {
 
   return (
     <View style={{ flex: 1 }}>
-      <Header title="Apply for a loan" subtitle="Mutual Assistance Application Form" />
+      <Header title="Apply for Mutual Assistance" subtitle="Mutual Assistance Application Form" />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
           <Card>
@@ -168,9 +168,9 @@ export default function ApplyScreen({ onDone }: { onDone: () => void }) {
           </Card>
 
           <Card>
-            <Text style={s.sectionTitle}>The loan</Text>
+            <Text style={s.sectionTitle}>The mutual assistance</Text>
             <Choice
-              label="Loan type"
+              label="Type"
               value={f.loanType}
               onChange={changeType}
               options={[
@@ -189,7 +189,7 @@ export default function ApplyScreen({ onDone }: { onDone: () => void }) {
               value={f.termMonths}
               onChangeText={set('termMonths')}
               keyboardType="number-pad"
-              hint={`Up to ${MAX_TERM[f.loanType]} months for ${f.loanType === 'long_term' ? 'Long term' : 'Emergency'} loans.`}
+              hint={`Up to ${MAX_TERM[f.loanType]} months for ${f.loanType === 'long_term' ? 'Long term' : 'Emergency'} mutual assistance.`}
             />
             <Choice
               label="Payroll deduction"
@@ -200,11 +200,11 @@ export default function ApplyScreen({ onDone }: { onDone: () => void }) {
                 { value: 'monthly', label: 'Monthly' },
               ]}
             />
-            <Field label="Reason for the loan" value={f.purpose} onChangeText={set('purpose')} placeholder="e.g. tuition, medical" />
+            <Field label="Reason for the mutual assistance" value={f.purpose} onChangeText={set('purpose')} placeholder="e.g. tuition, medical" />
             {nonMemberLimit !== null && (
               <Text style={{ color: colors.muted, fontSize: 13, marginBottom: 8 }}>
                 {"Your account isn't linked to a UDEI member number yet, so you can borrow up to "}{pesos(nonMemberLimit)} and need a
-                UDEI member as co-maker. Ask the office to link your account for larger loans.
+                UDEI member as co-maker. Ask the office to link your account for larger mutual assistance.
               </Text>
             )}
             <Field
@@ -238,12 +238,12 @@ export default function ApplyScreen({ onDone }: { onDone: () => void }) {
             <Check
               value={f.payrollDeduction}
               onChange={set('payrollDeduction')}
-              label="I authorize UDEI to deduct the payments for this loan from my salary."
+              label="I authorize UDEI to deduct the payments for this mutual assistance from my salary."
             />
             <Check
               value={f.autoRestructure}
               onChange={set('autoRestructure')}
-              label="If the loan is not fully paid at maturity, I agree it will be restructured automatically."
+              label="If the mutual assistance is not fully paid at maturity, I agree it will be restructured automatically."
             />
           </Card>
 

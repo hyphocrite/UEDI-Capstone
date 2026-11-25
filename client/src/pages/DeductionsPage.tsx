@@ -83,7 +83,7 @@ export default function DeductionsPage() {
             <tr>
               <th className="px-4 py-3">Cutoff</th>
               <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3 text-right">Loans</th>
+              <th className="px-4 py-3 text-right">Mutual Assistance</th>
               <th className="px-4 py-3 text-right">Expected</th>
               <th className="px-4 py-3 text-right">Remitted</th>
               <th className="px-4 py-3 text-right">Missed or partial</th>

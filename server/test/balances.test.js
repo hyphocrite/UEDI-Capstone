@@ -120,7 +120,7 @@ test("release is refused when the old balances exceed the new loan", { skip }, a
   const small = await approve(t, staff, application(0, { applicant: { memberId: "M-0200" }, loan: { loanType: "emergency", amount: 1000, termMonths: 3, paymentFrequency: "monthly" } }));
   const r = await t.call(`/loans/${small.loanId}/release`, { method: "POST", cookie: staff.signer.treasurer.cookie, body: { releasedAt: daysAgo(0), voucherNo: "CV-SMALL", offsetLoanIds: [String(oldShort.loanId)] } });
   assert.equal(r.status, 400);
-  assert.match(r.json.error, /more than this loan/);
+  assert.match(r.json.error, /more than this mutual assistance/);
   assert.equal((await getLoan(oldShort.loanId)).loan.status, "active", "nothing was written");
   assert.equal((await getLoan(small.loanId)).loan.status, "for_release");
 });

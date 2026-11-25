@@ -83,7 +83,7 @@ export default function AuthScreen() {
           </View>
           <Text style={{ color: '#fff', fontSize: 26, fontWeight: '800' }}>UDEI Member</Text>
           <Text style={{ color: '#A7D7BF', marginTop: 6, fontSize: 15 }}>
-            United DNSC Employees, Inc. Apply for Mutual Assistance loans and track your payments.
+            United DNSC Employees, Inc. Apply for mutual assistance and track your payments.
           </Text>
         </View>
 
@@ -134,7 +134,7 @@ export default function AuthScreen() {
                       value={form.memberNo}
                       onChangeText={set('memberNo')}
                       placeholder="e.g. 42"
-                      hint="The office checks this against the member list before your first loan."
+                      hint="The office checks this against the member list before your first mutual assistance."
                     />
                     <Field
                       label="Mobile number (optional)"

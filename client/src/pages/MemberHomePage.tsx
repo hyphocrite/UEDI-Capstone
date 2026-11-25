@@ -103,24 +103,24 @@ const loadingLine = <p className="py-4 text-sm text-brand-500">Loading…</p>
 
 function LoansCard({ state }: { state: Load<{ loans: Loan[] }> }) {
   return (
-    <Card title="Your loans" icon={HandCoins} link={{ to: '/loans', label: 'See loans' }}>
+    <Card title="Your mutual assistance" icon={HandCoins} link={{ to: '/loans', label: 'See mutual assistance' }}>
       {state.status === 'loading' && loadingLine}
-      {state.status === 'error' && <EmptyState icon={HandCoins} title="Your loans could not be loaded." hint={state.message} className="py-4" />}
+      {state.status === 'error' && <EmptyState icon={HandCoins} title="Your mutual assistance could not be loaded." hint={state.message} className="py-4" />}
       {state.status === 'ok' && (() => {
         const active = state.data.loans.filter((l) => l.status === 'active')
-        if (!active.length) return <EmptyState icon={HandCoins} title="No active loans." hint="Loans show here once released." className="py-4" />
+        if (!active.length) return <EmptyState icon={HandCoins} title="No active mutual assistance." hint="Mutual assistance shows here once released." className="py-4" />
         const balance = active.reduce((s, l) => s + l.balance, 0)
         const next = active.filter((l) => l.nextDue).sort((a, b) => a.nextDue!.dueDate.localeCompare(b.nextDue!.dueDate))[0]?.nextDue
         const pastDue = active.filter((l) => l.pastDue)
         return (
           <>
             <p className="text-3xl font-bold text-brand-800">{formatCentavos(balance)}</p>
-            <p className="text-sm text-brand-600">left to pay on {active.length} loan{active.length === 1 ? '' : 's'}</p>
+            <p className="text-sm text-brand-600">left to pay{active.length > 1 ? ` across ${active.length} mutual assistance accounts` : ''}</p>
             {next && <p className="mt-2 text-sm text-ink">Next payment: <b>{formatCentavos(next.amount)}</b> on {formatDay(next.dueDate)}</p>}
             {pastDue.length > 0 && (
               <p className="mt-3 flex items-start gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800" role="alert">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                {pastDue.length === 1 ? 'A loan is' : `${pastDue.length} loans are`} past due: {formatCentavos(pastDue.reduce((s, l) => s + l.pastDueAmount, 0))} unpaid.
+                {pastDue.length === 1 ? 'Your mutual assistance is' : `${pastDue.length} mutual assistance accounts are`} past due: {formatCentavos(pastDue.reduce((s, l) => s + l.pastDueAmount, 0))} unpaid.
               </p>
             )}
           </>
@@ -140,8 +140,8 @@ function ApplicationCard({ state }: { state: Load<{ applications: LoanApplicatio
         if (!a) {
           return (
             <div className="flex flex-col items-start gap-3">
-              <p className="text-sm text-brand-600">You haven't applied for a loan yet.</p>
-              <Link to="/loans/apply" className="btn-primary"><FilePlus2 className="h-4 w-4" /> Apply for a loan</Link>
+              <p className="text-sm text-brand-600">You haven't applied for mutual assistance yet.</p>
+              <Link to="/loans/apply" className="btn-primary"><FilePlus2 className="h-4 w-4" /> Apply for mutual assistance</Link>
             </div>
           )
         }
@@ -154,8 +154,8 @@ function ApplicationCard({ state }: { state: Load<{ applications: LoanApplicatio
                 Waiting for the {a.currentStep !== 'none' ? roleLabel[a.currentStep] : 'signers'} · {a.approvals.length} of 4 signed
               </p>
             )}
-            {a.status === 'approved' && <p className="mt-1 flex items-center gap-2 text-sm text-emerald-800"><CircleCheck className="h-4 w-4" /> Approved{a.loanNo ? `: loan ${a.loanNo}` : ''}</p>}
-            {a.status === 'denied' && <p className="mt-1 flex items-center gap-2 text-sm text-red-800"><XCircle className="h-4 w-4" /> Not approved. See why on Loans.</p>}
+            {a.status === 'approved' && <p className="mt-1 flex items-center gap-2 text-sm text-emerald-800"><CircleCheck className="h-4 w-4" /> Approved{a.loanNo ? `: MA no. ${a.loanNo}` : ''}</p>}
+            {a.status === 'denied' && <p className="mt-1 flex items-center gap-2 text-sm text-red-800"><XCircle className="h-4 w-4" /> Not approved. See why on My Mutual Assistance.</p>}
             <Link to="/loans" className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-brand-700 hover:underline">See all applications <ArrowRight className="h-3.5 w-3.5" /></Link>
           </>
         )

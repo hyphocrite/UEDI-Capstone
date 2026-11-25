@@ -76,7 +76,7 @@ export default function AddDocumentsPage() {
           <p className="text-amber-800">
             {app.status !== 'pending' ? `This application was already ${app.status}, so documents can't be added.` : 'Only the person who filed this application can add documents to it.'}
           </p>
-          <Link to="/loans" className="btn-ghost">Back to my loans</Link>
+          <Link to="/loans" className="btn-ghost">Back to my mutual assistance</Link>
         </div>
       </div>
     )

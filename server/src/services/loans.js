@@ -134,18 +134,18 @@ async function otherActiveLoans(loan) {
  * "offset" payment for its full balance, which closes it.
  */
 async function release(loan, { releasedAt, voucherNo, offsetLoanIds = [] }, user) {
-  if (loan.status !== "for_release") throw new LoanError(409, "This loan was already released.");
+  if (loan.status !== "for_release") throw new LoanError(409, "This mutual assistance was already released.");
   assertNotFuture(releasedAt, "release date");
   const day = ledger.calendarDay(releasedAt);
 
   // Check every offset before writing anything.
   const ids = [...new Set(offsetLoanIds.map(String))];
   const olds = ids.length ? await Loan.find({ _id: { $in: ids } }) : [];
-  if (olds.length !== ids.length) throw new LoanError(400, "One of the loans to deduct was not found.");
+  if (olds.length !== ids.length) throw new LoanError(400, "One of the mutual assistance accounts to deduct was not found.");
   const offsets = [];
   for (const old of olds) {
     if (old._id.equals(loan._id) || !loan.memberId || old.memberId !== loan.memberId) {
-      throw new LoanError(400, `${old.loanNo} is not another loan of this borrower.`);
+      throw new LoanError(400, `${old.loanNo} is not another mutual assistance of this borrower.`);
     }
     if (old.status !== "active") throw new LoanError(400, `${old.loanNo} is not active, so there is nothing to deduct.`);
     if (ledger.calendarDay(old.release.releasedAt) > day) throw new LoanError(400, `${old.loanNo} was released after this date.`);
@@ -154,7 +154,7 @@ async function release(loan, { releasedAt, voucherNo, offsetLoanIds = [] }, user
   const totalOffsets = offsets.reduce((s, o) => s + o.amount, 0);
   const netProceeds = loan.principal - totalOffsets;
   if (netProceeds < 0) {
-    throw new LoanError(400, `The old balances (${peso(totalOffsets)}) are more than this loan (${peso(loan.principal)}). Deduct fewer loans.`);
+    throw new LoanError(400, `The old balances (${peso(totalOffsets)}) are more than this mutual assistance (${peso(loan.principal)}). Deduct fewer.`);
   }
 
   const schedule = ledger.buildSchedule({
@@ -182,7 +182,7 @@ async function release(loan, { releasedAt, voucherNo, offsetLoanIds = [] }, user
     },
     { returnDocument: "after", runValidators: true },
   );
-  if (!updated) throw new LoanError(409, "This loan was already released.");
+  if (!updated) throw new LoanError(409, "This mutual assistance was already released.");
 
   for (const { old, amount } of offsets) {
     if (amount <= 0) continue;
@@ -220,11 +220,11 @@ async function recompute(loan, session = null) {
 }
 
 async function recordPayment(loan, { amount, paidAt, method, reference, orNumber, paymentSubmission }, user) {
-  if (loan.status === "for_release") throw new LoanError(409, "Release the loan before recording payments.");
-  if (loan.status === "paid") throw new LoanError(409, "This loan is already fully paid.");
+  if (loan.status === "for_release") throw new LoanError(409, "Release the mutual assistance before recording payments.");
+  if (loan.status === "paid") throw new LoanError(409, "This mutual assistance is already fully paid.");
   assertNotFuture(paidAt, "payment date");
   if (ledger.calendarDay(paidAt) < ledger.calendarDay(loan.release.releasedAt)) {
-    throw new LoanError(400, "The payment date is before the loan was released.");
+    throw new LoanError(400, "The payment date is before the mutual assistance was released.");
   }
   const { balance } = ledger.summarize(loan.schedule);
   if (amount > balance) throw new LoanError(400, `The payment is more than the remaining balance of ${peso(balance)}.`);
@@ -245,7 +245,7 @@ async function recordPayment(loan, { amount, paidAt, method, reference, orNumber
     // Another payment was recorded at the same moment and this one no longer fits. Payments are
     // never deleted, so void it and report the overpayment.
     await voidPayment(result.loan, payment._id, "Automatically voided: more than the remaining balance.", user);
-    throw new LoanError(400, "The payment is more than the remaining balance. Reload the loan and try again.");
+    throw new LoanError(400, "The payment is more than the remaining balance. Reload the page and try again.");
   }
   return { loan: result.loan, payment };
 }
@@ -256,7 +256,7 @@ async function voidPayment(loan, paymentId, reason, user) {
     throw new LoanError(409, "This payment was posted by a payroll deduction run. To undo it, the Treasurer unposts that run.");
   }
   if (target?.method === "offset") {
-    throw new LoanError(409, `This payment closed the loan when ${target.reference?.replace(/^Offset by /, "") || "a new loan"} was released. It can only be undone by cancelling that release.`);
+    throw new LoanError(409, `This payment closed the mutual assistance when ${target.reference?.replace(/^Offset by /, "") || "a new one"} was released. It can only be undone by cancelling that release.`);
   }
   const payment = await Payment.findOneAndUpdate(
     { _id: paymentId, loan: loan._id, voided: false },

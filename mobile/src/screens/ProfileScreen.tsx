@@ -21,7 +21,7 @@ export default function ProfileScreen({ reminders, score }: { reminders: number 
           <Text style={{ color: colors.text, fontWeight: '600', marginBottom: 4 }}>Due-date reminders</Text>
           <Text style={{ color: colors.muted }}>
             {reminders == null
-              ? 'Reminders are set after your loans load.'
+              ? 'Reminders are set after your mutual assistance loads.'
               : reminders > 0
                 ? `${reminders} reminder${reminders > 1 ? 's' : ''} set: 3 days before and on each due date, at 8:00 AM.`
                 : 'No reminders set. Allow notifications for this app to get due-date reminders.'}

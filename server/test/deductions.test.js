@@ -86,9 +86,9 @@ test("draft edits, sending, CSV export and import", { skip }, async () => {
   assert.match(csvRes.type, /text\/csv/);
   assert.match(csvRes.disposition, /uedi-payroll-deductions-2026-09-15\.csv/);
   const rows = d.parseCsv(csvRes.body);
-  assert.deepEqual(rows[0], ["Member ID", "Employee name", "Loan no.", "Loan type", "Amount to deduct"]);
+  assert.deepEqual(rows[0], ["Member ID", "Employee name", "MA no.", "Type", "Amount to deduct"]);
   assert.ok(rows.some((r) => r[1] === 'Ana "Annie" C. Dela Cruz, Jr.' && r[4] === "1000.00"));
-  assert.deepEqual(rows[rows.length - 1].slice(1, 3), ["TOTAL", "2 loans"]);
+  assert.deepEqual(rows[rows.length - 1].slice(1, 3), ["TOTAL", "2 mutual assistance"]);
 
   const back = d.toCsv([[...rows[0], "Remitted"], ...rows.slice(1, -1).map((r) => [...r, r[2] === q.loanNo ? "1,409.10" : "0"]), ["", "", "MA-1999-0001", "", "", "5"]]);
   const imported = (await call(`/deductions/${run._id}/import`, { method: "POST", body: { csv: back } })).json;

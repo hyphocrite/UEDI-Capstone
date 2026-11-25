@@ -101,8 +101,8 @@ router.get("/", async (req, res, next) => {
       .map((l) => ({
         loanId: l.loanId,
         text: l.pastDue
-          ? `${l.borrowerName} is behind on loan ${l.loanNo}: ${(l.pastDueAmount / 100).toLocaleString("en-PH", { style: "currency", currency: "PHP" })} past due.`
-          : `${l.borrowerName}'s last payroll deduction on loan ${l.loanNo} was ${l.lastDeduction.result === "partial" ? "only partly made" : "missed"}.`,
+          ? `${l.borrowerName} is behind on mutual assistance ${l.loanNo}: ${(l.pastDueAmount / 100).toLocaleString("en-PH", { style: "currency", currency: "PHP" })} past due.`
+          : `${l.borrowerName}'s last payroll deduction on mutual assistance ${l.loanNo} was ${l.lastDeduction.result === "partial" ? "only partly made" : "missed"}.`,
       }));
     res.json({ linked: true, requests: apps.map((a) => requestView(a, memberId)), loans: loanViews, alerts });
   } catch (err) {

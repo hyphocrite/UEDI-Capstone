@@ -45,17 +45,17 @@ export default function LoanDetailPage() {
         setPayments(d.payments)
         setOtherLoans(d.otherActiveLoans ?? [])
       })
-      .catch((err: unknown) => setError(err instanceof Error ? err.message : 'Could not load the loan.'))
+      .catch((err: unknown) => setError(err instanceof Error ? err.message : 'Could not load the mutual assistance.'))
   }, [id])
 
   const back = (
-    <Link to="/loans" className="btn-ghost"><ArrowLeft className="h-4 w-4" /> Back to loans</Link>
+    <Link to="/loans" className="btn-ghost"><ArrowLeft className="h-4 w-4" /> Back to mutual assistance</Link>
   )
 
   if (!loan) {
     return (
       <>
-        <PageHeader icon={HandCoins} title="Loan" actions={back} />
+        <PageHeader icon={HandCoins} title="Mutual Assistance" actions={back} />
         {error ? <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{error}</p> : <p className="text-sm text-brand-500">Loading…</p>}
       </>
     )
@@ -143,7 +143,7 @@ export default function LoanDetailPage() {
           (role === 'treasurer' ? (
             <ReleaseForm loan={loan} otherLoans={otherLoans} onDone={setLoan} />
           ) : (
-            <p className="card p-4 text-sm text-brand-700 sm:p-5">Waiting for the Treasurer to release this loan.</p>
+            <p className="card p-4 text-sm text-brand-700 sm:p-5">Waiting for the Treasurer to release this mutual assistance.</p>
           ))}
 
         {loan.status === 'active' && borrower && (

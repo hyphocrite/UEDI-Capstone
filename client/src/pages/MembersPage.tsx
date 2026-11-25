@@ -145,7 +145,7 @@ export default function MembersPage() {
       <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard icon={Users} label="Members" value={members ? String(list.length) : '…'} hint={`${list.filter((m) => m.status === 'inactive').length} inactive`} />
         <StatCard icon={UserCheck} label="Active" value={members ? String(list.filter((m) => m.status === 'active').length) : '…'} />
-        <StatCard icon={HandCoins} label="Loan balances" value={members ? short(totalLoans) : '…'} hint={`${list.filter((m) => (m.loanBalance ?? 0) > 0).length} members owe`} />
+        <StatCard icon={HandCoins} label="Mutual assistance balances" value={members ? short(totalLoans) : '…'} hint={`${list.filter((m) => (m.loanBalance ?? 0) > 0).length} members owe`} />
         <StatCard icon={PiggyBank} label="Retirement plans" value={members ? short(totalPlans) : '…'} hint={`${list.filter((m) => m.plan).length} members enrolled`} />
       </div>
 
@@ -174,7 +174,7 @@ export default function MembersPage() {
                 <th className="px-4 py-3">Member</th>
                 <th className="px-4 py-3">Contact</th>
                 <th className="px-4 py-3">Member since</th>
-                <th className="px-4 py-3 text-right">Loan balance</th>
+                <th className="px-4 py-3 text-right">Mutual assistance balance</th>
                 <th className="px-4 py-3 text-right">Retirement plan</th>
                 <th className="px-4 py-3">Score</th>
                 <th className="px-4 py-3">Status</th>
@@ -266,7 +266,7 @@ export default function MembersPage() {
           member={deducting}
           onClose={() => setDeducting(null)}
           onSaved={(loan) => {
-            setNotice(`Payroll deduction set for ${deducting.fullName}. The balance is now loan ${loan.loanNo}.`)
+            setNotice(`Payroll deduction set for ${deducting.fullName}. The balance is now mutual assistance ${loan.loanNo}.`)
             void load()
           }}
         />

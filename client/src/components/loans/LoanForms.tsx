@@ -35,9 +35,9 @@ export function ReleaseForm({ loan, otherLoans, onDone }: { loan: Loan; otherLoa
   const submit = async (e: FormEvent) => {
     e.preventDefault()
     if (!voucherNo.trim()) return setError('Enter the voucher number.')
-    if (net < 0) return setError('The old balances are more than this loan. Deduct fewer loans.')
+    if (net < 0) return setError('The old balances are more than this mutual assistance. Deduct fewer.')
     const ok = await confirm({
-      title: 'Release this loan?',
+      title: 'Release this mutual assistance?',
       message: (
         <>
           <p>Release <b>{loan.loanNo}</b> to <b>{loan.borrowerName}</b> under voucher <b>{voucherNo.trim()}</b>, dated {releasedAt}.</p>
@@ -56,7 +56,7 @@ export function ReleaseForm({ loan, otherLoans, onDone }: { loan: Loan; otherLoa
       })
       onDone(r.loan)
     } catch (err) {
-      setError(errorText(err, 'Could not release the loan.'))
+      setError(errorText(err, 'Could not release the mutual assistance.'))
     } finally {
       setBusy(false)
     }
@@ -64,10 +64,10 @@ export function ReleaseForm({ loan, otherLoans, onDone }: { loan: Loan; otherLoa
 
   return (
     <form onSubmit={submit} noValidate className="card min-w-0 p-4 sm:p-5">
-      <h2 className="font-semibold text-brand-800">Release loan</h2>
+      <h2 className="font-semibold text-brand-800">Release mutual assistance</h2>
       {otherLoans.length > 0 && (
         <fieldset className="mt-3 rounded-lg bg-brand-50 p-3">
-          <legend className="px-1 text-sm font-semibold text-brand-800">The borrower's other active loans</legend>
+          <legend className="px-1 text-sm font-semibold text-brand-800">The borrower's other active mutual assistance</legend>
           <ul className="space-y-2">
             {otherLoans.map((o) => (
               <li key={o._id}>
@@ -80,7 +80,7 @@ export function ReleaseForm({ loan, otherLoans, onDone }: { loan: Loan; otherLoa
               </li>
             ))}
           </ul>
-          <p className="mt-2 text-xs text-brand-600">Each checked loan is paid off in full and closed when this loan is released.</p>
+          <p className="mt-2 text-xs text-brand-600">Each checked mutual assistance is paid off in full and closed when this mutual assistance is released.</p>
         </fieldset>
       )}
       <p className="mt-3 text-sm text-brand-600">
@@ -100,7 +100,7 @@ export function ReleaseForm({ loan, otherLoans, onDone }: { loan: Loan; otherLoa
       </div>
       {error && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{error}</p>}
       <div className="mt-4 flex justify-end">
-        <button type="submit" className="btn-accent" disabled={busy || net < 0}><Send className="h-4 w-4" /> {busy ? 'Releasing…' : 'Release loan'}</button>
+        <button type="submit" className="btn-accent" disabled={busy || net < 0}><Send className="h-4 w-4" /> {busy ? 'Releasing…' : 'Release mutual assistance'}</button>
       </div>
     </form>
   )

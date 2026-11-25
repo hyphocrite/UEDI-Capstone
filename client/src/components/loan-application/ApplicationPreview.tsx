@@ -97,7 +97,7 @@ export default function ApplicationPreview({ form: f, documents, staffView, link
           </div>
           <div className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-3 print:grid-cols-3">
             <Field label="Years as member">{f.yearsAsMember || '0'}</Field>
-            <Field label="Past loans">{f.priorLoans || '0'}</Field>
+            <Field label="Past mutual assistance">{f.priorLoans || '0'}</Field>
             <Field label="Late payments">{f.priorLatePayments || '0'}</Field>
           </div>
         </section>

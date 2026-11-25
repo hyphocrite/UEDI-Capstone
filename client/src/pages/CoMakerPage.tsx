@@ -70,7 +70,7 @@ export default function CoMakerPage() {
 
   const respond = async (r: Request, decision: 'accepted' | 'declined') => {
     const ok = await confirm({
-      title: decision === 'accepted' ? 'Vouch for this loan?' : 'Decline this request?',
+      title: decision === 'accepted' ? 'Vouch for this mutual assistance?' : 'Decline this request?',
       message: decision === 'accepted' ? (
         <>
           <p>You agree to be co-maker for <b>{r.borrowerName}</b>'s {loanTypeLabel[r.loanType].toLowerCase()} loan of <b>{formatPeso(r.amount)}</b> over {r.termMonths} months.</p>
@@ -99,7 +99,7 @@ export default function CoMakerPage() {
 
   return (
     <div className="mx-auto max-w-5xl">
-      <PageHeader icon={Handshake} title="Co-maker" subtitle="Loans you were asked to vouch for, and how the loans you vouched for are being paid." />
+      <PageHeader icon={Handshake} title="Co-maker" subtitle="Mutual assistance you were asked to vouch for, and how the mutual assistance you vouched for is being paid." />
       {error && <p className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{error}</p>}
       {data && !data.linked && (
         <p className="card p-5 text-sm text-amber-800">Your account isn't linked to a member record yet, so no one can name you as co-maker. Ask the UDEI office to link it.</p>
@@ -141,9 +141,9 @@ export default function CoMakerPage() {
           </section>
 
           <section className="card mb-6 min-w-0">
-            <h2 className="flex items-center gap-2 border-b border-brand-100 px-4 py-3 font-semibold text-brand-800"><Handshake className="h-5 w-5 text-accent" /> Loans you vouched for</h2>
+            <h2 className="flex items-center gap-2 border-b border-brand-100 px-4 py-3 font-semibold text-brand-800"><Handshake className="h-5 w-5 text-accent" /> Mutual assistance you vouched for</h2>
             {data.loans.length === 0 ? (
-              <p className="px-4 py-6 text-sm text-brand-500">None yet. Loans appear here once an application you vouched for is approved and released.</p>
+              <p className="px-4 py-6 text-sm text-brand-500">None yet. Mutual assistance appears here once an application you vouched for is approved and released.</p>
             ) : (
               <ul className="divide-y divide-brand-50">
                 {data.loans.map((l) => (

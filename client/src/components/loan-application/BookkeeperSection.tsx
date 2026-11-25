@@ -40,7 +40,7 @@ export default function BookkeeperSection({ form, update, ledger }: Props) {
             {balances && <LoanList group={balances[r.group]} />}
           </div>
         ))}
-        <Field id="monthlyPayment" label="Paid per month on these loans (₱)" hint="What payroll already deducts for UDEI each month.">
+        <Field id="monthlyPayment" label="Paid per month on this mutual assistance (₱)" hint="What payroll already deducts for UDEI each month.">
           <input id="monthlyPayment" type="number" min={0} inputMode="decimal" className={inputClass} readOnly={locked}
             value={form.monthlyPayment} onChange={(e) => update({ monthlyPayment: e.target.value })} />
         </Field>

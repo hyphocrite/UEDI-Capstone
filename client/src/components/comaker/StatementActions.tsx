@@ -62,7 +62,7 @@ export default function StatementActions({ applicationId, memberId, uploadedAt, 
       </div>
       <p className={`mt-1 ${uploadedAt ? 'flex items-center gap-1 text-emerald-700' : 'text-brand-500'}`}>
         {uploadedAt ? <><CheckCircle2 className="h-3.5 w-3.5" /> Signed copy uploaded {formatDate(uploadedAt)}.</> : required
-          ? 'The borrower isn’t a UDEI member yet, so the loan can’t be given its final signature until you upload your signed statement.'
+          ? 'The borrower isn’t a UDEI member yet, so the mutual assistance can’t be given its final signature until you upload your signed statement.'
           : 'Print it, sign it, and upload a photo or PDF of the signed copy.'}
       </p>
       {error && <p className="mt-1 text-red-700" role="alert">{error}</p>}

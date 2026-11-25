@@ -71,10 +71,10 @@ test("CSV round trip keeps names with commas and quotes, with a totals row", () 
   assert.match(csv, /'=HYPERLINK\(evil\)/, "formula text is defused for spreadsheets");
   assert.doesNotMatch(csv, /Removed Person/);
   const rows = d.parseCsv(csv);
-  assert.deepEqual(rows[0], ["Member ID", "Employee name", "Loan no.", "Loan type", "Amount to deduct"]);
+  assert.deepEqual(rows[0], ["Member ID", "Employee name", "MA no.", "Type", "Amount to deduct"]);
   assert.deepEqual(rows[1], ["M-0003", 'Ana "Annie" Dela Cruz, Jr.', "MA-2026-0001", "Long term", "1550.00"]);
   assert.equal(rows[2][1], "=HYPERLINK(evil)", "parsing undoes the guard");
-  assert.deepEqual(rows[3], ["", "TOTAL", "2 loans", "", "3366.66"]);
+  assert.deepEqual(rows[3], ["", "TOTAL", "2 mutual assistance", "", "3366.66"]);
 
   // The Payroll Officer's file comes back with a Remitted column.
   const back = d.toCsv([[...rows[0], "Remitted"], [...rows[1], "1,550.00"], [...rows[2], "₱0"], ["M-7", "Stranger, X", "MA-2099-0001", "Long term", "100.00", "100.00"], [...rows[2], "5"], [...rows[3], "1550.00"]]);

@@ -52,7 +52,7 @@ test("the member view speaks to the member", () => {
   assert.equal(net.label, "Members who vouch for you");
   assert.equal(net.detail, "No member has vouched for you yet.");
   assert.equal(view.parts.find((p) => p.key === "coMaker").detail, "You have not been a co-maker yet.");
-  assert.equal(view.parts.find((p) => p.key === "repayment").detail, "You have no past loans.");
+  assert.equal(view.parts.find((p) => p.key === "repayment").detail, "You have no past mutual assistance.");
   assert.ok(!view.parts.some((p) => /\bthem\b|\btheir\b/.test(p.label + p.detail)));
   assert.deepEqual(Object.keys(view).sort(), ["band", "coverage", "parts", "score", "strengths", "tips"]);
 });

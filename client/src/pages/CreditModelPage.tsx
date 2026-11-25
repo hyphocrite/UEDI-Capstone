@@ -49,7 +49,7 @@ export default function CreditModelPage() {
     <>
       <PageHeader icon={BrainCircuit}
         title="Credit Model"
-        subtitle="How the credit-score model behind Pending Loans was built and how it compares with the 8 regression algorithms."
+        subtitle="How the credit-score model behind Pending Applications was built and how it compares with the 8 regression algorithms."
       />
 
       {model?.sampleData && (
@@ -72,7 +72,7 @@ export default function CreditModelPage() {
         <StatCard
           icon={Database}
           label="Trained on"
-          value={model ? `${model.rows.toLocaleString()} loans` : '–'}
+          value={model ? `${model.rows.toLocaleString()} past mutual assistance (loans)` : '–'}
           hint={model ? `${model.targetMean != null ? `average repayment score ${model.targetMean.toFixed(1)}, ` : ''}${formatDate(model.trainedAt)}` : 'ML service not reachable'}
         />
       </div>
@@ -92,7 +92,7 @@ export default function CreditModelPage() {
             <h2 className="text-lg font-semibold text-brand-800">Benchmark of 8 regressors and the stacked ensemble</h2>
             <p className="text-sm text-brand-600">
               {dataset
-                ? `${dataset.rows.toLocaleString()} loans, average repayment score ${dataset.targetMean.toFixed(1)}. ${dataset.validation}. Ranked by R².`
+                ? `${dataset.rows.toLocaleString()} past mutual assistance (loans), average repayment score ${dataset.targetMean.toFixed(1)}. ${dataset.validation}. Ranked by R².`
                 : 'R²: share of the variation in past repayment scores a model explains. MAE: average points off.'}
             </p>
           </div>
@@ -162,7 +162,7 @@ export default function CreditModelPage() {
         <section className="card p-5">
           <h2 className="text-lg font-semibold text-brand-800">Type I and Type II errors: {selected === ENSEMBLE ? 'stacked ensemble (app)' : selected}</h2>
           <p className="mb-4 text-sm text-brand-600">
-            Every loan was scored by a model that never saw it. Poor repayer: real score below {bench.errorTypes.poorRepaymentBelow}. Flagged: predicted score below the approve line ({bench.errorTypes.approveLine}).
+            Every record was scored by a model that never saw it. Poor repayer: real score below {bench.errorTypes.poorRepaymentBelow}. Flagged: predicted score below the approve line ({bench.errorTypes.approveLine}).
           </p>
           <ConfusionGrid cm={errors[selected].matrix} />
         </section>
@@ -202,7 +202,7 @@ function ShapSummary({ items }: { items: ModelInfo['globalImportance'] }) {
     <section className="card mb-6 p-5" aria-labelledby="shap-summary">
       <h2 id="shap-summary" className="text-lg font-semibold text-brand-800">Which factors matter most overall (SHAP summary)</h2>
       <p className="text-sm text-brand-600">
-        Average size of each factor's push on the credit score over the training loans (mean |SHAP|, in score points). Longer bars matter more, either way.
+        Average size of each factor's push on the credit score over the training records (mean |SHAP|, in score points). Longer bars matter more, either way.
       </p>
       {!items?.length ? (
         <p className="mt-4 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">

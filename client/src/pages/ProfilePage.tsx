@@ -119,7 +119,7 @@ export default function ProfilePage() {
         </dl>
         {!session.memberId && (
           <p className="mt-4 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
-            To see your loans and apply online, ask the UDEI office to link this account to your member record.
+            To see your mutual assistance and apply online, ask the UDEI office to link this account to your member record.
           </p>
         )}
         {session.memberId?.startsWith('N-') && (

@@ -164,7 +164,7 @@ const peso = (c) => `₱${(c / 100).toLocaleString("en-PH", { minimumFractionDig
 /** Amount for a CSV cell: 1234.56, no currency sign or thousands separator. */
 const csvAmount = (c) => (c / 100).toFixed(2);
 const LOAN_TYPE_LABELS = { long_term: "Long term", emergency: "Emergency" };
-const HEADER = ["Member ID", "Employee name", "Loan no.", "Loan type", "Amount to deduct"];
+const HEADER = ["Member ID", "Employee name", "MA no.", "Type", "Amount to deduct"];
 
 /** One CSV cell: quoted when it holds a comma, quote or line break; formula-looking text is defused for spreadsheets. */
 function csvCell(value) {
@@ -183,7 +183,7 @@ function deductionListCsv(lines, { withRemitted = false } = {}) {
     const row = [l.memberId || "", l.borrowerName, l.loanNo, LOAN_TYPE_LABELS[l.loanType] || l.loanType, csvAmount(l.expected)];
     rows.push(withRemitted ? [...row, csvAmount(l.remitted ?? l.expected)] : row);
   }
-  const total = ["", "TOTAL", `${live.length} loans`, "", csvAmount(live.reduce((s, l) => s + l.expected, 0))];
+  const total = ["", "TOTAL", `${live.length} mutual assistance`, "", csvAmount(live.reduce((s, l) => s + l.expected, 0))];
   rows.push(withRemitted ? [...total, csvAmount(live.reduce((s, l) => s + (l.remitted ?? l.expected), 0))] : total);
   return toCsv(rows);
 }
@@ -237,10 +237,11 @@ function parseAmount(text) {
 function parseRemittedCsv(text, lines) {
   const rows = parseCsv(text).filter((r) => r.some((c) => c.trim() !== ""));
   const norm = (s) => s.trim().toLowerCase().replace(/\.$/, "");
-  const headerAt = rows.findIndex((r) => r.some((c) => norm(c) === "loan no") && r.some((c) => norm(c) === "remitted"));
-  if (headerAt < 0) return { updates: [], problems: [{ row: 1, message: 'No header row with "Loan no." and "Remitted" columns.' }] };
+  const isLoanNo = (c) => ["ma no", "loan no"].includes(norm(c));
+  const headerAt = rows.findIndex((r) => r.some(isLoanNo) && r.some((c) => norm(c) === "remitted"));
+  if (headerAt < 0) return { updates: [], problems: [{ row: 1, message: 'No header row with "MA no." and "Remitted" columns.' }] };
   const header = rows[headerAt].map(norm);
-  const loanCol = header.indexOf("loan no");
+  const loanCol = rows[headerAt].findIndex(isLoanNo);
   const remittedCol = header.indexOf("remitted");
   const byLoanNo = new Map(activeLines(lines).map((l) => [l.loanNo.toUpperCase(), l]));
 

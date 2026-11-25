@@ -45,7 +45,7 @@ export default function CoMakerAsked({ app, onSaved }: { app: Application; onSav
       <Text style={{ color: colors.warn, marginTop: 4, fontSize: 13 }}>
         {waiting.length
           ? `Waiting for ${waiting.map((c) => c.name ?? c.memberId).join(' and ')} to accept in their Co-maker screen.`
-          : 'Name a UDEI member who vouches for this loan. Signing goes on once they accept.'}
+          : 'Name a UDEI member who vouches for this mutual assistance. Signing goes on once they accept.'}
       </Text>
       {open ? (
         <View style={{ marginTop: 10 }}>

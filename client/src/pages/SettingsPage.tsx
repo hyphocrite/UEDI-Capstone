@@ -91,7 +91,7 @@ export default function SettingsPage() {
     const list = changes()
     if (!list.length) return setMessage({ tone: 'ok', text: 'Nothing has changed.' })
     const ok = await confirm({
-      title: 'Save these loan rules?',
+      title: 'Save these rules?',
       message: (
         <>
           <ul className="list-disc space-y-1 pl-5">{list.map((c) => <li key={c}>{c}</li>)}</ul>
@@ -125,10 +125,10 @@ export default function SettingsPage() {
   return (
     <>
       <PageHeader icon={Settings}
-        title="Loan Settings"
+        title="Settings"
         subtitle={session?.role === 'admin'
-          ? 'Interest rates, terms and the minimum salary for Mutual Assistance loans, and who can sign loans.'
-          : 'Interest rates, terms and the minimum salary for Mutual Assistance loans.'}
+          ? 'Interest rates, terms and the minimum salary for mutual assistance, and who signs the applications.'
+          : 'Interest rates, terms and the minimum salary for mutual assistance.'}
         actions={
           <>
             <button className="btn-ghost" onClick={() => { touch(); setDraft(toDraft(current)) }}><RotateCcw className="h-4 w-4" /> Undo changes</button>
@@ -181,7 +181,7 @@ export default function SettingsPage() {
           </tbody>
         </table>
         <div className="flex flex-col gap-3 border-t border-brand-100 p-4 sm:flex-row sm:items-center">
-          <label htmlFor="sample" className="text-sm font-medium text-brand-800">Preview with a loan of</label>
+          <label htmlFor="sample" className="text-sm font-medium text-brand-800">Preview with an amount of</label>
           <input id="sample" type="number" min={0} step={1000} className="input sm:w-40" value={sample}
             onChange={(e) => setSample(Math.max(0, Number(e.target.value) || 0))} />
           <p className="text-xs text-brand-500">Interest is charged on the remaining balance each month, as in UDEI's ledger.</p>

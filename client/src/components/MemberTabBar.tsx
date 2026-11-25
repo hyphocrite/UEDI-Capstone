@@ -9,7 +9,7 @@ type Tab = { to: string; label: string; icon: LucideIcon; end?: boolean; dot?: '
 
 // Loans · Apply · ( Home ) · Co-maker · Profile, with Home raised in the middle.
 const LEFT: Tab[] = [
-  { to: '/loans', label: 'Loans', icon: HandCoins, end: true, dot: 'loans' },
+  { to: '/loans', label: 'Assistance', icon: HandCoins, end: true, dot: 'loans' },
   { to: '/loans/apply', label: 'Apply', icon: FilePlus2 },
 ]
 const RIGHT: Tab[] = [
@@ -48,7 +48,7 @@ export default function MemberTabBar() {
       className={({ isActive }) => `relative flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[11px] transition ${isActive ? 'font-bold text-accent-dark' : 'font-medium text-brand-600 hover:text-brand-800'}`}>
       <span className="relative">
         <Icon className="h-5 w-5" />
-        {dot && dots[dot] && <span className="absolute -top-0.5 -right-1 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white" aria-label={dot === 'loans' ? 'A loan is past due' : 'Co-maker requests or alerts'} />}
+        {dot && dots[dot] && <span className="absolute -top-0.5 -right-1 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white" aria-label={dot === 'loans' ? 'A payment is past due' : 'Co-maker requests or alerts'} />}
       </span>
       {label}
     </NavLink>

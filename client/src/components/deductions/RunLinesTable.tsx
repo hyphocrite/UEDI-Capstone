@@ -31,7 +31,7 @@ export default function RunLinesTable({ mode, lines, edits = {}, onEdit, onExpec
         <thead className="table-head">
           <tr>
             <th className="px-3 py-3">Employee</th>
-            <th className="px-3 py-3">Loan</th>
+            <th className="px-3 py-3">Mutual Assistance</th>
             <th className="px-3 py-3 text-right">Arrears</th>
             <th className="px-3 py-3 text-right">To deduct</th>
             {mode === 'draft' && canEdit && <th className="px-3 py-3"><span className="sr-only">Actions</span></th>}

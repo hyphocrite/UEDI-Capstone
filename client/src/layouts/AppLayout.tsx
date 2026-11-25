@@ -11,7 +11,7 @@ import type { LoanApplication } from '../lib/applications'
 import { atLeast, homePath, PAYMENTS_ROLES, roleLabel } from '../lib/roles'
 import type { Role } from '../lib/roles'
 
-type Section = 'Overview' | 'Members' | 'Loans' | 'Records' | 'Admin'
+type Section = 'Overview' | 'Members' | 'Mutual Assistance' | 'Records' | 'Admin'
 
 // min: shown to this role and every role above it (see lib/roles.ts). roles: shown only to these roles.
 // Must match the route guards in App.tsx. section: the heading it sits under in the sidebar.
@@ -19,21 +19,21 @@ const nav: { to: string; label: string; icon: typeof Users; section: Section; en
   { to: '/home', label: 'Home', icon: House, section: 'Overview', roles: ['staff'] },
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, section: 'Overview', min: 'loan_officer' },
   { to: '/members', label: 'Members', icon: Users, section: 'Members', min: 'loan_officer' },
-  { to: '/loans', label: 'Loans', icon: HandCoins, section: 'Loans', end: true },
-  { to: '/loans/apply', label: 'Apply for a Loan', icon: FilePlus2, section: 'Loans' },
-  { to: '/co-maker', label: 'Co-maker', icon: Handshake, section: 'Loans' },
-  { to: '/loans/pending', label: 'Pending Loans', icon: ClipboardCheck, section: 'Loans', min: 'loan_officer' },
-  { to: '/early-warning', label: 'Early Warning', icon: Siren, section: 'Loans', min: 'loan_officer' },
+  { to: '/loans', label: 'Mutual Assistance', icon: HandCoins, section: 'Mutual Assistance', end: true },
+  { to: '/loans/apply', label: 'Apply for Mutual Assistance', icon: FilePlus2, section: 'Mutual Assistance' },
+  { to: '/co-maker', label: 'Co-maker', icon: Handshake, section: 'Mutual Assistance' },
+  { to: '/loans/pending', label: 'Pending Applications', icon: ClipboardCheck, section: 'Mutual Assistance', min: 'loan_officer' },
+  { to: '/early-warning', label: 'Early Warning', icon: Siren, section: 'Mutual Assistance', min: 'loan_officer' },
   { to: '/attendance', label: 'Attendance', icon: CalendarCheck, section: 'Records', min: 'loan_officer' },
   { to: '/retirement-plans', label: 'Retirement Plans', icon: PiggyBank, section: 'Records', min: 'loan_officer' },
   { to: '/deductions', label: 'Payroll Deductions', icon: ReceiptText, section: 'Records', roles: ['bookkeeper', 'treasurer', 'admin'] },
   { to: '/payments', label: 'Payments', icon: Wallet, section: 'Records', roles: PAYMENTS_ROLES, badge: 'payments' },
   { to: '/reports', label: 'Reports', icon: BarChart3, section: 'Records', min: 'treasurer' },
-  { to: '/settings', label: 'Loan Settings', icon: Settings, section: 'Admin', min: 'crecom_chair' },
+  { to: '/settings', label: 'Settings', icon: Settings, section: 'Admin', min: 'crecom_chair' },
   { to: '/credit-model', label: 'Credit Model', icon: BrainCircuit, section: 'Admin', min: 'admin' },
   { to: '/audit-log', label: 'Audit Log', icon: History, section: 'Admin', min: 'admin' },
 ]
-const SECTIONS: Section[] = ['Overview', 'Members', 'Loans', 'Records', 'Admin']
+const SECTIONS: Section[] = ['Overview', 'Members', 'Mutual Assistance', 'Records', 'Admin']
 
 /** Today's date and, for Loan Officers and up, how many applications wait at their step. */
 function TodayBox() {
@@ -116,7 +116,7 @@ export default function AppLayout() {
     ) : null
   const items = nav
     .filter((n) => (n.roles ? !!role && n.roles.includes(role) : atLeast(role, n.min ?? 'staff')))
-    .map((n) => (n.to === '/loans' && !atLeast(role, 'loan_officer') ? { ...n, label: 'My Loans' } : n))
+    .map((n) => (n.to === '/loans' && !atLeast(role, 'loan_officer') ? { ...n, label: 'My Mutual Assistance' } : n))
   // Long menus (Loan Officer and up) don't fit in one row, so on desktop they go in a sidebar instead.
   const wide = items.length > 6
   // Members get a bottom tab bar below lg instead of a menu, and their header links from lg up.

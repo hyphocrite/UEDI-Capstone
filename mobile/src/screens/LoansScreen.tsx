@@ -20,13 +20,13 @@ export default function LoansScreen({ loans, applications, loading, onRefresh, o
   const openApps = applications.filter((a) => !a.loanId)
   return (
     <View style={{ flex: 1 }}>
-      <Header title="My loans" subtitle="Balances, due dates and applications" />
+      <Header title="Mutual Assistance" subtitle="Balances, due dates and applications" />
       <ScrollView
         contentContainerStyle={{ padding: 16 }}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={onRefresh} tintColor={colors.primary} />}
       >
-        <Text style={s.sectionTitle}>Loans</Text>
-        {loans.length === 0 ? <Empty text="No loans yet." /> : null}
+        <Text style={s.sectionTitle}>Mutual Assistance</Text>
+        {loans.length === 0 ? <Empty text="No mutual assistance yet." /> : null}
         {loans.map((l) => {
           const b = loanBadge(l)
           return (

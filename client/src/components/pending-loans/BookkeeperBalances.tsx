@@ -11,7 +11,7 @@ export default function BookkeeperBalances({ app }: { app: LoanApplication }) {
     b.source === 'ledger'
       ? `From the ledger${b.asOf ? ` as of ${formatDay(b.asOf)}` : ''}`
       : b.source === 'manual'
-        ? 'Typed from the Bookkeeper’s books (no loans on record)'
+        ? 'Typed from the Bookkeeper’s books (no mutual assistance on record)'
         : 'Typed on the form'
   const rows: [string, number, string | undefined][] = [
     ['Long term', b.longTermBalance, b.longTermDueDate],

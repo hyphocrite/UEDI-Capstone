@@ -18,7 +18,7 @@ export default function BrandLogo({ light = false, compact = false, className = 
           UDEI
         </span>
         <span className={`hidden text-[11px] whitespace-nowrap sm:block ${compact ? 'xl:hidden ' : ''}${light ? 'text-brand-200' : 'text-brand-500'}`}>
-          Loans and Retirement Plans
+          Mutual Assistance and Retirement Plans
         </span>
       </span>
     </span>

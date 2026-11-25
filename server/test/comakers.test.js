@@ -85,7 +85,7 @@ test("co-makers must be members with accounts, confirm before signing, and see t
   assert.equal(mine.loans[0].standing, "behind");
   assert.match(mine.alerts[0].text, /missed/);
   await require("../src/services/coMakers").notifyMissed([{ loan: loanId, result: "missed" }]);
-  assert.ok(outbox.some((m) => m.to === "bea@uedi.test" && /missed a loan payment/.test(m.subject)));
+  assert.ok(outbox.some((m) => m.to === "bea@uedi.test" && /missed a mutual assistance payment/.test(m.subject)));
 });
 
 test("a declined co-maker blocks approval but not denial", { skip }, async () => {
