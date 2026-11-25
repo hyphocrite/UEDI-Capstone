@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import ProtectedRoute from './components/ProtectedRoute'
 import RequireLevel, { HomeRedirect, MemberOnly } from './components/RequireLevel'
+import { PAYMENTS_ROLES } from './lib/roles'
 import AppLayout from './layouts/AppLayout'
 import HomePage from './pages/HomePage'
 import LoginPage from './pages/LoginPage'
@@ -25,6 +26,7 @@ import StatementPage from './pages/StatementPage'
 import CoMakerPage from './pages/CoMakerPage'
 import CoMakerFormPage from './pages/CoMakerFormPage'
 import EarlyWarningPage from './pages/EarlyWarningPage'
+import PaymentsPage from './pages/PaymentsPage'
 import AttendancePage from './pages/AttendancePage'
 import ProfilePage from './pages/ProfilePage'
 import NotFoundPage from './pages/NotFoundPage'
@@ -82,6 +84,9 @@ export default function App() {
           <Route element={<RequireLevel roles={['bookkeeper', 'treasurer', 'admin']} />}>
             <Route path="/deductions" element={<DeductionsPage />} />
             <Route path="/deductions/:id" element={<DeductionRunPage />} />
+          </Route>
+          <Route element={<RequireLevel roles={PAYMENTS_ROLES} />}>
+            <Route path="/payments" element={<PaymentsPage />} />
           </Route>
           <Route element={<RequireLevel min="treasurer" />}>
             <Route path="/reports" element={<ReportsPage />} />

@@ -64,6 +64,10 @@ export type Loan = {
   pastDue: boolean
   pastDueAmount: number
   maturesOn: string | null
+  /** Installments paid before their due date by advance payments. */
+  paidAhead?: { count: number; amount: number }
+  /** When payroll, deducting the same amount every cutoff, pays off the rest. */
+  finishesAround?: string | null
   schedule: Installment[]
 }
 
@@ -78,7 +82,23 @@ export type LoanSettings = {
   nonMemberMaxAmount?: number
 }
 
-export type Payment = { id: string; amount: number; paidAt: string; method: string }
+export type Payment = { id: string; amount: number; paidAt: string; method: string; orNumber?: string | null }
+
+/** A payment sent outside payroll, on its way: the Treasurer issues the OR, then the Bookkeeper posts it. */
+export type PaymentSubmission = {
+  _id: string
+  amount: number
+  method: 'cash' | 'e_money' | 'bank_transfer'
+  methodLabel: string
+  paidAt: string
+  reference?: string
+  proof: { fileName: string } | null
+  status: 'submitted' | 'received' | 'posted' | 'rejected'
+  received?: { orNumber?: string }
+  rejected?: { reason?: string }
+  voided?: { reason?: string }
+  createdAt: string
+}
 
 export type ScoreBand = 'strong' | 'good' | 'fair' | 'weak' | 'limited'
 
@@ -197,7 +217,23 @@ export const api = {
   loans: () => request<{ loans: Loan[] }>('/member/loans'),
   // UDEI's loan rules from the office's Settings page: rate per month, longest term, minimum salary.
   settings: () => request<{ settings: LoanSettings }>('/settings'),
-  loan: (id: string) => request<{ loan: Loan; payments: Payment[] }>(`/member/loans/${id}`),
+  loan: (id: string) => request<{ loan: Loan; payments: Payment[]; submissions?: PaymentSubmission[] }>(`/member/loans/${id}`),
+  /** Reports a payment made outside payroll (cash, e-money, bank transfer). Amount in centavos. */
+  sendPayment: (loanId: string, body: { amount: number; method: string; paidAt: string; reference?: string; note?: string }) =>
+    request<{ submission: PaymentSubmission }>(`/member/loans/${loanId}/payments`, { method: 'POST', body }),
+  /** The photo or PDF of the receipt, for a payment that waits for the Treasurer. */
+  uploadProof: async (submissionId: string, file: PickedFile) => {
+    let data: Blob
+    try {
+      data = await (await fetch(file.uri)).blob()
+    } catch {
+      throw new ApiError(0, `Couldn't read ${file.name} on this phone.`)
+    }
+    return request<{ submission: PaymentSubmission }>(`/payments/${submissionId}/proof?name=${encodeURIComponent(file.name)}`, {
+      method: 'PUT',
+      file: { data, type: file.mimeType },
+    })
+  },
   /** Your own member score with Kuwi's tips. Always your own: the server never takes a member ID. */
   myScore: () => request<MyScore>('/me/score'),
   /** Name co-makers on your application after filing (when a signer asked for one). */

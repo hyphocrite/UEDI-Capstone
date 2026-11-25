@@ -8,6 +8,9 @@ const User = require("../models/User");
 const Application = require("../models/Application");
 const Loan = require("../models/Loan");
 const Payment = require("../models/Payment");
+const PaymentSubmission = require("../models/PaymentSubmission");
+const paymentSubmissions = require("../services/paymentSubmissions");
+const { memberSubmit } = require("./payments");
 const loans = require("../services/loans");
 const { STEP_LABELS, currentStepOf } = require("../services/approvals");
 const { createSchema, createApplication, missingDocuments, setCoMakers } = require("./applications");
@@ -340,6 +343,10 @@ const loanView = (loan) => {
     pastDue: l.pastDue,
     pastDueAmount: l.pastDueAmount,
     maturesOn: l.maturesOn,
+    // Advances show as installments paid before their due date; payroll keeps deducting the same
+    // amount, so the loan finishes around finishesAround.
+    paidAhead: l.paidAhead,
+    finishesAround: l.finishesAround,
     schedule: (l.schedule || []).map(({ no, dueDate, totalDue, paid }) => ({ no, dueDate, totalDue, paid })),
   };
 };
@@ -359,14 +366,23 @@ router.get("/loans/:id", async (req, res, next) => {
     if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ error: "Loan not found." });
     const loan = await Loan.findOne({ _id: req.params.id, ...(await ownLoanFilter(req.user)) });
     if (!loan) return res.status(404).json({ error: "Loan not found." });
-    const payments = await Payment.find({ loan: loan._id, voided: false }).sort({ paidAt: -1 });
+    const [payments, submissions] = await Promise.all([
+      Payment.find({ loan: loan._id, voided: false }).sort({ paidAt: -1 }),
+      PaymentSubmission.find({ loan: loan._id }).sort({ createdAt: -1 }).limit(100),
+    ]);
     res.json({
       loan: loanView(loan),
-      payments: payments.map((p) => ({ id: p._id, amount: p.amount, paidAt: p.paidAt, method: p.method })),
+      payments: payments.map((p) => ({ id: p._id, amount: p.amount, paidAt: p.paidAt, method: p.method, orNumber: p.orNumber || null })),
+      // Payments sent outside payroll and where each one is: submitted, received (OR issued), posted or rejected.
+      submissions: submissions.map(paymentSubmissions.view),
     });
   } catch (err) {
     next(err);
   }
 });
+
+// The member reports a payment made outside payroll (cash, e-money, bank transfer). The proof photo
+// follows with PUT /api/payments/:id/proof. The Treasurer receives it, then the Bookkeeper posts it.
+router.post("/loans/:id/payments", memberSubmit((req) => req.params.id));
 
 module.exports = router;

@@ -4,7 +4,7 @@ import { ArrowLeft, FileText } from 'lucide-react'
 import BrandLogo from '../components/BrandLogo'
 import { api } from '../lib/api'
 import { loanTypeLabel } from '../lib/applications'
-import { formatCentavos, formatDay, paymentMethodLabel, todayKey } from '../lib/loans'
+import { formatCentavos, formatDay, paymentMethodLabel, receiptOf, todayKey } from '../lib/loans'
 import type { Loan, Payment } from '../lib/loans'
 
 /**
@@ -85,18 +85,19 @@ export default function StatementPage() {
         <h2 className="mt-6 mb-2 font-semibold text-brand-800">Payments received</h2>
         <table className="w-full text-sm">
           <thead className="table-head">
-            <tr><th className="px-3 py-2">Date</th><th className="px-3 py-2">How</th><th className="px-3 py-2">Reference</th><th className="px-3 py-2 text-right">Amount</th></tr>
+            <tr><th className="px-3 py-2">Date</th><th className="px-3 py-2">How</th><th className="px-3 py-2">OR / payroll run</th><th className="px-3 py-2">Reference</th><th className="px-3 py-2 text-right">Amount</th></tr>
           </thead>
           <tbody className="divide-y divide-brand-50">
             {payments.map((p) => (
               <tr key={p._id}>
                 <td className="px-3 py-1.5 whitespace-nowrap">{formatDay(p.paidAt)}</td>
                 <td className="px-3 py-1.5">{paymentMethodLabel[p.method]}</td>
-                <td className="px-3 py-1.5">{p.reference || '—'}</td>
+                <td className="px-3 py-1.5 whitespace-nowrap">{receiptOf(p)}</td>
+                <td className="px-3 py-1.5">{p.method === 'payroll' ? '—' : p.reference || '—'}</td>
                 <td className="px-3 py-1.5 text-right whitespace-nowrap">{formatCentavos(p.amount)}</td>
               </tr>
             ))}
-            {payments.length === 0 && <tr><td colSpan={4} className="px-3 py-4 text-center text-brand-500">No payments yet.</td></tr>}
+            {payments.length === 0 && <tr><td colSpan={5} className="px-3 py-4 text-center text-brand-500">No payments yet.</td></tr>}
           </tbody>
         </table>
 

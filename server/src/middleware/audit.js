@@ -30,6 +30,11 @@ const ACTIONS = [
   ["POST", /^\/api\/loans\/[^/]+\/release$/, "Loan released"],
   ["POST", /^\/api\/loans\/[^/]+\/payments\/[^/]+\/void$/, "Payment voided"],
   ["POST", /^\/api\/loans\/[^/]+\/payments$/, "Payment recorded"],
+  ["POST", /^\/api\/payments$/, "Payment submitted"],
+  ["PUT", /^\/api\/payments\/[^/]+\/proof$/, "Proof of payment uploaded"],
+  ["POST", /^\/api\/payments\/[^/]+\/receive$/, "Payment received, OR issued"],
+  ["POST", /^\/api\/payments\/[^/]+\/confirm$/, "Payment confirmed and posted"],
+  ["POST", /^\/api\/payments\/[^/]+\/reject$/, "Payment rejected"],
   ["POST", /^\/api\/deductions$/, "Deduction run started"],
   ["PATCH", /^\/api\/deductions\/[^/]+\/lines\/[^/]+$/, "Deduction line changed"],
   ["POST", /^\/api\/deductions\/[^/]+\/send$/, "Deduction run sent to payroll"],
@@ -57,6 +62,7 @@ const ACTIONS = [
   ["POST", /^\/api\/member\/applications$/, "Application submitted (mobile)"],
   ["POST", /^\/api\/member\/applications\/[^/]+\/documents$/, "Document uploaded (mobile)"],
   ["PUT", /^\/api\/member\/applications\/[^/]+\/co-makers$/, "Co-makers named by the applicant (mobile)"],
+  ["POST", /^\/api\/member\/loans\/[^/]+\/payments$/, "Payment submitted (mobile)"],
 ];
 
 const MUTATING = new Set(["POST", "PUT", "PATCH", "DELETE"]);

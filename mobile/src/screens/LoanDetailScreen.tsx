@@ -1,27 +1,30 @@
 import { useEffect, useState } from 'react'
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native'
-import { api, type Loan, type Payment } from '../api'
+import { api, type Loan, type Payment, type PaymentSubmission } from '../api'
 import { centavos, date, LOAN_TYPE_LABEL } from '../format'
 import { colors } from '../theme'
 import { Badge, Card, Empty, ErrorText, Header, Row, s } from '../ui'
 import { loanBadge } from './status'
+import SendPayment, { SubmissionRow } from './SendPayment'
 
-const METHOD: Record<string, string> = { payroll: 'Payroll deduction', cash: 'Cash', other: 'Other' }
+const METHOD: Record<string, string> = { payroll: 'Payroll', cash: 'Cash', e_money: 'E-money', bank_transfer: 'Bank transfer', other: 'Other', offset: 'Offset' }
 
 export default function LoanDetailScreen({ id, onBack }: { id: string; onBack: () => void }) {
-  const [data, setData] = useState<{ loan: Loan; payments: Payment[] } | null>(null)
+  const [data, setData] = useState<{ loan: Loan; payments: Payment[]; submissions?: PaymentSubmission[] } | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [tick, setTick] = useState(0)
 
   useEffect(() => {
     api.loan(id).then(setData, (e) => setError((e as Error).message))
-  }, [id])
+  }, [id, tick])
+  const reload = () => setTick((t) => t + 1)
 
   const loan = data?.loan
   const today = new Date()
   return (
     <View style={{ flex: 1 }}>
       <Header
-        title={loan ? `Loan ${loan.loanNo}` : 'Loan'}
+        title={loan ? `Mutual Assistance ${loan.loanNo}` : 'Mutual Assistance'}
         subtitle={loan ? LOAN_TYPE_LABEL[loan.loanType] : undefined}
         right={
           <Pressable onPress={onBack} accessibilityRole="button" hitSlop={12}>
@@ -49,11 +52,30 @@ export default function LoanDetailScreen({ id, onBack }: { id: string; onBack: (
               <Row label="Released" value={date(loan.releasedAt)} />
               <Row label="Matures" value={date(loan.maturesOn)} />
               {loan.pastDue ? <Row label="Overdue" value={centavos(loan.pastDueAmount)} strong /> : null}
+              {loan.paidAhead && loan.paidAhead.amount > 0 ? (
+                <Row label="Paid ahead" value={`${loan.paidAhead.count} installment${loan.paidAhead.count === 1 ? '' : 's'} (${centavos(loan.paidAhead.amount)})`} />
+              ) : null}
+              {loan.status === 'active' && loan.finishesAround ? (
+                <Text style={{ color: colors.accent, marginTop: 8 }}>
+                  Your mutual assistance will finish around {date(loan.finishesAround)} at the current deduction.
+                </Text>
+              ) : null}
             </Card>
+
+            {loan.status === 'active' ? <SendPayment loan={loan} onSent={reload} /> : null}
+
+            {data!.submissions?.length ? (
+              <>
+                <Text style={s.sectionTitle}>Payments you sent</Text>
+                <Card style={{ paddingVertical: 8 }}>
+                  {data!.submissions.map((x) => <SubmissionRow key={x._id} s={x} onChanged={reload} />)}
+                </Card>
+              </>
+            ) : null}
 
             <Text style={s.sectionTitle}>Payment schedule</Text>
             <Card style={{ paddingVertical: 8 }}>
-              {loan.schedule.length === 0 ? <Empty text="The schedule is set when the loan is released." /> : null}
+              {loan.schedule.length === 0 ? <Empty text="The schedule is set when the mutual assistance is released." /> : null}
               {loan.schedule.map((x) => {
                 const paid = x.paid >= x.totalDue
                 const late = !paid && new Date(x.dueDate) < today
@@ -81,7 +103,7 @@ export default function LoanDetailScreen({ id, onBack }: { id: string; onBack: (
                 <View key={p.id} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8 }}>
                   <View>
                     <Text style={{ color: colors.text }}>{date(p.paidAt)}</Text>
-                    <Text style={{ color: colors.muted, fontSize: 12 }}>{METHOD[p.method] ?? p.method}</Text>
+                    <Text style={{ color: colors.muted, fontSize: 12 }}>{METHOD[p.method] ?? p.method}{p.orNumber ? ` · OR ${p.orNumber}` : ''}</Text>
                   </View>
                   <Text style={{ color: colors.text, fontWeight: '700' }}>{centavos(p.amount)}</Text>
                 </View>

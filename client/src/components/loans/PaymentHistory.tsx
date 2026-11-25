@@ -1,9 +1,10 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Ban } from 'lucide-react'
 import Modal from '../Modal'
 import { api } from '../../lib/api'
 import { useConfirm } from '../../context/ConfirmContext'
-import { formatCentavos, formatDay, paymentMethodLabel } from '../../lib/loans'
+import { formatCentavos, formatDay, paymentMethodLabel, receiptOf } from '../../lib/loans'
 import type { Loan, Payment } from '../../lib/loans'
 
 type Props = {
@@ -71,7 +72,13 @@ export default function PaymentHistory({ loan, payments, canVoid, onChange }: Pr
               </p>
               <p className={`text-xs ${p.voided ? 'line-through' : 'text-brand-600'}`}>
                 {paymentMethodLabel[p.method]}
-                {p.reference && ` · ${p.reference}`}
+                {' · '}
+                {p.paymentSubmission && canVoid ? (
+                  <Link to={`/payments?id=${p.paymentSubmission}`} className="font-semibold underline">{receiptOf(p)}</Link>
+                ) : (
+                  receiptOf(p)
+                )}
+                {p.reference && !p.reference.startsWith('Payroll run') && ` · ref. ${p.reference}`}
                 {p.recordedByName && ` · recorded by ${p.recordedByName}`}
               </p>
               {p.voided && (

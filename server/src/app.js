@@ -8,6 +8,7 @@ const { audit } = require("./middleware/audit");
 const authRoutes = require("./routes/auth");
 const applicationRoutes = require("./routes/applications");
 const loanRoutes = require("./routes/loans");
+const paymentRoutes = require("./routes/payments");
 const deductionRoutes = require("./routes/deductions");
 const memberRoutes = require("./routes/member");
 const membersRoutes = require("./routes/members");
@@ -47,6 +48,7 @@ function createApp() {
   app.use("/api/auth", authRoutes);
   app.use("/api/applications", applicationRoutes);
   app.use("/api/loans", loanRoutes);
+  app.use("/api/payments", paymentRoutes);
   app.use("/api/deductions", deductionRoutes);
   app.use("/api/member", memberRoutes);
   app.use("/api/members", membersRoutes);

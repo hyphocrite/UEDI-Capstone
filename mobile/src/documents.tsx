@@ -35,7 +35,8 @@ export function missingTypes(loanType: string, picked: PickedFile[], sent: AppDo
   return requiredFor(loanType).filter((t) => !have.has(t))
 }
 
-async function pick(source: 'camera' | 'files', type: string): Promise<PickedFile | string | null> {
+/** A photo from the camera or a file from the phone: the file, an error message, or null when cancelled. */
+export async function pick(source: 'camera' | 'files', type: string): Promise<PickedFile | string | null> {
   if (source === 'camera') {
     const allowed = await ImagePicker.requestCameraPermissionsAsync()
     if (!allowed.granted) return 'Allow camera access in your phone settings to take a photo.'
