@@ -61,6 +61,39 @@ export function lineResult(expected: number, remitted: number, reason?: string):
 }
 
 /** POST /api/deductions/:id/import: remitted amounts matched by loan no., and rows that didn't match. */
+/** One row of Accounting's remittance list and the run line it matched (POST /api/deductions/:id/remittance-file). */
+export type RemittanceRow = {
+  row: number
+  label: string
+  loanNo: string | null
+  memberNo: string | null
+  employeeNo: string | null
+  name: string | null
+  amountText: string
+  amount: number | null
+  status: 'matched' | 'ambiguous' | 'not_found' | 'bad_amount'
+  by: 'loan_no' | 'member_no' | 'employee_no' | 'name' | null
+  lineId: string | null
+  candidates: { lineId: string; loanNo: string; memberId: string | null; borrowerName: string; expected: number }[]
+  note?: string
+}
+
+/** The review of an uploaded remittance list. Nothing is saved until the Bookkeeper applies it and saves. */
+export type RemittancePreview = {
+  fileName: string
+  sheets: { name: string; usable: boolean }[]
+  sheet: string
+  headerRow: number
+  amountColumns: string[]
+  amountColumn: string
+  pickAmountColumn: boolean
+  remembered: boolean
+  mapping: Record<string, string>
+  rows: RemittanceRow[]
+  missing: { lineId: string; loanNo: string; borrowerName: string; expected: number; maybe: boolean }[]
+  counts: { matched: number; ambiguous: number; notFound: number; badAmount: number }
+}
+
 export type ImportResult = {
   updates: { lineId?: string; loanNo: string; remitted: number }[]
   problems: { row: number; loanNo?: string; message: string }[]

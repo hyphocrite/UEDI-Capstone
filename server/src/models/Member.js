@@ -15,6 +15,8 @@ const memberSchema = new mongoose.Schema(
     lastName: { type: String, trim: true, maxlength: 60 },
     firstName: { type: String, trim: true, maxlength: 60 },
     middleInitial: { type: String, trim: true, maxlength: 3 },
+    // DNSC employee number, as on Accounting's remittance list. Used to match that list to members.
+    employeeNo: { type: String, trim: true, maxlength: 32 },
     // "First M. Last", or "Member No. 12" until a name is entered. Kept for search and display.
     fullName: { type: String, trim: true, maxlength: 140 },
     phone: { type: String, trim: true, maxlength: 20 },

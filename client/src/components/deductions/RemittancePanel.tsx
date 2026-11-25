@@ -1,8 +1,12 @@
 import { useRef, useState } from 'react'
-import { AlertTriangle, Upload } from 'lucide-react'
-import { api } from '../../lib/api'
-import type { ImportResult } from '../../lib/deductions'
+import { AlertTriangle, FileSpreadsheet, Upload } from 'lucide-react'
+import { api, ApiError } from '../../lib/api'
+import type { ImportResult, RemittancePreview as Preview, RunLine } from '../../lib/deductions'
 import { formatCentavos, toCentavos } from '../../lib/loans'
+import RemittancePreview from './RemittancePreview'
+
+const BASE = import.meta.env.VITE_API_URL ?? ''
+const SHEET_ACCEPT = '.xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv'
 
 /** The O.R. for what payroll remitted. Amounts are pesos as typed. */
 export type RemittanceEdit = { officialReceiptNo: string; amountReceived: string; receivedAt: string }
@@ -12,12 +16,17 @@ type Props = {
   value: RemittanceEdit
   onChange: (patch: Partial<RemittanceEdit>) => void
   totalRemitted: number
+  lines: RunLine[]
   onImported: (updates: ImportResult['updates']) => void
 }
 
 /** Remittance details, the remitted-vs-received check, and importing remitted amounts from payroll's CSV. */
-export default function RemittancePanel({ runId, value, onChange, totalRemitted, onImported }: Props) {
+export default function RemittancePanel({ runId, value, onChange, totalRemitted, lines, onImported }: Props) {
   const fileRef = useRef<HTMLInputElement>(null)
+  const listRef = useRef<HTMLInputElement>(null)
+  const [list, setList] = useState<File | null>(null)
+  const [preview, setPreview] = useState<Preview | null>(null)
+  const [reading, setReading] = useState(false)
   const [importing, setImporting] = useState(false)
   const [report, setReport] = useState<{ applied: number; problems: ImportResult['problems'] } | null>(null)
   const [error, setError] = useState('')
@@ -37,6 +46,31 @@ export default function RemittancePanel({ runId, value, onChange, totalRemitted,
       setError(err instanceof Error ? err.message : 'Could not read the file.')
     } finally {
       setImporting(false)
+    }
+  }
+
+  // Accounting's remittance list (.xlsx or .csv), read and matched on the server; reviewed before applying.
+  const readList = async (file: File, opts: { sheet?: string; amount?: string } = {}) => {
+    if (file.size > 5 * 1024 * 1024) return setError('The remittance list can be at most 5 MB.')
+    setReading(true)
+    setError('')
+    setReport(null)
+    try {
+      const q = new URLSearchParams({ name: file.name, ...(opts.sheet ? { sheet: opts.sheet } : {}), ...(opts.amount ? { amount: opts.amount } : {}) })
+      const res = await fetch(`${BASE}/api/deductions/${runId}/remittance-file?${q}`, {
+        method: 'POST',
+        headers: { 'Content-Type': file.type || 'application/octet-stream' },
+        body: file,
+        credentials: 'include',
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new ApiError(data.error || 'Could not read the list.', res.status)
+      setList(file)
+      setPreview(data as Preview)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not read the list.')
+    } finally {
+      setReading(false)
     }
   }
 
@@ -72,6 +106,29 @@ export default function RemittancePanel({ runId, value, onChange, totalRemitted,
       </p>
 
       <div className="mt-4 flex flex-wrap items-center gap-3">
+        <button type="button" className="btn-primary" onClick={() => listRef.current?.click()} disabled={reading}>
+          <FileSpreadsheet className="h-4 w-4" /> {reading ? 'Reading…' : 'Upload remittance list (Excel or CSV)'}
+        </button>
+        <span className="text-xs text-brand-500">Accounting’s soft copy. Matched by MA no., UDEI no., employee no. or name; you review it before anything changes.</span>
+        <input ref={listRef} type="file" accept={SHEET_ACCEPT} className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0]
+            if (f) void readList(f)
+            e.target.value = ''
+          }} />
+      </div>
+      {preview && list && (
+        <RemittancePreview key={`${preview.sheet}-${preview.amountColumn}`} preview={preview} lines={lines} busy={reading}
+          onReread={(opts) => void readList(list, opts)}
+          onCancel={() => setPreview(null)}
+          onApply={(updates) => {
+            onImported(updates)
+            setReport({ applied: updates.length, problems: [] })
+            setPreview(null)
+          }} />
+      )}
+
+      <div className="mt-3 flex flex-wrap items-center gap-3">
         <button type="button" className="btn-ghost" onClick={() => fileRef.current?.click()} disabled={importing}>
           <Upload className="h-4 w-4" /> {importing ? 'Reading…' : 'Import remitted amounts (CSV)'}
         </button>

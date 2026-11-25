@@ -69,6 +69,7 @@ const fields = {
   lastName: optional(z.string().trim().max(60)),
   firstName: optional(z.string().trim().max(60)),
   middleInitial: optional(z.string().trim().max(3)),
+  employeeNo: optional(z.string().trim().max(32)),
   phone: optional(z.string().trim().regex(/^09\d{9}$/, "Mobile number must be 11 digits starting with 09.")),
   email: optional(z.string().trim().toLowerCase().email("Enter a valid email address.")),
   branch: optional(z.string().trim().max(120)),
