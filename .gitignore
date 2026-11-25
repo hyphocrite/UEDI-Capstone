@@ -30,3 +30,4 @@ client/ocr-samples/
 !ml-service/data/sample_loans.csv
 !ml-service/data/uedi_loans_template.csv
 !ml-service/data/public/*.csv
+!server/test/fixtures/*.xlsx
