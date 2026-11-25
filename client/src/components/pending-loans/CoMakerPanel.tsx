@@ -86,7 +86,7 @@ export default function CoMakerPanel({ app, onChange }: { app: LoanApplication; 
       {app.coMakerSuggested && pending && !request && (
         <p className="flex items-start gap-2 rounded-lg bg-sky-50 px-3 py-2 text-sm text-sky-900">
           <Lightbulb className="mt-0.5 h-4 w-4 shrink-0" />
-          <span>UDEI usually asks for a co-maker from {formatPeso(settings.coMakersFromAmount)}. This is only a reminder: ask for one if this loan needs it.</span>
+          <span>UDEI usually asks for a co-maker from {formatPeso(settings.coMakersFromAmount)}. This is only a reminder: ask for one if this mutual assistance needs it.</span>
         </p>
       )}
 

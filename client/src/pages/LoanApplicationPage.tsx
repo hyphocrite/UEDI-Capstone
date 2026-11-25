@@ -273,7 +273,7 @@ export default function LoanApplicationPage() {
               {original && canAddDocuments(original, session?.id) && (
                 <Link to={`/loans/applications/${original._id}/documents`} className="btn-primary"><FilePlus2 className="h-4 w-4" /> Add supporting documents</Link>
               )}
-              <Link to="/loans" className="btn-ghost">Back to my loans</Link>
+              <Link to="/loans" className="btn-ghost">Back to my mutual assistance</Link>
             </div>
           </div>
         ) : (
@@ -286,7 +286,7 @@ export default function LoanApplicationPage() {
   if (!staffView && !ownMemberId) {
     return (
       <div className="mx-auto max-w-xl">
-        <PageHeader icon={FilePlus2} title="Apply for a Loan" subtitle="Mutual Assistance Application Form, United DNSC Employees, Inc." />
+        <PageHeader icon={FilePlus2} title="Apply for Mutual Assistance" subtitle="Mutual Assistance Application Form, United DNSC Employees, Inc." />
         <p className="card p-5 text-sm text-amber-800">
           Your account isn't linked to a member record yet. Ask the UDEI office to link it, then you can apply here.
         </p>
@@ -296,7 +296,7 @@ export default function LoanApplicationPage() {
 
   const stepLabels: Record<FormStep, string> = {
     applicant: 'Applicant',
-    loan: 'Loan',
+    loan: 'Mutual Assistance',
     coMakers: staffView ? 'Co-makers & books' : 'Co-makers',
     documents: 'Documents',
     review: 'Review',
@@ -315,7 +315,7 @@ export default function LoanApplicationPage() {
           />
         ) : (
           <PageHeader icon={FilePlus2}
-            title={staffView ? 'Loan Application' : 'Apply for a Loan'}
+            title={staffView ? 'Mutual Assistance Application' : 'Apply for Mutual Assistance'}
             subtitle="Mutual Assistance Application Form, United DNSC Employees, Inc. Supporting documents are read and checked against the form."
           />
         )}
@@ -393,14 +393,14 @@ export default function LoanApplicationPage() {
                 or print a copy for your records.
               </p>
               {loanChanged && (original?.coMakers?.length ?? 0) > 0 && (
-                <p className="mt-1">Your co-makers will be asked to confirm again, because the loan changed.</p>
+                <p className="mt-1">Your co-makers will be asked to confirm again, because the mutual assistance changed.</p>
               )}
             </div>
             {documents.mismatched.length > 0 && (
               <div className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900 print:hidden">
                 <p>These documents don’t match what was typed on the form:</p>
                 <ul className="mt-1 list-disc pl-5">{documents.mismatched.map((d) => <li key={d.key} className="break-words">{d.file.name}</li>)}</ul>
-                <p className="mt-1">Loan officers will see this on Pending Loans.</p>
+                <p className="mt-1">Loan officers will see this on Pending Applications.</p>
               </div>
             )}
             <ApplicationPreview form={form} documents={previewDocuments()} staffView={staffView} linked={linked} applicationNo={original?.applicationNo} />
@@ -418,7 +418,7 @@ export default function LoanApplicationPage() {
                   : original
                     ? 'Saving replaces the form; documents already attached stay, and new ones are added.'
                     : staffView
-                      ? 'Submitting sends the form and document checks to Pending Loans.'
+                      ? 'Submitting sends the form and document checks to Pending Applications.'
                       : 'Submitting sends your application to UDEI. The Bookkeeper, CreCom Chairman, President and Treasurer then sign it.'}
             </p>
             <div className="flex flex-wrap gap-2">

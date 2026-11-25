@@ -40,10 +40,10 @@ export default function HomeScreen({ loans, applications, score, loading, onRefr
         <KuwiCard data={score} />
 
         <Card style={{ backgroundColor: colors.primary, borderColor: colors.primary }}>
-          <Text style={{ color: '#A7D7BF', fontSize: 13 }}>Total loan balance</Text>
+          <Text style={{ color: '#A7D7BF', fontSize: 13 }}>Total mutual assistance balance</Text>
           <Text style={{ color: '#fff', fontSize: 30, fontWeight: '800', marginTop: 4 }}>{centavos(balance)}</Text>
           <Text style={{ color: '#A7D7BF', marginTop: 4 }}>
-            {active.length === 0 ? 'No active loans' : `${active.length} active loan${active.length > 1 ? 's' : ''}`}
+            {active.length === 0 ? 'No active mutual assistance' : `${active.length} active mutual assistance`}
           </Text>
         </Card>
 
@@ -55,7 +55,7 @@ export default function HomeScreen({ loans, applications, score, loading, onRefr
             </View>
             <Text style={{ fontSize: 24, fontWeight: '800', color: colors.text }}>{centavos(next.nextDue.amount)}</Text>
             <Text style={{ color: colors.muted, marginTop: 2 }}>
-              Due {date(next.nextDue.dueDate)} · Loan {next.loanNo}
+              Due {date(next.nextDue.dueDate)} · Mutual assistance {next.loanNo}
             </Text>
             {next.pastDue ? (
               <Text style={{ color: colors.danger, marginTop: 8 }}>
@@ -64,7 +64,7 @@ export default function HomeScreen({ loans, applications, score, loading, onRefr
             ) : null}
             <Text style={{ color: colors.muted, fontSize: 12, marginTop: 8 }}>Deducted from your payroll, per your loan agreement.</Text>
             <View style={{ height: 10 }} />
-            <Button variant="outline" title="View loan" onPress={() => onOpenLoan(next.id)} />
+            <Button variant="outline" title="View mutual assistance" onPress={() => onOpenLoan(next.id)} />
           </Card>
         ) : null}
 
@@ -84,14 +84,14 @@ export default function HomeScreen({ loans, applications, score, loading, onRefr
           <Card>
             <Text style={s.sectionTitle}>Need financial assistance?</Text>
             <Text style={{ color: colors.muted, marginBottom: 12 }}>
-              Apply for a Long term or Emergency loan. The Bookkeeper, Credit Committee Chairman, President and Treasurer
+              Apply for a Long term or Emergency mutual assistance. The Bookkeeper, Credit Committee Chairman, President and Treasurer
               review every application.
             </Text>
-            <Button title="Apply for a loan" onPress={onApply} />
+            <Button title="Apply for mutual assistance" onPress={onApply} />
           </Card>
         )}
 
-        {!loading && loans.length === 0 && applications.length === 0 ? <Empty text="Your loans will show up here." /> : null}
+        {!loading && loans.length === 0 && applications.length === 0 ? <Empty text="Your mutual assistance will show up here." /> : null}
       </ScrollView>
     </View>
   )

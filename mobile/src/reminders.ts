@@ -31,7 +31,7 @@ export async function scheduleDueReminders(loans: Loan[]): Promise<number> {
   if (!perm.granted) return 0
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync('due-dates', {
-      name: 'Loan due dates',
+      name: 'Mutual assistance due dates',
       // AndroidImportance is re-exported from the package's types file, which import/namespace can't follow.
       // eslint-disable-next-line import/namespace
       importance: Notifications.AndroidImportance.DEFAULT,
@@ -47,13 +47,13 @@ export async function scheduleDueReminders(loans: Loan[]): Promise<number> {
     for (const inst of open) {
       const amount = centavos(inst.totalDue - inst.paid)
       const plan = [
-        { when: at8(inst.dueDate, 3), body: `${amount} for loan ${loan.loanNo} is due on ${date(inst.dueDate)}.` },
-        { when: at8(inst.dueDate, 0), body: `${amount} for loan ${loan.loanNo} is due today.` },
+        { when: at8(inst.dueDate, 3), body: `${amount} for mutual assistance ${loan.loanNo} is due on ${date(inst.dueDate)}.` },
+        { when: at8(inst.dueDate, 0), body: `${amount} for mutual assistance ${loan.loanNo} is due today.` },
       ]
       for (const p of plan) {
         if (p.when.getTime() <= now) continue
         await Notifications.scheduleNotificationAsync({
-          content: { title: 'UDEI loan payment', body: p.body },
+          content: { title: 'UDEI mutual assistance payment', body: p.body },
           trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: p.when, channelId: 'due-dates' },
         })
         count++

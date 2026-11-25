@@ -317,18 +317,18 @@ export function validateStep(step: FormStep, f: Form, settings: LoanSettings = F
     if (net > salary) return 'Net take-home pay cannot be more than the monthly salary.'
     if (net < MIN_NET_TAKE_HOME_PAY) return `The net take-home pay must be at least ₱${MIN_NET_TAKE_HOME_PAY.toLocaleString('en-PH')}.`
     if (salary < settings.minMonthlySalary) return `UDEI requires a monthly salary of at least ₱${settings.minMonthlySalary.toLocaleString('en-PH')}.`
-    if (num(f.priorLatePayments) > num(f.priorLoans)) return 'Late payments cannot be more than past loans.'
+    if (num(f.priorLatePayments) > num(f.priorLoans)) return 'Late payments cannot be more than past mutual assistance.'
     return ''
   }
   if (step === 'loan') {
     const term = termMonthsOf(f)
     const rate = Number(f.monthlyRate)
     if (!f.applicationDate) return 'Enter the application date.'
-    if (num(f.amount) <= 0) return 'Choose the loan amount.'
+    if (num(f.amount) <= 0) return 'Choose the amount.'
     if (limit !== null && num(f.amount) > limit) return `Applicants who aren't linked to a UDEI member number can borrow at most ₱${limit.toLocaleString('en-PH')}.`
-    if (f.purpose.trim().length < 3) return 'Give the reason for the loan.'
+    if (f.purpose.trim().length < 3) return 'Give the reason for the mutual assistance.'
     const maxTerm = Math.min(MAX_TERM_MONTHS, settings.products[f.loanType].maxTermMonths)
-    if (term < 1 || term > maxTerm) return `${settings.products[f.loanType].label} loans run 1 to ${maxTerm} months.`
+    if (term < 1 || term > maxTerm) return `${settings.products[f.loanType].label} mutual assistance run 1 to ${maxTerm} months.`
     if (f.monthlyRate.trim() === '' || !Number.isFinite(rate) || rate < 0 || rate > 10) return 'The interest rate could not be loaded. Reload the page.'
     if (!f.payrollDeduction) return 'The applicant must authorize payroll deduction.'
     if (!f.autoRestructure) return 'The applicant must agree to automatic re-structuring.'
@@ -337,7 +337,7 @@ export function validateStep(step: FormStep, f: Form, settings: LoanSettings = F
   if (step === 'coMakers') {
     const coMakers = [f.coMaker1, f.coMaker2].map((c) => c.trim()).filter(Boolean)
     if (coMakers.length < coMakersRequiredFor(settings, linked)) {
-      return "Applicants who aren't linked to a UDEI member number need a co-maker: a UDEI member who vouches for this loan."
+      return "Applicants who aren't linked to a UDEI member number need a co-maker: a UDEI member who vouches for this mutual assistance."
     }
     if (coMakers.length === 2 && coMakers[0] === coMakers[1]) return 'Name two different co-makers.'
     return ''

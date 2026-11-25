@@ -123,7 +123,7 @@ async function post(run, user) {
     const problems = d.remittanceProblems(lines, balances);
     for (const l of lines) {
       const loan = loans.find((x) => x._id.equals(l.loan));
-      if (!loan || (loan.status !== "active" && l.remitted > 0)) problems.push(`${l.loanNo}: the loan is no longer active.`);
+      if (!loan || (loan.status !== "active" && l.remitted > 0)) problems.push(`${l.loanNo}: the mutual assistance is no longer active.`);
     }
     if (problems.length) throw Object.assign(new RunError(400, problems[0]), { problems });
 

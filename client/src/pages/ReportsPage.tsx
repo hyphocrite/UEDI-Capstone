@@ -35,7 +35,7 @@ const short = (c: number) => formatCentavos(c).replace(/\.00$/, '')
 const pesos = (c: number) => (c / 100).toFixed(2)
 
 function toCsv(rows: Row[]) {
-  const head = 'Period,Loans released (PHP),New loans,Loan collections (PHP),Retirement contributions (PHP),Monthly dues (PHP),Applications,Approved,Denied'
+  const head = 'Period,Mutual assistance released (PHP),New mutual assistance,Mutual assistance collections (PHP),Retirement contributions (PHP),Monthly dues (PHP),Applications,Approved,Denied'
   const line = (r: Row) => [`"${r.label}"`, pesos(r.loansReleased), r.newLoans, pesos(r.loanCollections), pesos(r.planContributions), pesos(r.monthlyDues), r.applications, r.approved, r.denied].join(',')
   // The byte-order mark makes Excel read the peso sign and accents correctly.
   return '﻿' + [head, ...rows.map(line)].join('\r\n')
@@ -79,7 +79,7 @@ export default function ReportsPage() {
       </div>
       <PageHeader icon={BarChart3}
         title="Reports"
-        subtitle="Loans released and collected, retirement contributions and applications, from UDEI's records."
+        subtitle="Mutual assistance released and collected, retirement contributions and applications, from UDEI's records."
         actions={
           <div className="flex gap-2 print:hidden">
             <button className="btn-ghost" onClick={download} disabled={!report}><Download className="h-4 w-4" /> Excel (CSV)</button>
@@ -100,8 +100,8 @@ export default function ReportsPage() {
       {error && <p className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{error}</p>}
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard icon={HandCoins} label="Loans released" value={report ? short(sum(rows, 'loansReleased')) : '…'} hint={`${sum(rows, 'newLoans')} loans · ${caption}`} />
-        <StatCard icon={Wallet} label="Loan collections" value={report ? short(sum(rows, 'loanCollections')) : '…'} hint={caption} />
+        <StatCard icon={HandCoins} label="Mutual assistance released" value={report ? short(sum(rows, 'loansReleased')) : '…'} hint={`${sum(rows, 'newLoans')} mutual assistance · ${caption}`} />
+        <StatCard icon={Wallet} label="Mutual assistance collections" value={report ? short(sum(rows, 'loanCollections')) : '…'} hint={caption} />
         <StatCard icon={PiggyBank} label="Retirement contributions" value={report ? short(sum(rows, 'planContributions')) : '…'} hint={`plus ${short(sum(rows, 'monthlyDues'))} in dues`} />
         <StatCard icon={TrendingUp} label="Applications" value={report ? String(sum(rows, 'applications')) : '…'} hint={`${sum(rows, 'approved')} approved, ${sum(rows, 'denied')} denied`} />
       </div>
@@ -110,7 +110,7 @@ export default function ReportsPage() {
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <h2 className="font-semibold text-brand-800">Money in by period</h2>
           <div className="flex gap-4 text-xs text-brand-600">
-            <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-brand-800" /> Loan collections</span>
+            <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-brand-800" /> Mutual assistance collections</span>
             <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-accent" /> Retirement contributions and dues</span>
           </div>
         </div>
@@ -122,8 +122,8 @@ export default function ReportsPage() {
           <thead className="table-head">
             <tr>
               <th className="px-4 py-3">Period</th>
-              <th className="px-4 py-3 text-right">Loans released</th>
-              <th className="px-4 py-3 text-right">Loan collections</th>
+              <th className="px-4 py-3 text-right">Mutual assistance released</th>
+              <th className="px-4 py-3 text-right">Mutual assistance collections</th>
               <th className="px-4 py-3 text-right">Retirement contributions</th>
               <th className="px-4 py-3 text-right">Dues</th>
               <th className="px-4 py-3 text-right">Applications</th>
@@ -158,8 +158,8 @@ export default function ReportsPage() {
         </table>
       </div>
       <p className="mt-3 text-xs text-brand-500">
-        Includes loans and payments recorded in the system and those imported from UDEI's 2026 ledger. Payments made by
-        offsetting an old loan against a new one are not counted as collections.
+        Includes mutual assistance and payments recorded in the system and those imported from UDEI's 2026 ledger. Payments made by
+        offsetting an old mutual assistance against a new one are not counted as collections.
       </p>
     </>
   )
@@ -200,7 +200,7 @@ function CollectionsChart({ rows }: { rows: Row[] }) {
           {rows.map((r, i) => {
             const t = total(r)
             const dues = r.planContributions + r.monthlyDues
-            const label = `${r.label}: ${short(t)} (loan collections ${short(r.loanCollections)}, retirement contributions and dues ${short(dues)})`
+            const label = `${r.label}: ${short(t)} (mutual assistance collections ${short(r.loanCollections)}, retirement contributions and dues ${short(dues)})`
             return (
               <div key={r.label} className="group relative flex h-full min-w-0 flex-1 flex-col items-center">
                 <div className="flex h-[calc(100%-1.25rem)] w-full flex-col items-center justify-end">
@@ -224,7 +224,7 @@ function CollectionsChart({ rows }: { rows: Row[] }) {
                 <div className={`pointer-events-none absolute top-0 z-10 w-48 rounded-lg border border-brand-100 bg-white p-2.5 text-xs opacity-0 shadow-lg transition-opacity group-hover:opacity-100 print:hidden ${
                   i < rows.length / 2 ? 'left-0' : 'right-0'}`} aria-hidden>
                   <p className="font-semibold text-ink">{r.label}</p>
-                  <p className="mt-1 flex justify-between gap-2 text-brand-700"><span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm bg-brand-800" /> Loan collections</span>{short(r.loanCollections)}</p>
+                  <p className="mt-1 flex justify-between gap-2 text-brand-700"><span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm bg-brand-800" /> Mutual assistance collections</span>{short(r.loanCollections)}</p>
                   <p className="flex justify-between gap-2 text-brand-700"><span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm bg-accent" /> Contributions + dues</span>{short(dues)}</p>
                   <p className="mt-1 flex justify-between border-t border-brand-50 pt-1 font-semibold text-ink"><span>Total</span>{short(t)}</p>
                 </div>

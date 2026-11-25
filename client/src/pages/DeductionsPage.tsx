@@ -48,7 +48,7 @@ export default function DeductionsPage() {
     e.preventDefault()
     const ok = await confirm({
       title: 'Start this deduction run?',
-      message: <p>Build the payroll deduction list for the <b>{formatCutoff(cutoff)}</b> cutoff from every loan with an installment due that day. There can only be one run per cutoff.</p>,
+      message: <p>Build the payroll deduction list for the <b>{formatCutoff(cutoff)}</b> cutoff from every mutual assistance with an installment due that day. There can only be one run per cutoff.</p>,
       confirmLabel: 'Yes, start it',
     })
     if (!ok) return
@@ -83,7 +83,7 @@ export default function DeductionsPage() {
             <tr>
               <th className="px-4 py-3">Cutoff</th>
               <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3 text-right">Loans</th>
+              <th className="px-4 py-3 text-right">Mutual Assistance</th>
               <th className="px-4 py-3 text-right">Expected</th>
               <th className="px-4 py-3 text-right">Remitted</th>
               <th className="px-4 py-3 text-right">Missed or partial</th>

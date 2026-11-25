@@ -66,7 +66,7 @@ export default function CoMakerScreen({ onChanged, memberId }: { onChanged: () =
 
   return (
     <View style={{ flex: 1 }}>
-      <Header title="Co-maker" subtitle="Loans you vouch for" />
+      <Header title="Co-maker" subtitle="Mutual assistance you vouch for" />
       <ScrollView contentContainerStyle={{ padding: 16 }} refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor={colors.primary} />}>
         <ErrorText text={error} />
         {portal && !portal.linked ? <Empty text="Your account isn't linked to your member record yet, so co-maker requests can't reach you." /> : null}
@@ -84,19 +84,19 @@ export default function CoMakerScreen({ onChanged, memberId }: { onChanged: () =
               <RequestCard key={r.applicationId} request={r} memberId={memberId} onAnswered={() => { load(); onChanged() }} />
             )) : <Empty text="No requests waiting for your answer." />}
 
-            <Text style={s.sectionTitle}>Loans you vouched for</Text>
+            <Text style={s.sectionTitle}>Mutual assistance you vouched for</Text>
             {portal.loans.length ? portal.loans.map((l) => (
               <Card key={l.loanId}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                   <Text style={{ fontWeight: '700', color: colors.text, flex: 1 }}>{l.borrowerName}</Text>
                   <Badge text={STANDING[l.standing].text} tone={STANDING[l.standing].tone} />
                 </View>
-                <Row label="Loan" value={l.loanNo} />
+                <Row label="Mutual Assistance" value={l.loanNo} />
                 <Row label="Balance" value={centavos(l.balance)} strong />
                 {l.nextDue ? <Row label="Next due" value={`${centavos(l.nextDue.amount)} on ${date(l.nextDue.dueDate)}`} /> : null}
                 {l.pastDue ? <Text style={{ color: colors.danger, marginTop: 4 }}>{centavos(l.pastDueAmount)} past due.</Text> : null}
               </Card>
-            )) : <Empty text="You haven't vouched for a released loan yet." />}
+            )) : <Empty text="You haven't vouched for a released mutual assistance yet." />}
 
             {answered.length ? (
               <>
@@ -124,9 +124,9 @@ function RequestCard({ request: r, memberId, onAnswered }: { request: CoMakerReq
 
   const answer = async (decision: 'accepted' | 'declined') => {
     const ok = await confirmAction(
-      decision === 'accepted' ? 'Vouch for this loan?' : 'Decline this request?',
+      decision === 'accepted' ? 'Vouch for this mutual assistance?' : 'Decline this request?',
       decision === 'accepted'
-        ? `You agree to be co-maker for ${r.borrowerName}'s ${pesos(r.amount)} loan. If they miss payments, it lowers your member score and UDEI may contact you.`
+        ? `You agree to be co-maker for ${r.borrowerName}'s ${pesos(r.amount)} mutual assistance. If they miss payments, it lowers your member score and UDEI may contact you.`
         : `${r.borrowerName}'s application can't be signed without a co-maker; they would need to name someone else.`,
       decision === 'accepted' ? 'Yes, vouch' : 'Yes, decline',
     )

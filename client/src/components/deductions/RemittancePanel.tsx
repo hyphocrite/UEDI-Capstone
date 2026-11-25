@@ -132,7 +132,7 @@ export default function RemittancePanel({ runId, value, onChange, totalRemitted,
         <button type="button" className="btn-ghost" onClick={() => fileRef.current?.click()} disabled={importing}>
           <Upload className="h-4 w-4" /> {importing ? 'Reading…' : 'Import remitted amounts (CSV)'}
         </button>
-        <span className="text-xs text-brand-500">Same columns as the list sent to payroll, plus a “Remitted” column. Matched by loan no.</span>
+        <span className="text-xs text-brand-500">Same columns as the list sent to payroll, plus a “Remitted” column. Matched by MA no.</span>
         <input ref={fileRef} type="file" accept=".csv,text/csv" className="hidden"
           onChange={(e) => {
             const f = e.target.files?.[0]

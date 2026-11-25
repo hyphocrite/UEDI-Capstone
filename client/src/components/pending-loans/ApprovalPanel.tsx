@@ -71,7 +71,7 @@ function Outcome({ app }: { app: LoanApplication }) {
       ))}
       {app.status === 'approved' && app.loanId && (
         <Link to={`/loans/${app.loanId}`} className="btn-primary mt-2 w-full sm:w-auto">
-          Open loan {app.loanNo} <ArrowRight className="h-4 w-4" />
+          Open {app.loanNo} <ArrowRight className="h-4 w-4" />
         </Link>
       )}
     </div>
@@ -135,7 +135,7 @@ function SignForm({ app, step, onChange }: { app: LoanApplication; step: Approva
             {decision === 'denied'
               ? 'Denying ends the application: no one else signs it, and the applicant is told it was denied.'
               : last
-                ? 'This is the final signature: the loan is created, and you can then release the money from Loans.'
+                ? 'This is the final signature: the mutual assistance is created, and you can then release the money from Mutual Assistance.'
                 : 'It then goes to the next signer.'}
             {against ? ' This goes against the ML suggestion.' : ''} Your signature can't be taken back.
           </p>
@@ -204,13 +204,13 @@ function SignForm({ app, step, onChange }: { app: LoanApplication; step: Approva
       {editableBooks && (
         <fieldset className="mb-4 rounded-lg bg-brand-50 p-3 sm:p-4">
           <legend className="px-1 text-sm font-semibold text-brand-800">Mutual Assistance balance to date</legend>
-          <p className="mb-3 text-xs text-brand-600">No loans on record for this member. Check the typed balances against your books and correct them if needed.</p>
+          <p className="mb-3 text-xs text-brand-600">No mutual assistance on record for this member. Check the typed balances against your books and correct them if needed.</p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {field('longTermBalance', 'Long term balance (₱)', 'number')}
             {field('longTermDueDate', 'Long term due date', 'date')}
             {field('shortTermBalance', 'Short term balance (₱)', 'number')}
             {field('shortTermDueDate', 'Short term due date', 'date')}
-            {field('monthlyPayment', 'Paid per month on these loans (₱)', 'number')}
+            {field('monthlyPayment', 'Paid per month on this mutual assistance (₱)', 'number')}
           </div>
         </fieldset>
       )}

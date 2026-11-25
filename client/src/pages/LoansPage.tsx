@@ -48,7 +48,7 @@ export default function LoansPage() {
       .then((d) => setLoans(d.loans))
       .catch((err: unknown) => {
         setLoans([])
-        setError(err instanceof Error ? err.message : 'Could not load loans.')
+        setError(err instanceof Error ? err.message : 'Could not load mutual assistance.')
       })
     api<{ carried: Carried[] }>('/api/loans/carried')
       .then((d) => setCarried(d.carried))
@@ -82,23 +82,23 @@ export default function LoansPage() {
   return (
     <>
       <PageHeader icon={HandCoins}
-        title={staffView ? 'Loans' : 'My Loans'}
+        title={staffView ? 'Mutual Assistance' : 'My Mutual Assistance'}
         subtitle={staffView
-          ? 'Approved Mutual Assistance loans: releases, payments and balances.'
-          : 'Your Mutual Assistance loans, payments and balances.'}
-        actions={<Link to="/loans/apply" className="btn-primary"><FilePlus2 className="h-4 w-4" /> {staffView ? 'New application' : 'Apply for a loan'}</Link>}
+          ? 'Approved mutual assistance (loans): releases, payments and balances.'
+          : 'Your mutual assistance (loans), payments and balances.'}
+        actions={<Link to="/loans/apply" className="btn-primary"><FilePlus2 className="h-4 w-4" /> {staffView ? 'New application' : 'Apply for mutual assistance'}</Link>}
       />
 
       {!staffView && !session?.memberId && (
         <p className="mb-4 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800" role="status">
-          Your account isn't linked to a member record yet, so no loans are shown. Ask the UDEI office to link it.
+          Your account isn't linked to a member record yet, so no mutual assistance is shown. Ask the UDEI office to link it.
         </p>
       )}
 
       {!staffView && <MyApplications />}
 
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard icon={HandCoins} label="Open loans" value={String(open.length + carriedOpen)}
+        <StatCard icon={HandCoins} label="Open mutual assistance" value={String(open.length + carriedOpen)}
           hint={carriedOpen ? `${carriedOpen} carried over from the ledger` : `${all.filter((l) => l.status === 'for_release').length} waiting for release`} />
         <StatCard icon={Wallet} label="Outstanding balance" value={formatCentavos(outstanding + carriedTotal)}
           hint={carriedTotal ? `${formatCentavos(carriedTotal)} carried over` : undefined} />
@@ -122,8 +122,8 @@ export default function LoansPage() {
           </div>
           <div className="relative lg:ml-auto lg:w-72">
             <Search className="pointer-events-none absolute top-2.5 left-3 h-4 w-4 text-brand-400" />
-            <input className="input pl-9" placeholder="Search loan no. or borrower" value={query}
-              onChange={(e) => setQuery(e.target.value)} aria-label="Search loans" />
+            <input className="input pl-9" placeholder="Search MA no. or borrower" value={query}
+              onChange={(e) => setQuery(e.target.value)} aria-label="Search mutual assistance" />
           </div>
         </div>
 
@@ -131,7 +131,7 @@ export default function LoansPage() {
           <table className="w-full text-sm">
             <thead className="table-head">
               <tr>
-                <th className="px-4 py-3">Loan</th>
+                <th className="px-4 py-3">Mutual Assistance</th>
                 <th className="px-4 py-3">Borrower</th>
                 <th className="px-4 py-3 text-right">Principal</th>
                 <th className="px-4 py-3">Rate and term</th>
@@ -166,7 +166,7 @@ export default function LoansPage() {
               {filtered.length === 0 && (
                 <tr>
                   <td colSpan={8} className="px-4 py-10 text-center text-brand-500">
-                    {loans === null ? 'Loading loans…' : all.length === 0 ? 'No loans yet. A loan appears here once the President approves an application.' : 'No loans match this filter.'}
+                    {loans === null ? 'Loading mutual assistance…' : all.length === 0 ? 'No mutual assistance yet. A mutual assistance appears here once the President approves an application.' : 'No mutual assistance matches this filter.'}
                   </td>
                 </tr>
               )}
@@ -180,9 +180,9 @@ export default function LoansPage() {
           <div className="border-b border-brand-100 p-4">
             <h2 className="font-semibold text-ink">Carried over from the spreadsheet ledger</h2>
             <p className="text-sm text-brand-600">
-              Yearly totals from UDEI's loan ledger as of {formatDay(carried[0].asOf)}. The ledger has no rates or schedules,
+              Yearly totals from UDEI's mutual assistance ledger as of {formatDay(carried[0].asOf)}. The ledger has no rates or schedules,
               so these are balances only. Once the Bookkeeper sets a member's payroll deduction on the Members page, the
-              balance moves to the loans above and payroll deduction runs include it.
+              balance moves to the list above and payroll deduction runs include it.
             </p>
           </div>
           <div className="overflow-x-auto">

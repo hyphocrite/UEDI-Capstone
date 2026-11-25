@@ -40,7 +40,7 @@ export default function BookkeeperSection({ form, update, ledger }: Props) {
             {balances && <LoanList group={balances[r.group]} />}
           </div>
         ))}
-        <Field id="monthlyPayment" label="Paid per month on these loans (₱)" hint="What payroll already deducts for UDEI each month.">
+        <Field id="monthlyPayment" label="Paid per month on this mutual assistance (₱)" hint="What payroll already deducts for UDEI each month.">
           <input id="monthlyPayment" type="number" min={0} inputMode="decimal" className={inputClass} readOnly={locked}
             value={form.monthlyPayment} onChange={(e) => update({ monthlyPayment: e.target.value })} />
         </Field>
@@ -65,11 +65,11 @@ function LedgerNote({ ledger }: { ledger: LedgerState }) {
   if (ledger.status === 'error') {
     return <p className={`${box} bg-amber-50 text-amber-800`}>Couldn't check the ledger ({ledger.message}). Enter balances from the Bookkeeper's books.</p>
   }
-  return <p className={`${box} bg-brand-50 text-brand-700`}>No loans in the system yet. Picking a member fills in the balance from UDEI's ledger; check it against the books.</p>
+  return <p className={`${box} bg-brand-50 text-brand-700`}>No mutual assistance in the system yet. Picking a member fills in the balance from UDEI's ledger; check it against the books.</p>
 }
 
 function LoanList({ group }: { group: MemberBalances['longTerm'] }) {
-  if (group.loans.length === 0) return <p className="mt-1 text-xs text-brand-500">No active loans of this type.</p>
+  if (group.loans.length === 0) return <p className="mt-1 text-xs text-brand-500">No active mutual assistance of this type.</p>
   return (
     <ul className="mt-2 space-y-0.5 text-xs text-brand-600">
       {group.loans.map((l) => (

@@ -109,7 +109,7 @@ test("submit, score and list applications", { skip: !uri && "TEST_MONGODB_URI no
   for (const purpose of [undefined, "   "]) {
     const noReason = await call("/applications", { method: "POST", cookie: officer, body: { ...application(), loan: { ...application().loan, purpose } } });
     assert.equal(noReason.status, 400);
-    assert.match(noReason.json.error, /reason for the loan/);
+    assert.match(noReason.json.error, /reason for the mutual assistance/);
   }
 
   const noConsent = await call("/applications", { method: "POST", cookie: officer, body: { ...application(), agreement: { ...application().agreement, payrollDeduction: false } } });

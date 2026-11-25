@@ -32,28 +32,28 @@ const TEXT = {
     tip: "Applying for a smaller amount helps.",
   },
   loan_amount: {
-    against: () => "The loan amount is large.",
-    for: () => "The loan amount is modest.",
+    against: () => "The amount asked for is large.",
+    for: () => "The amount asked for is modest.",
     tip: "Applying for a smaller amount helps.",
   },
   term_months: {
-    against: () => "The loan runs for a long time.",
-    for: () => "The loan term is short.",
+    against: () => "The term is long.",
+    for: () => "The term is short.",
     tip: "A shorter term, if you can afford the installment, helps.",
   },
   existing_balance_to_salary: {
-    against: () => "Your existing UDEI loan balances are high compared with your salary.",
-    for: () => "You owe UDEI little on other loans.",
-    tip: "Paying down your current UDEI loans first improves your chances.",
+    against: () => "Your existing UDEI mutual assistance balances are high compared with your salary.",
+    for: () => "You owe UDEI little on other mutual assistance.",
+    tip: "Paying down your current UDEI mutual assistance first improves your chances.",
   },
   late_payment_rate: {
-    against: () => "Some of your past UDEI loans had late payments.",
-    for: (v) => (v === 0 ? "Your past UDEI loans were paid on time." : null),
-    tip: "Keeping your current loans up to date helps future applications.",
+    against: () => "Some of your past UDEI mutual assistance (loans) had late payments.",
+    for: (v) => (v === 0 ? "Your past UDEI mutual assistance (loans) was paid on time." : null),
+    tip: "Keeping your current mutual assistance up to date helps future applications.",
   },
   prior_loans: {
-    against: () => "You have had many loans with UDEI.",
-    for: () => "You have a record of past loans with UDEI.",
+    against: () => "You have had mutual assistance from UDEI many times.",
+    for: () => "You have a record of past mutual assistance with UDEI.",
     tip: null,
   },
   years_as_member: {
@@ -82,8 +82,8 @@ const TEXT = {
     tip: "Upload clear photos of documents that match what you typed.",
   },
   loan_type_emergency: {
-    against: () => "Emergency loans have had more late payments in UDEI's records.",
-    for: (v) => (v === 0 ? "Long term loans have had fewer late payments in UDEI's records." : null),
+    against: () => "Emergency mutual assistance has had more late payments in UDEI's records.",
+    for: (v) => (v === 0 ? "Long term mutual assistance has had fewer late payments in UDEI's records." : null),
     tip: null,
   },
 };
@@ -105,7 +105,7 @@ const TOPIC = {
   years_as_member: "membership",
   employment_not_permanent: "employment",
   documents_flagged: "documents",
-  loan_type_emergency: "loan type",
+  loan_type_emergency: "type of mutual assistance",
 };
 
 /**

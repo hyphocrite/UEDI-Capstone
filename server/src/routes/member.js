@@ -55,10 +55,10 @@ const applySchema = z.object({
   monthlySalary: z.coerce.number().positive("Enter your monthly salary."),
   netTakeHomePay: z.coerce.number().positive("Enter your net take-home pay."),
   loanType: z.enum(["long_term", "emergency"], { message: "Choose Long term or Emergency." }),
-  amount: z.coerce.number().positive("Enter the loan amount."),
+  amount: z.coerce.number().positive("Enter the amount."),
   termMonths: z.coerce.number().int().min(1, "Enter the term in months."),
   paymentFrequency: z.enum(["quincenal", "monthly"]).default("monthly"),
-  purpose: z.string({ message: "Give the reason for the loan." }).trim().min(3, "Give the reason for the loan.").max(300),
+  purpose: z.string({ message: "Give the reason for the mutual assistance." }).trim().min(3, "Give the reason for the mutual assistance.").max(300),
   payrollDeduction: z.literal(true, { message: "You must authorize payroll deduction." }),
   autoRestructure: z.literal(true, { message: "You must agree to automatic restructuring." }),
   // Member numbers of the co-makers (how many are needed is a Loan Setting).
@@ -363,9 +363,9 @@ router.get("/loans", async (req, res, next) => {
 
 router.get("/loans/:id", async (req, res, next) => {
   try {
-    if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ error: "Loan not found." });
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ error: "Mutual assistance not found." });
     const loan = await Loan.findOne({ _id: req.params.id, ...(await ownLoanFilter(req.user)) });
-    if (!loan) return res.status(404).json({ error: "Loan not found." });
+    if (!loan) return res.status(404).json({ error: "Mutual assistance not found." });
     const [payments, submissions] = await Promise.all([
       Payment.find({ loan: loan._id, voided: false }).sort({ paidAt: -1 }),
       PaymentSubmission.find({ loan: loan._id }).sort({ createdAt: -1 }).limit(100),

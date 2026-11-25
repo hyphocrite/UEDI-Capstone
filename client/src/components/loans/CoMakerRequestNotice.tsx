@@ -49,7 +49,7 @@ export default function CoMakerRequestNotice({ app, onChange }: { app: LoanAppli
       <p className="mt-1">
         {waiting.length
           ? `Waiting for ${waiting.map((c) => c.name ?? c.memberId).join(' and ')} to accept on their Co-maker page. Signing goes on once a co-maker accepts.`
-          : 'Name a UDEI member who vouches for this loan. They accept on their Co-maker page, and signing then goes on.'}
+          : 'Name a UDEI member who vouches for this mutual assistance. They accept on their Co-maker page, and signing then goes on.'}
       </p>
       {!open ? (
         <button type="button" className="btn-ghost mt-2 bg-white px-3 py-1.5 text-sm" onClick={() => setOpen(true)}>

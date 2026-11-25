@@ -19,23 +19,46 @@ Random Forest, Logistic Regression) and a stacked ensemble, which suggest approv
 See [ml-service/README.md](ml-service/README.md).
 
 **Four-signature approval.** The Bookkeeper, CreCom Chairman, President and Treasurer sign in that order
-on Pending Loans. The Bookkeeper checks the balances section, which is filled in from the ledger. A
+on Pending Applications. The Bookkeeper checks the balances section, which is filled in from the ledger. A
 signer going against the model's suggestion has to give a reason. The Treasurer's signature is the
 final approval: it creates the loan, which the Treasurer then releases.
 
-**Loans and the ledger.** The Treasurer releases an approved loan, which builds its payment schedule
-(quincenal or monthly, interest on the remaining balance) and can pay off the borrower's older loans
-from the proceeds. Payments are applied oldest installment first, interest before principal. Payments
-can be voided but never deleted. Every amount is stored as whole centavos.
+UDEI is an association, so the screens, emails and the mobile app call its loans **Mutual Assistance**
+("MA no." for the loan number). The code, routes and API fields still say `loan`.
+
+**Mutual assistance and the ledger.** The Treasurer releases an approved mutual assistance, which builds
+its payment schedule (quincenal or monthly, interest on the remaining balance) and can pay off the
+borrower's older ones from the proceeds. Payments are applied oldest installment first, interest before
+principal. Payments can be voided but never deleted. Every amount is stored as whole centavos.
+
+**Payments outside payroll** (the Payments page, under Records). Members can pay by cash, e-money (GCash,
+Maya, QR) or bank transfer: they send it from their mutual assistance page (web or phone) with the
+reference and a photo of the receipt, or the office enters a walk-in payment. The **Treasurer** receives
+it and enters the Official Receipt (OR) number, which must be unique; the **Bookkeeper** then confirms
+it, and only then is it posted to the ledger (one Payment, with the OR). Either can reject it with a
+reason, and the member is emailed when it is posted or rejected. The tabs (To receive, To confirm, Posted,
+Rejected) carry a count in the menu for the role that acts on them. Payroll and corrections can still be
+recorded straight on the loan page; cash, e-money and bank transfers can't.
+
+**Advance payments.** A payment outside payroll is an advance: payroll keeps deducting the same
+installment every cutoff (only the last one is cut to the remaining balance), so the mutual assistance
+finishes earlier. The loan page shows "Paid ahead: N installments", and the member sees when it will
+finish at the current deduction. An advance never counts as lateness.
 
 **Payroll deductions.** For each cutoff (the 15th and month-end), the Bookkeeper builds a run of what
 each borrower owes, exports it for the payroll office, enters what payroll actually remitted, and posts
-it, which records the payments. Missed and partial deductions are flagged on the loan. The Treasurer can
+it, which records the payments. To fill in what was remitted, the Bookkeeper uploads DNSC Accounting's
+remittance list (.xlsx or .csv). Rows are matched by MA no., UDEI no., employee no. (on the member
+record) or name, and shown for review (matched, ambiguous, not found, not remitted) before anything is
+filled in. When the list has several amount columns the Bookkeeper picks the Mutual Assistance one, and
+the choice is remembered. The header words are in `HEADER_WORDS` in
+`server/src/services/remittanceImport.js`, to adjust when UDEI's real sample arrives. Old .xls files
+must be saved as .xlsx first. Missed and partial deductions are flagged on the loan. The Treasurer can
 unpost a run.
 
-**Members, Retirement Plans, Reports and Loan Settings** read from and save to MongoDB:
+**Members, Retirement Plans, Reports and Settings** read from and save to MongoDB:
 
-- **Loan Settings**: interest rate and longest term per loan type, minimum monthly salary and the branch
+- **Settings**: interest rate and longest term per loan type, minimum monthly salary and the branch
   list. The web form, the mobile app and the server all use these.
 - **Reports**: daily, weekly, monthly and yearly. They download as CSV for Excel or print to PDF.
 
@@ -44,10 +67,10 @@ the roles below it see, except Payroll Deductions, which only the Bookkeeper, Tr
 
 | Role | Adds |
 | --- | --- |
-| Member | My Loans, Apply for a Loan, Profile |
-| Loan Officer, Bookkeeper | Pending Loans, Members, Member Accounts, Retirement Plans (Bookkeeper also: Payroll Deductions) |
-| Treasurer | Reports, Payroll Deductions |
-| CreCom Chairman, President | Loan Settings (terms, minimum salary, branches) |
+| Member | My Mutual Assistance, Apply for Mutual Assistance, Co-maker, Profile |
+| Loan Officer, Bookkeeper | Pending Applications, Members, Member Accounts, Retirement Plans (Bookkeeper also: Payroll Deductions, Payments) |
+| Treasurer | Reports, Payroll Deductions, Payments |
+| CreCom Chairman, President | Settings (terms, minimum salary, branches) |
 | Administrator | Interest rates, Credit Model, user roles, Audit Log, Payroll Deductions |
 
 The first account created becomes the administrator. Every account after that starts as a Member, and
@@ -68,9 +91,9 @@ See [mobile/README.md](mobile/README.md).
   against the member; months after the last contribution anyone has on record count as "not entered
   yet", so import contributions regularly.
 - **Co-makers**: optional for UDEI members (up to 2), mandatory for applicants not linked to a member
-  number (they borrow at most ₱5,000). Loan Settings only sets the amount from which Pending Loans
+  number (they borrow at most ₱5,000). Settings only sets the amount from which Pending Applications
   *suggests* one. The Bookkeeper, CreCom Chairman or President can **ask for a co-maker** case by case,
-  with a note: the applicant is emailed and names one from My Loans, and nobody can approve until a
+  with a note: the applicant is emailed and names one from My Mutual Assistance, and nobody can approve until a
   co-maker accepts or the signer withdraws the request. Co-makers confirm on their **Co-maker** page,
   print their own Co-Maker's Statement (`/co-maker/:applicationId/:memberId/form`) and upload it
   signed. For non-members the Treasurer can't give the final signature until it is uploaded (the rule
@@ -79,7 +102,7 @@ See [mobile/README.md](mobile/README.md).
 - **ID name check**: an application's valid ID counts as checked only when the OCR verified it.
   Otherwise (flagged by the OCR, sent from the phone, or added later) the Bookkeeper ticks whether the
   ID matches the applicant's name when signing; "Doesn't match" needs a note and blocks approving, not
-  denying. Pending Loans shows an "ID name" chip on each application.
+  denying. Pending Applications shows an "ID name" chip on each application.
 - **Early warning** (Loan Officer and up): the chance each active loan misses a payment in the next 60
   days, from a second XGBoost model in the ML service with plain reasons (e.g. stopped saving). It is
   trained on SAMPLE snapshots until there is history: `npm --prefix server run export:early-warning --
@@ -136,7 +159,7 @@ Helper scripts, run from the repo root:
 | --- | --- |
 | `npm --prefix server run dev:admin` | Creates or resets a local administrator account and prints its login. Refuses to run when `NODE_ENV=production`, but uses whatever `MONGODB_URI` says, so don't run it while `server/.env` points at the hosted database. |
 | `npm --prefix server run seed:signers` | Creates one account for each signer role, all with the same password, to try the approval chain |
-| `npm --prefix server run seed` | Adds five sample applications to Pending Loans |
+| `npm --prefix server run seed` | Adds five sample applications to Pending Applications |
 
 ### Email
 
@@ -242,8 +265,23 @@ Officer and every role above it.
 | GET | `/balances?memberId=` | Signed in | A member's balances for the application form |
 | GET | `/:id` | Signed in | One loan with its schedule and payments |
 | POST | `/:id/release` | Treasurer | Release an approved loan |
-| POST | `/:id/payments` | Bookkeeper, Treasurer | Record a payment |
+| POST | `/:id/payments` | Bookkeeper, Treasurer | Record a payroll payment or a correction (`payroll`, `other`) |
 | POST | `/:id/payments/:paymentId/void` | Bookkeeper, Treasurer | Void a payment |
+
+**Payments outside payroll** (`/api/payments`)
+
+| Method | Path | Who | What it does |
+| --- | --- | --- | --- |
+| POST | `/` | Bookkeeper, Treasurer (walk-in); the borrower (their own) | Submit a cash, e-money or bank transfer payment |
+| GET | `/?status=&month=&loan=` | Bookkeeper, Treasurer+ | List submissions |
+| GET | `/counts` | Bookkeeper, Treasurer+ | How many wait to be received and confirmed |
+| GET | `/mine?loan=` | The borrower | Their own submissions on a loan |
+| PUT, GET | `/:id/proof` | Submitter, Bookkeeper, Treasurer / borrower and staff | Upload or open the proof photo or PDF |
+| POST | `/:id/receive` | Treasurer | `{ orNumber, receivedAt }`: received, OR issued |
+| POST | `/:id/confirm` | Bookkeeper | Post it to the loan (409 if over the balance) |
+| POST | `/:id/reject` | Treasurer (before receiving), Bookkeeper (after) | `{ reason }` |
+
+The mobile app submits with `POST /api/member/loans/:id/payments`.
 
 **Payroll deductions** (`/api/deductions`, Bookkeeper, Treasurer and Admin can view; Bookkeeper and Treasurer make changes)
 
@@ -256,7 +294,9 @@ Officer and every role above it.
 | PATCH | `/:id/lines/:lineId` | Change or remove a line |
 | POST | `/:id/send` | Mark as sent to payroll |
 | PUT | `/:id/remittance` | Enter what payroll remitted |
-| POST | `/:id/import` | Read payroll's remittance CSV into the form (saves nothing) |
+| POST | `/:id/import` | Read our own remittance CSV into the form (saves nothing) |
+| POST | `/:id/remittance-file?name=&sheet=&amount=` | Read Accounting's remittance list (.xlsx/.csv body) and match it to the lines (saves nothing) |
+| PUT | `/import-settings` | Remember the sheet and columns of the remittance list |
 | POST | `/:id/post` | Post the run (records the payments) |
 | POST | `/:id/unpost` | Undo a posted run (Treasurer) |
 
@@ -273,8 +313,8 @@ Officer and every role above it.
 | POST | `/api/retirement-plans/:id/contributions` | Bookkeeper, Treasurer | Record a contribution |
 | POST | `/api/retirement-plans/:id/contributions/:contributionId/void` | Bookkeeper, Treasurer | Void a contribution |
 | GET | `/api/reports?period=` | Treasurer+ | Collections, releases and applications per period |
-| GET | `/api/settings` | Anyone | Loan Settings |
-| PUT | `/api/settings` | CreCom Chairman+ (interest rates: Admin only) | Save Loan Settings |
+| GET | `/api/settings` | Anyone | Settings |
+| PUT | `/api/settings` | CreCom Chairman+ (interest rates: Admin only) | Save Settings |
 | GET | `/api/members/mine` | Signed in | A linked member's own record, history and last application, to fill in their loan form |
 | GET | `/api/audit` | Admin | The audit log (`?q=`, `?action=`, `?outcome=`, `?from=`, `?to=`, `?page=`) |
 | GET | `/api/locations/provinces`, `/towns?province=`, `/barangays?town=`, `/parse?address=` | Signed in | Address dropdowns from the PSGC list, and splitting a typed address into them |

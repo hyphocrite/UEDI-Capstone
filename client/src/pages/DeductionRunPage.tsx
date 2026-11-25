@@ -103,7 +103,7 @@ export default function DeductionRunPage() {
     const who = <b>{line.loanNo} · {line.borrowerName}</b>
     const ok = await confirm(
       body.remove
-        ? { title: 'Remove this line?', message: <p>Take {who} off the {cutoffName} list. Payroll won't deduct for this loan this cutoff. Reason: “{body.removedReason}”.</p>, confirmLabel: 'Yes, remove', danger: true }
+        ? { title: 'Remove this line?', message: <p>Take {who} off the {cutoffName} list. Payroll won't deduct for this mutual assistance this cutoff. Reason: “{body.removedReason}”.</p>, confirmLabel: 'Yes, remove', danger: true }
         : body.remove === false
           ? { title: 'Put this line back?', message: <p>Put {who} back on the {cutoffName} list.</p>, confirmLabel: 'Yes, put back' }
           : { title: 'Change the amount?', message: <p>Ask payroll to deduct <b>{formatCentavos(body.expected ?? 0)}</b> instead of {formatCentavos(line.expected)} from {who} on {cutoffName}.</p>, confirmLabel: 'Yes, change it' },
@@ -125,7 +125,7 @@ export default function DeductionRunPage() {
     }
     if (askFirst && !(await confirm({
       title: 'Save the remitted amounts?',
-      message: <p>Save what payroll remitted for the {cutoffName} run: {formatCentavos(live?.remitted ?? 0)} in total. Nothing is posted to the loans until you post the run.</p>,
+      message: <p>Save what payroll remitted for the {cutoffName} run: {formatCentavos(live?.remitted ?? 0)} in total. Nothing is posted to the mutual assistance until you post the run.</p>,
       confirmLabel: 'Yes, save',
     }))) return false
     return act('save', () =>
@@ -146,14 +146,14 @@ export default function DeductionRunPage() {
       title: 'Post this run to the ledger?',
       message: (
         <>
-          <p>Each remitted amount on the {cutoffName} run becomes a payroll payment on its loan ({formatCentavos(live?.remitted ?? 0)} in total), and missed or partial deductions are flagged on the loans.</p>
+          <p>Each remitted amount on the {cutoffName} run becomes a payroll payment on its mutual assistance ({formatCentavos(live?.remitted ?? 0)} in total), and missed or partial deductions are flagged on the mutual assistance.</p>
           <p>Only the Treasurer can undo this, by unposting the run.</p>
         </>
       ),
       confirmLabel: 'Yes, post',
     })
     if (!ok || !(await save(false))) return
-    await act('post', () => api(`${path}/post`, { method: 'POST' }), 'Posted. Each remitted amount is now a payroll payment on its loan.')
+    await act('post', () => api(`${path}/post`, { method: 'POST' }), 'Posted. Each remitted amount is now a payroll payment on its mutual assistance.')
   }
   const applyImport = (updates: ImportResult['updates']) =>
     setEdits((all) => {
@@ -167,7 +167,7 @@ export default function DeductionRunPage() {
     if (reason.trim().length < 3) return setError('Give a reason.')
     if (prompt.kind !== 'remove' && !(await confirm({
       title: 'Unpost this run?',
-      message: <p>Every payment this run posted is voided and the loan balances go back up, so the {cutoffName} lines can be corrected and posted again. Reason: “{reason.trim()}”.</p>,
+      message: <p>Every payment this run posted is voided and the mutual assistance balances go back up, so the {cutoffName} lines can be corrected and posted again. Reason: “{reason.trim()}”.</p>,
       confirmLabel: 'Yes, unpost',
       danger: true,
     }))) return
@@ -223,7 +223,7 @@ export default function DeductionRunPage() {
               {run.status === 'draft' ? 'Lines to send' : run.status === 'sent' ? 'What was deducted' : 'Posted lines'}
             </h2>
             {run.lines.length === 0 ? (
-              <p className="px-4 py-6 text-sm text-brand-500 sm:px-5">No active loans have an installment due on this cutoff.</p>
+              <p className="px-4 py-6 text-sm text-brand-500 sm:px-5">No active mutual assistance has an installment due on this cutoff.</p>
             ) : (
               <RunLinesTable
                 mode={run.status}

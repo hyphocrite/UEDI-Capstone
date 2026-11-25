@@ -19,7 +19,7 @@ export default function PrintSheet({ run }: { run: DeductionRun }) {
           <tr className="border-y border-black text-left">
             <th className="py-1 pr-2">Member ID</th>
             <th className="py-1 pr-2">Employee name</th>
-            <th className="py-1 pr-2">Loan no.</th>
+            <th className="py-1 pr-2">MA no.</th>
             <th className="py-1 pr-2">Loan type</th>
             <th className="py-1 text-right">Amount to deduct</th>
           </tr>
@@ -37,7 +37,7 @@ export default function PrintSheet({ run }: { run: DeductionRun }) {
         </tbody>
         <tfoot>
           <tr className="border-y border-black font-bold">
-            <td className="py-1" colSpan={4}>Total, {lines.length} loans</td>
+            <td className="py-1" colSpan={4}>Total, {lines.length} mutual assistance</td>
             <td className="py-1 text-right">{formatCentavos(total)}</td>
           </tr>
         </tfoot>

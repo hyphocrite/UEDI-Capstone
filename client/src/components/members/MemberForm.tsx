@@ -146,7 +146,7 @@ export default function MemberForm({ member, nextMemberId, branches, open, onClo
     <Modal title={editing ? `Edit ${member.fullName}` : 'Add member'} open={open} onClose={onClose}>
       <form onSubmit={submit} className="max-h-[70vh] space-y-4 overflow-y-auto pr-1" noValidate>
         {editing ? (
-          <p className="text-xs text-brand-500">UDEI member no. {member.memberId}. The number can't change, because loans and plans point to it.</p>
+          <p className="text-xs text-brand-500">UDEI member no. {member.memberId}. The number can't change, because mutual assistance and plans point to it.</p>
         ) : (
           input('memberId', 'UDEI member no.', { placeholder: `Leave empty for ${nextMemberId}`, maxLength: 32 })
         )}

@@ -122,12 +122,12 @@ const createSchema = z
     }),
     loan: z.object({
       loanType: z.enum(LOAN_TYPES, { message: "Choose Long term or Emergency." }),
-      amount: money.refine((n) => n > 0, "Enter the loan amount."),
+      amount: money.refine((n) => n > 0, "Enter the amount."),
       termMonths: z.coerce.number().int().min(1).max(120),
       monthlyRate: z.coerce.number().min(0).max(10),
       paymentFrequency: z.enum(PAYMENT_FREQUENCIES).default("monthly"),
       // Required: the signers read it next to the ML suggestion.
-      purpose: z.string({ message: "Give the reason for the loan." }).trim().min(3, "Give the reason for the loan.").max(300),
+      purpose: z.string({ message: "Give the reason for the mutual assistance." }).trim().min(3, "Give the reason for the mutual assistance.").max(300),
     }),
     bookkeeper: bookkeeperSchema.default({ longTermBalance: 0, shortTermBalance: 0 }),
     agreement: z.object({
@@ -140,7 +140,7 @@ const createSchema = z
     documents: z.array(documentCheckSchema).max(MAX_DOCUMENTS).default([]),
   })
   .refine((v) => v.applicant.priorLatePayments <= v.applicant.priorLoans, {
-    message: "Late payments cannot be more than past loans.",
+    message: "Late payments cannot be more than past mutual assistance.",
   })
   .refine((v) => v.applicant.netTakeHomePay <= v.applicant.monthlySalary, {
     message: "Net take-home pay cannot be more than the monthly salary.",
@@ -213,7 +213,7 @@ async function resolveCoMakers(rules, data) {
     throw new coMakers.CoMakerError(`Applicants who aren't linked to a UDEI member number can borrow at most ${peso(limit)}.`);
   }
   if (!data.coMakers.some((c) => String(c).trim())) {
-    throw new coMakers.CoMakerError("Applicants who aren't linked to a UDEI member number need a co-maker: a UDEI member who vouches for this loan.");
+    throw new coMakers.CoMakerError("Applicants who aren't linked to a UDEI member number need a co-maker: a UDEI member who vouches for this mutual assistance.");
   }
   return coMakers.resolve(data.coMakers, memberId, 1, { membersOnly: true });
 }

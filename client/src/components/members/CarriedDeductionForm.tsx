@@ -54,7 +54,7 @@ export default function CarriedDeductionForm({ member, onClose, onSaved }: {
       message: (
         <>
           <p>Payroll will deduct <b>{formatCentavos(perCutoff)}</b> {frequency === 'quincenal' ? 'every payday' : 'once a month'} from <b>{member.fullName}</b>, starting {formatDay(firstDueDate)}, until the {formatCentavos(opening.balance)} balance is paid ({cutoffs} deductions).</p>
-          <p>The balance becomes loan LEDGER-{member.memberId}. This can only be set up once per member.</p>
+          <p>The balance becomes mutual assistance LEDGER-{member.memberId}. This can only be set up once per member.</p>
         </>
       ),
       confirmLabel: 'Yes, set it up',

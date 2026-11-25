@@ -19,7 +19,7 @@ export default function SubmittedCard({ application: app, onNew, staffView }: Pr
           The Bookkeeper, Credit Committee Chairman, President and Treasurer will review it in that order, and the Treasurer then releases the money.
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
-          <Link to="/loans" className="btn-primary">Back to My Loans</Link>
+          <Link to="/loans" className="btn-primary">Back to My Mutual Assistance</Link>
         </div>
       </div>
     )
@@ -42,14 +42,14 @@ export default function SubmittedCard({ application: app, onNew, staffView }: Pr
           </div>
         ) : (
           <p className="mt-2 text-sm text-amber-800">
-            Not ready: {app.assessmentError ?? 'the ML service did not answer'}. An officer can run the models again from Pending Loans.
+            Not ready: {app.assessmentError ?? 'the ML service did not answer'}. An officer can run the models again from Pending Applications.
           </p>
         )}
-        <p className="mt-2 text-xs text-brand-500">A loan officer makes the decision on Pending Loans.</p>
+        <p className="mt-2 text-xs text-brand-500">A loan officer makes the decision on Pending Applications.</p>
       </div>
 
       <div className="mt-6 flex flex-wrap justify-center gap-2">
-        <Link to="/loans/pending" className="btn-ghost">Open Pending Loans</Link>
+        <Link to="/loans/pending" className="btn-ghost">Open Pending Applications</Link>
         <button type="button" onClick={onNew} className="btn-primary">New application</button>
       </div>
     </div>

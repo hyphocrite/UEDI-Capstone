@@ -48,7 +48,7 @@ function scoreOf(signals, history = { priorLoans: 0, priorLatePayments: 0 }) {
   } else add("bills", "Utility and load bills", null, "No bills recorded.");
 
   if (s.coMaker.vouched) {
-    add("coMaker", "Co-maker record", s.coMaker.good / s.coMaker.vouched, `Vouched for ${s.coMaker.vouched} loan(s); ${s.coMaker.good} on track.`);
+    add("coMaker", "Co-maker record", s.coMaker.good / s.coMaker.vouched, `Vouched for ${s.coMaker.vouched} mutual assistance; ${s.coMaker.good} on track.`);
   } else add("coMaker", "Co-maker record", null, "Has not been a co-maker.");
 
   add("network", "Members who vouch for them", Math.min(s.backers, 2) / 2,
@@ -56,9 +56,9 @@ function scoreOf(signals, history = { priorLoans: 0, priorLatePayments: 0 }) {
 
   if (history.priorLoans > 0) {
     const late = Math.min(1, history.priorLatePayments / history.priorLoans);
-    add("repayment", "Past loan repayment", s.onAmnesty ? Math.min(1 - late, 0.3) : 1 - late,
-      s.onAmnesty ? "On amnesty for an earlier loan." : `${history.priorLoans - history.priorLatePayments} of ${history.priorLoans} past loans paid without being late.`);
-  } else add("repayment", "Past loan repayment", null, "No past loans.");
+    add("repayment", "Past mutual assistance repayment", s.onAmnesty ? Math.min(1 - late, 0.3) : 1 - late,
+      s.onAmnesty ? "On amnesty for an earlier mutual assistance." : `${history.priorLoans - history.priorLatePayments} of ${history.priorLoans} past mutual assistance paid without being late.`);
+  } else add("repayment", "Past mutual assistance repayment", null, "No past mutual assistance.");
 
   const known = parts.filter((p) => p.value !== null);
   const knownWeight = known.reduce((a, p) => a + p.weight, 0);
@@ -90,9 +90,9 @@ function toYou(part) {
     [/^Has not been a co-maker\.$/, "You have not been a co-maker yet."],
     [/have agreed to be their co-maker\.$/, "have agreed to be your co-maker."],
     [/^No member has vouched for them yet\.$/, "No member has vouched for you yet."],
-    [/^On amnesty for an earlier loan\.$/, "You are on amnesty for an earlier loan."],
-    [/^(\d+) of (\d+) past loans paid without being late\.$/, "You paid $1 of $2 past loans without being late."],
-    [/^No past loans\.$/, "You have no past loans."],
+    [/^On amnesty for an earlier loan\.$/, "You are on amnesty for an earlier mutual assistance."],
+    [/^(\d+) of (\d+) past mutual assistance paid without being late\.$/, "You paid $1 of $2 past mutual assistance without being late."],
+    [/^No past mutual assistance\.$/, "You have no past mutual assistance."],
   ];
   return rules.reduce((text, [re, to]) => text.replace(re, to), d);
 }
@@ -124,7 +124,7 @@ function tipFor(part) {
     case "network":
       return "Ask a fellow member to vouch for you as co-maker on your next application.";
     case "repayment":
-      return value === null ? null : "Keep your current loans up to date. Late payments lower your score.";
+      return value === null ? null : "Keep your current mutual assistance up to date. Late payments lower your score.";
     default:
       return null;
   }

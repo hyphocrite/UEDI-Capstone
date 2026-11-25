@@ -85,7 +85,7 @@ export default function AgreementSection({ form, update, onLoanTypeChange, linke
               {amounts.map((a) => <option key={a} value={String(a)}>{formatPeso(a)}</option>)}
             </select>
           </Field>
-          <Field id="purpose" label="Reason for the loan">
+          <Field id="purpose" label="Reason for the mutual assistance">
             <input id="purpose" className="input" maxLength={300} required aria-required="true" value={form.purpose} onChange={(e) => update({ purpose: e.target.value })} placeholder="e.g. tuition, house repair" />
           </Field>
         </div>
@@ -109,7 +109,7 @@ export default function AgreementSection({ form, update, onLoanTypeChange, linke
               </select>
             </div>
           </Field>
-          <Field id="monthlyRate" label="Interest rate" hint="Set by UDEI in Loan Settings. Only the Administrator can change it.">
+          <Field id="monthlyRate" label="Interest rate" hint="Set by UDEI in Settings. Only the Administrator can change it.">
             <input
               id="monthlyRate"
               className="input cursor-not-allowed bg-brand-50"
@@ -138,7 +138,7 @@ export default function AgreementSection({ form, update, onLoanTypeChange, linke
         </dl>
         {Number(form.monthlyPayment) > 0 && (
           <p className="-mt-2 text-center text-xs text-brand-600">
-            Already deducted: <strong className="text-ink">{formatCentavos(toCentavos(form.monthlyPayment))} per month</strong> on existing UDEI loans
+            Already deducted: <strong className="text-ink">{formatCentavos(toCentavos(form.monthlyPayment))} per month</strong> on existing UDEI mutual assistance
             {inst && <>, so {formatCentavos(toCentavos(form.monthlyPayment) + Math.round(inst.monthly * 100))} per month in all</>}.
           </p>
         )}

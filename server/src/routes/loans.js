@@ -118,7 +118,7 @@ router.get(
   "/:id",
   handle(async (req, res) => {
     const loan = await findLoan(req.params.id);
-    if (!loan || !canSee(req.user, loan)) return res.status(404).json({ error: "Loan not found." });
+    if (!loan || !canSee(req.user, loan)) return res.status(404).json({ error: "Mutual assistance not found." });
     const payments = await Payment.find({ loan: loan._id }).sort({ paidAt: -1, createdAt: -1 });
     // Which payroll run posted each payroll payment, for the ledger's OR / run column.
     const runIds = [...new Set(payments.filter((p) => p.deductionRun).map((p) => String(p.deductionRun)))];
@@ -137,7 +137,7 @@ router.post(
     const parsed = releaseSchema.safeParse(req.body || {});
     if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0].message });
     const loan = await findLoan(req.params.id);
-    if (!loan) return res.status(404).json({ error: "Loan not found." });
+    if (!loan) return res.status(404).json({ error: "Mutual assistance not found." });
     auditNote(res, { target: `${loan.loanNo} · ${loan.borrowerName}` });
     const released = await loans.release(loan, parsed.data, req.user);
     res.json({ loan: loans.present(released) });
@@ -151,7 +151,7 @@ router.post(
     const parsed = paymentSchema.safeParse(req.body || {});
     if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0].message });
     const loan = await findLoan(req.params.id);
-    if (!loan) return res.status(404).json({ error: "Loan not found." });
+    if (!loan) return res.status(404).json({ error: "Mutual assistance not found." });
     auditNote(res, { target: `${loan.loanNo} · ${loan.borrowerName}` });
     const { loan: updated, payment } = await loans.recordPayment(loan, parsed.data, req.user);
     res.status(201).json({ loan: loans.present(updated), payment });
@@ -165,7 +165,7 @@ router.post(
     const parsed = voidSchema.safeParse(req.body || {});
     if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0].message });
     const loan = await findLoan(req.params.id);
-    if (!loan) return res.status(404).json({ error: "Loan not found." });
+    if (!loan) return res.status(404).json({ error: "Mutual assistance not found." });
     auditNote(res, { target: `${loan.loanNo} · ${loan.borrowerName}` });
     if (!mongoose.isValidObjectId(req.params.paymentId)) return res.status(404).json({ error: "Payment not found." });
     const { loan: updated, payment } = await loans.voidPayment(loan, req.params.paymentId, parsed.data.reason, req.user);

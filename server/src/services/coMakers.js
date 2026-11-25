@@ -23,7 +23,7 @@ async function resolve(memberIds, applicantMemberId, required, { membersOnly = f
   const ids = [...new Set((memberIds || []).map((s) => String(s).trim()).filter(Boolean))];
   if (ids.length !== (memberIds || []).filter((s) => String(s).trim()).length) throw new CoMakerError("Name each co-maker once.");
   if (ids.length < required) {
-    throw new CoMakerError(`${required === 1 ? "Name a co-maker" : `Name ${required} co-makers`}: ${required === 1 ? "a UDEI member who vouches" : "UDEI members who vouch"} for this loan.`);
+    throw new CoMakerError(`${required === 1 ? "Name a co-maker" : `Name ${required} co-makers`}: ${required === 1 ? "a UDEI member who vouches" : "UDEI members who vouch"} for this mutual assistance.`);
   }
   if (ids.length > 2) throw new CoMakerError("Name at most 2 co-makers.");
   if (applicantMemberId && ids.includes(applicantMemberId)) throw new CoMakerError("The applicant can't be their own co-maker.");
@@ -74,7 +74,7 @@ const peso = (n) => `PHP ${Number(n).toLocaleString("en-PH")}`;
 
 async function emailUsers(userIds, subject, text) {
   const users = await User.find({ _id: { $in: userIds } }).select("email fullName");
-  await Promise.all(users.map((u) => mailer.send({ to: u.email, subject, text: `Hello ${u.fullName},\n\n${text}\n\nUDEI Loans`, html: `<p>Hello ${u.fullName},</p><p>${text.replace(/\n/g, "<br>")}</p><p>UDEI Loans</p>` }).catch((err) => console.error("Co-maker email failed:", err.message))));
+  await Promise.all(users.map((u) => mailer.send({ to: u.email, subject, text: `Hello ${u.fullName},\n\n${text}\n\nUDEI Mutual Assistance`, html: `<p>Hello ${u.fullName},</p><p>${text.replace(/\n/g, "<br>")}</p><p>UDEI Mutual Assistance</p>` }).catch((err) => console.error("Co-maker email failed:", err.message))));
 }
 
 /** Tells each co-maker they were named and must confirm. Best effort: a failed email doesn't stop filing. */
@@ -82,7 +82,7 @@ function notifyNamed(app) {
   return emailUsers(
     app.coMakers.map((c) => c.user),
     `You were named co-maker for ${app.applicant.fullName}`,
-    `${app.applicant.fullName} named you as co-maker on loan application ${app.applicationNo} for ${peso(app.loan.amount)} over ${app.loan.termMonths} months.\nSign in and open "Co-maker" to accept or decline. The application can't be signed until you answer.`,
+    `${app.applicant.fullName} named you as co-maker on mutual assistance application ${app.applicationNo} for ${peso(app.loan.amount)} over ${app.loan.termMonths} months.\nSign in and open "Co-maker" to accept or decline. The application can't be signed until you answer.`,
   );
 }
 
@@ -93,9 +93,9 @@ function notifyRequested(app) {
   return emailUsers(
     [app.submittedBy],
     `A co-maker is needed for your application ${app.applicationNo}`,
-    `${r.byName} asked for a co-maker on your loan application ${app.applicationNo} for ${peso(app.loan.amount)}.
+    `${r.byName} asked for a co-maker on your mutual assistance application ${app.applicationNo} for ${peso(app.loan.amount)}.
 Their note: "${r.note}"
-Sign in, open "My Loans" and name a UDEI member as co-maker. They then accept on their Co-maker page. Signing waits until a co-maker accepts.`,
+Sign in, open "My Mutual Assistance" and name a UDEI member as co-maker. They then accept on their Co-maker page. Signing waits until a co-maker accepts.`,
   );
 }
 
@@ -112,8 +112,8 @@ async function notifyMissed(lines) {
     const line = missed.find((l) => String(l.loan) === String(loan._id));
     await emailUsers(
       backers,
-      `${loan.borrowerName} missed a loan payment`,
-      `The payroll deduction for loan ${loan.loanNo} of ${loan.borrowerName}, which you vouched for as co-maker, was ${line.result === "partial" ? "only partly" : "not"} made this cutoff.\nSign in and open "Co-maker" to see the loan's status.`,
+      `${loan.borrowerName} missed a mutual assistance payment`,
+      `The payroll deduction for mutual assistance ${loan.loanNo} of ${loan.borrowerName}, which you vouched for as co-maker, was ${line.result === "partial" ? "only partly" : "not"} made this cutoff.\nSign in and open "Co-maker" to see how it is being paid.`,
     );
   }
 }

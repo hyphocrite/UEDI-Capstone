@@ -153,7 +153,7 @@ export default function ApplicationDetail({ app, onChange }: { app: LoanApplicat
         <div className="mt-4 grid min-w-0 gap-3 sm:grid-cols-[minmax(0,14rem)_1fr]">
           <div className="rounded-xl border-2 border-accent/40 bg-emerald-50/60 px-4 py-3">
             <p className="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-brand-600 uppercase">
-              <HandCoins className="h-4 w-4 text-accent" /> Loan amount
+              <HandCoins className="h-4 w-4 text-accent" /> Amount
             </p>
             <p className="mt-0.5 text-2xl font-bold text-brand-800">{formatPeso(app.loan.amount)}</p>
             <p className="text-sm text-brand-700">
@@ -163,7 +163,7 @@ export default function ApplicationDetail({ app, onChange }: { app: LoanApplicat
           </div>
           <div className={`min-w-0 rounded-xl border-2 px-4 py-3 ${app.loan.purpose ? 'border-brand-200 bg-white' : 'border-dashed border-amber-300 bg-amber-50/60'}`}>
             <p className="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-brand-600 uppercase">
-              <MessageSquareText className="h-4 w-4 text-accent" /> Reason for the loan
+              <MessageSquareText className="h-4 w-4 text-accent" /> Reason for the mutual assistance
             </p>
             {app.loan.purpose ? (
               <p className="mt-0.5 text-lg font-semibold break-words text-ink">“{app.loan.purpose}”</p>
@@ -182,11 +182,11 @@ export default function ApplicationDetail({ app, onChange }: { app: LoanApplicat
           <Item label="Net take-home pay" value={formatPeso(a.netTakeHomePay)} warn={a.netTakeHomePay < a.monthlySalary * 0.4} />
           <Item label={`Installment (${app.loan.paymentFrequency === 'quincenal' ? 'per month, half each quincena' : 'per month'})`} value={formatPeso(Math.round(installment))} />
           <Item label="Share of net pay" value={`${Math.round(share * 100)}%`} warn={share > 0.5} />
-          <Item label="Net pay left after this and existing loans" value={formatPeso(Math.round(left))} warn={left < 5000} />
+          <Item label="Net pay left after this and existing mutual assistance" value={formatPeso(Math.round(left))} warn={left < 5000} />
           <Item label="Interest rate" value={`${app.loan.monthlyRate}% a month`} />
           <Item label="Employment" value={`${employmentStatusLabel[a.employmentStatus]}, ${a.employer}`} warn={a.employmentStatus !== 'permanent'} />
           <Item label="Years as member" value={String(a.yearsAsMember)} />
-          <Item label="Past loans (paid late)" value={`${a.priorLoans} (${a.priorLatePayments})`} warn={a.priorLatePayments > 0} />
+          <Item label="Past mutual assistance (paid late)" value={`${a.priorLoans} (${a.priorLatePayments})`} warn={a.priorLatePayments > 0} />
           <Item label="Residence" value={a.residenceAddress} />
           <Item label="Member ID" value={a.memberId || 'New applicant'} />
         </dl>

@@ -64,7 +64,7 @@ test("a member registers, applies and follows the application to a loan", { skip
   assert.match(lowNet.json.error, /at least ₱5,000/);
   const noReason = await as(token, "/member/applications", { method: "POST", body: apply({ purpose: "" }) });
   assert.equal(noReason.status, 400, "the reason for the loan is required");
-  assert.match(noReason.json.error, /reason for the loan/);
+  assert.match(noReason.json.error, /reason for the mutual assistance/);
 
   const created = await as(token, "/member/applications", { method: "POST", body: apply() });
   assert.equal(created.status, 201, created.json.error);

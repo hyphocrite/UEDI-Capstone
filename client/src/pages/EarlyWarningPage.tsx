@@ -66,13 +66,13 @@ export default function EarlyWarningPage() {
     <>
       <PageHeader icon={Siren}
         title="Early Warning"
-        subtitle="Active loans likely to miss a payment in the next 60 days, so the office can reach the borrower before it happens."
+        subtitle="Active mutual assistance likely to miss a payment in the next 60 days, so the office can reach the borrower before it happens."
       />
 
       {model && (
         <p className="mb-4 rounded-lg bg-brand-50 px-4 py-3 text-sm text-brand-700">
           XGBoost model{model.trainedOn === 'sample' ? <b className="text-amber-700"> trained on sample data, not UDEI's history yet</b> : ` trained on ${model.rows} ${model.trainedOn} snapshots`}:
-          AUC {model.xgboost.aucRoc.toFixed(2)} (Logistic Regression baseline {model.logisticBaseline.aucRoc.toFixed(2)}). Of the loans it marks high risk,
+          AUC {model.xgboost.aucRoc.toFixed(2)} (Logistic Regression baseline {model.logisticBaseline.aucRoc.toFixed(2)}). Of the mutual assistance it marks high risk,
           about {Math.round(model.xgboost.precision * 100)}% go on to miss a payment, and it catches about {Math.round(model.xgboost.recall * 100)}% of those that do.
           It is a prompt to check on the borrower, not a decision.
         </p>
@@ -82,7 +82,7 @@ export default function EarlyWarningPage() {
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
         <StatCard icon={Siren} label="High risk" value={String(high.length)} hint={model ? `${Math.round(model.thresholds.high * 100)}% chance or more` : undefined} />
         <StatCard icon={Eye} label="Watch" value={String(watch.length)} hint={model ? `${Math.round(model.thresholds.watch * 100)}% to ${Math.round(model.thresholds.high * 100)}%` : undefined} />
-        <StatCard icon={ShieldCheck} label="Active loans checked" value={String(all.length)} />
+        <StatCard icon={ShieldCheck} label="Active mutual assistance checked" value={String(all.length)} />
       </div>
 
       <section className="card min-w-0">
@@ -90,7 +90,7 @@ export default function EarlyWarningPage() {
           {(['flagged', 'all'] as const).map((s) => (
             <button key={s} role="tab" aria-selected={show === s} onClick={() => setShow(s)}
               className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${show === s ? 'bg-brand-800 bg-grad-brand text-white' : 'bg-brand-50 text-brand-700 hover:bg-brand-100'}`}>
-              {s === 'flagged' ? `High risk and watch (${high.length + watch.length})` : `All active loans (${all.length})`}
+              {s === 'flagged' ? `High risk and watch (${high.length + watch.length})` : `All active mutual assistance (${all.length})`}
             </button>
           ))}
         </div>
@@ -107,7 +107,7 @@ export default function EarlyWarningPage() {
               </div>
               {l.reasons.length && l.level ? (
                 <MascotSays mood={l.level === 'low' ? 'happy' : 'concerned'}
-                  title={l.level === 'low' ? `${l.borrowerName.split(' ')[0]}'s loan looks fine. Small things I noticed:` : `Why I'm watching ${l.borrowerName.split(' ')[0]}'s loan:`}>
+                  title={l.level === 'low' ? `${l.borrowerName.split(' ')[0]}'s mutual assistance looks fine. Small things I noticed:` : `Why I'm watching ${l.borrowerName.split(' ')[0]}'s mutual assistance:`}>
                   <ul className="space-y-1 text-brand-800">
                     {l.reasons.map((r) => <li key={r.feature} className="flex gap-2"><ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" /> {r.text}</li>)}
                   </ul>
@@ -125,9 +125,9 @@ export default function EarlyWarningPage() {
             </li>
           ))}
           {list && shown.length === 0 && (
-            <li className="px-4 py-10 text-center text-sm text-brand-500">{show === 'flagged' ? 'No active loan shows warning signs right now.' : 'No active loans.'}</li>
+            <li className="px-4 py-10 text-center text-sm text-brand-500">{show === 'flagged' ? 'No active mutual assistance shows warning signs right now.' : 'No active mutual assistance.'}</li>
           )}
-          {!list && <li className="px-4 py-10 text-center text-sm text-brand-500">Checking active loans…</li>}
+          {!list && <li className="px-4 py-10 text-center text-sm text-brand-500">Checking active mutual assistance…</li>}
         </ul>
       </section>
     </>

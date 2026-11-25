@@ -125,7 +125,7 @@ export default function ApplicantSection({ form, update, lockedMemberId }: Props
             <Field id="yearsAsMember" label="Years as member">
               <input {...number('yearsAsMember')} />
             </Field>
-            <Field id="priorLoans" label="Past loans">
+            <Field id="priorLoans" label="Past mutual assistance">
               <input {...number('priorLoans')} step={1} />
             </Field>
             <Field id="priorLatePayments" label="Late payments">

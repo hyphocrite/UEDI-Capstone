@@ -88,7 +88,7 @@ export default function MyApplications() {
               {a.status === 'approved' && (
                 <p className="mt-2 flex items-center gap-2 text-sm text-emerald-800">
                   <CheckCircle2 className="h-4 w-4 shrink-0" /> Approved.
-                  {a.loanId ? <Link to={`/loans/${a.loanId}`} className="font-semibold underline">See loan {a.loanNo}</Link> : null}
+                  {a.loanId ? <Link to={`/loans/${a.loanId}`} className="font-semibold underline">See mutual assistance {a.loanNo}</Link> : null}
                 </p>
               )}
               {a.status === 'denied' && (

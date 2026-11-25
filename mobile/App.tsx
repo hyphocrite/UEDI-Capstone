@@ -20,7 +20,7 @@ type IconName = keyof typeof Ionicons.glyphMap
 
 // Loans · Apply · ( Home ) · Co-maker · Profile, the same order as the web app's tab bar.
 const TABS: { key: Tab; label: string; icon: IconName }[] = [
-  { key: 'loans', label: 'Loans', icon: 'cash-outline' },
+  { key: 'loans', label: 'Assistance', icon: 'cash-outline' },
   { key: 'apply', label: 'Apply', icon: 'add-circle-outline' },
   { key: 'home', label: 'Home', icon: 'home' },
   { key: 'comaker', label: 'Co-maker', icon: 'people-outline' },
@@ -152,7 +152,7 @@ function MemberHome() {
               <View>
                 <Ionicons name={t.icon} size={22} color={color} />
                 {dots[t.key] ? (
-                  <View accessibilityLabel={t.key === 'loans' ? 'A loan is past due' : 'Co-maker requests or alerts'}
+                  <View accessibilityLabel={t.key === 'loans' ? 'A payment is past due' : 'Co-maker requests or alerts'}
                     style={{ position: 'absolute', top: -2, right: -4, width: 10, height: 10, borderRadius: 5, backgroundColor: '#EF4444', borderWidth: 2, borderColor: '#fff' }} />
                 ) : null}
               </View>

@@ -64,9 +64,9 @@ export default function CoMakersSection({ form, update, required, nonMemberLimit
         <span>
           {nonMemberLimit !== null
             ? "The applicant isn't linked to a UDEI member number, so a co-maker is required: a full UDEI member, not someone who has only signed up. "
-            : 'Optional for UDEI members: name one or two if you like. The signers may still ask for one, depending on the loan. '}
-          A co-maker is a UDEI member with an account who vouches for this loan. They confirm online before signing starts,
-          and can see how the loan is being paid.
+            : 'Optional for UDEI members: name one or two if you like. The signers may still ask for one, depending on the mutual assistance. '}
+          A co-maker is a UDEI member with an account who vouches for this mutual assistance. They confirm online before signing starts,
+          and can see how the mutual assistance is being paid.
         </span>
       </p>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

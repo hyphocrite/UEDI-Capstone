@@ -54,7 +54,7 @@ export default function RegisterPage() {
   return (
     <AuthShell
       title="Create your account"
-      subtitle="Staff accounts for UDEI's loan and retirement plan office."
+      subtitle="Staff accounts for UDEI's mutual assistance and retirement plan office."
       footer={
         <>
           Already registered?{' '}

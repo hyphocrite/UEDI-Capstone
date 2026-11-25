@@ -77,8 +77,8 @@ export default function MemberAccountsPanel({ members, accounts, setAccounts, lo
       message: (
         <>
           <p>
-            <b>{a.fullName}</b> ({a.email}) will see every loan and application under member <b>{memberId}</b>
-            {record ? <> ({record.fullName})</> : ''}, and their loan form will be filled in from that record.
+            <b>{a.fullName}</b> ({a.email}) will see all mutual assistance and applications under member <b>{memberId}</b>
+            {record ? <> ({record.fullName})</> : ''}, and their application form will be filled in from that record.
           </p>
           {a.newMemberId && (
             <p>Everything filed under their new ID <b>{a.memberId}</b> (applications, attendance, bills) moves to member <b>{memberId}</b>, and the new ID is removed. This can't be undone.</p>

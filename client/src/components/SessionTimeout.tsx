@@ -102,7 +102,7 @@ export default function SessionTimeout() {
         <Clock className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
         <div className="space-y-2 text-sm text-brand-800">
           <p>For your security you'll be signed out in <b className="text-lg tabular-nums">{secondsLeft}</b> seconds.</p>
-          <p>Anything you were typing on the loan form is kept, but other unsaved changes may be lost.</p>
+          <p>Anything you were typing on the mutual assistance form is kept, but other unsaved changes may be lost.</p>
           {error && <p className="text-red-700">{error}</p>}
         </div>
       </div>

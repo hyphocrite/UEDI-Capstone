@@ -69,7 +69,7 @@ function checkApplication(rules, { monthlySalary, loanType, termMonths }) {
   }
   const product = rules.products[loanType];
   if (product && termMonths > product.maxTermMonths) {
-    return `${product.label} loans run at most ${product.maxTermMonths} months.`;
+    return `${product.label} mutual assistance runs at most ${product.maxTermMonths} months.`;
   }
   return null;
 }
