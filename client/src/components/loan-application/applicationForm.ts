@@ -410,3 +410,10 @@ export function buildPayload(f: Form, documents: DocumentPayload[]) {
     documents,
   }
 }
+
+/** A date written out for a printed form, "November 25, 2026" ('' when missing). */
+export const longDate = (iso: string | Date | undefined | null) => {
+  if (!iso) return ''
+  const d = typeof iso === 'string' ? new Date(/^\d{4}-\d{2}-\d{2}$/.test(iso) ? `${iso}T00:00:00` : iso) : iso
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' })
+}

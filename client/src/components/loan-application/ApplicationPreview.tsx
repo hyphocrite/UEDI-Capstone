@@ -1,10 +1,14 @@
 import { useEffect, useState } from 'react'
-import type { ReactNode } from 'react'
-import { AUTO_RESTRUCTURE_TEXT, PAYROLL_DEDUCTION_TEXT, installmentOf, termMonthsOf } from './applicationForm'
+import { AUTO_RESTRUCTURE_TEXT, PAYROLL_DEDUCTION_TEXT, installmentOf, longDate, termMonthsOf } from './applicationForm'
 import type { Form } from './applicationForm'
+import CoMakerForm from './CoMakerForm'
+import type { CoMakerInfo } from './CoMakerForm'
+import { Box, Field, Fill, Heading, InParens, Letterhead, Sheet, Signature } from './paperForm'
 import { api } from '../../lib/api'
-import { employmentStatusLabel, loanTypeLabel } from '../../lib/applications'
+import { employmentStatusLabel } from '../../lib/applications'
+import type { EmploymentStatus } from '../../lib/applications'
 import { formatPeso } from '../../lib/format'
+import { pesoWords } from '../../lib/pesoWords'
 
 export type PreviewDocument = { label: string; fileName: string }
 
@@ -19,50 +23,17 @@ type Props = {
   applicationNo?: string
 }
 
-const pesos = (s: string) => (s.trim() === '' ? '—' : formatPeso(Number(s) || 0))
-const day = (iso: string) =>
-  iso ? new Date(`${iso}T00:00:00`).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'
+const pesos = (s: string) => (s.trim() === '' ? '' : formatPeso(Number(s) || 0))
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <section className="break-inside-avoid border-t border-brand-200 pt-4 print:border-black">
-      <h3 className="mb-3 text-sm font-bold tracking-wide text-brand-800 uppercase print:text-black">{title}</h3>
-      {children}
-    </section>
-  )
-}
-
-function Row({ label, value, wide = false }: { label: string; value: ReactNode; wide?: boolean }) {
-  return (
-    <div className={`min-w-0 ${wide ? 'sm:col-span-2 print:col-span-2' : ''}`}>
-      <dt className="text-xs text-brand-500 print:text-gray-600">{label}</dt>
-      <dd className="border-b border-dotted border-brand-200 pb-1 font-medium break-words text-ink print:border-gray-500 print:text-black">{value || '—'}</dd>
-    </div>
-  )
-}
-
-const Grid = ({ children }: { children: ReactNode }) => (
-  <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2 print:grid-cols-2">{children}</dl>
-)
-
-function SignatureLine({ title, name }: { title: string; name?: string }) {
-  return (
-    <div className="min-w-0 break-inside-avoid pt-8">
-      <p className="min-h-5 text-center text-sm font-semibold break-words text-ink print:text-black">{name ?? ''}</p>
-      <p className="border-t border-ink pt-1 text-center text-xs text-brand-600 print:border-black print:text-gray-700">{title}</p>
-    </div>
-  )
-}
-
-/** The co-makers' names, looked up from their member numbers (numbers alone when the lookup fails). */
-function useCoMakerNames(ids: string[]) {
-  const [names, setNames] = useState<Record<string, string>>({})
+/** The co-makers looked up by member number: names for everyone, and the member record's details for staff. */
+function useCoMakers(ids: string[]): CoMakerInfo[] {
+  const [found, setFound] = useState<Record<string, CoMakerInfo>>({})
   const key = ids.join('|')
   useEffect(() => {
     let live = true
     for (const id of ids) {
-      api<{ name: string }>(`/api/comaker/lookup?memberId=${encodeURIComponent(id)}`)
-        .then((d) => live && setNames((n) => ({ ...n, [id]: d.name })))
+      api<CoMakerInfo>(`/api/comaker/lookup?memberId=${encodeURIComponent(id)}`)
+        .then((d) => live && setFound((f) => ({ ...f, [id]: d })))
         .catch(() => {})
     }
     return () => {
@@ -71,123 +42,153 @@ function useCoMakerNames(ids: string[]) {
     // ids is rebuilt every render; key holds its content.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key])
-  return names
+  return ids.map((id) => found[id] ?? { memberId: id })
 }
 
 /**
- * The application as it will be filed, laid out like UDEI's Mutual Assistance Application Form.
- * Shown before submitting, and printable (window.print shows only this part of the page).
+ * The application typed onto UDEI's Mutual Assistance Application Form, ready to print and sign.
+ * When co-makers are named, their statement follows on a second sheet. window.print shows only these sheets.
  */
 export default function ApplicationPreview({ form: f, documents, staffView, linked, applicationNo }: Props) {
   const inst = installmentOf(f)
   const term = termMonthsOf(f)
-  const coMakers = [f.coMaker1, f.coMaker2].map((c) => c.trim()).filter(Boolean)
-  const names = useCoMakerNames(coMakers)
-  const fullName = [f.firstName.trim(), f.middleInitial.trim() ? `${f.middleInitial.trim().replace(/\.$/, '')}.` : '', f.lastName.trim()].filter(Boolean).join(' ')
+  const amount = Number(f.amount) || 0
+  const quincenal = f.paymentFrequency === 'quincenal'
+  const coMakers = useCoMakers([f.coMaker1, f.coMaker2].map((c) => c.trim()).filter(Boolean))
+  const mi = f.middleInitial.trim().replace(/\.$/, '')
+  const fullName = [f.firstName.trim(), mi ? `${mi}.` : '', f.lastName.trim()].filter(Boolean).join(' ')
+  const memberId = f.memberId.trim()
 
   return (
-    <article className="card min-w-0 space-y-5 p-5 sm:p-8 print:border-0 print:bg-white print:p-0 print:text-[10.5pt] print:shadow-none">
-      <header className="text-center">
-        <p className="text-lg font-bold text-brand-800 print:text-black">United DNSC Employees, Inc.</p>
-        <p className="font-semibold text-ink print:text-black">Mutual Assistance Application Form</p>
-        <p className="mt-1 text-xs text-brand-500 print:text-gray-700">
-          {applicationNo ? `${applicationNo} · changes not yet saved` : 'Preview · not yet submitted'} · Dated {day(f.applicationDate)}
-        </p>
-      </header>
+    <div className="grid min-w-0 grid-cols-1 gap-6 print:block">
+      <Sheet label="Mutual Assistance Application Form">
+        <Letterhead
+          title="Mutual Assistance Application Form"
+          note={<span className="print:hidden">{applicationNo ? `${applicationNo} · changes not yet saved` : 'Preview · not yet submitted'}</span>}
+        />
 
-      <Section title="Applicant">
-        <Grid>
-          <Row label="Name (first, middle initial, last)" value={fullName} wide />
-          <Row label="Member ID" value={f.memberId.trim() ? `${f.memberId.trim()}${linked ? '' : ' (not yet linked to a UDEI member number)'}` : 'Not a linked UDEI member'} />
-          <Row label="Date of birth" value={f.dateOfBirth ? day(f.dateOfBirth) : '—'} />
-          <Row label="Residence address" value={f.residenceAddress.trim()} wide />
-          <Row label="Employer" value={f.employer.trim()} />
-          <Row label="Employment status" value={employmentStatusLabel[f.employmentStatus]} />
-          <Row label="Monthly salary" value={pesos(f.monthlySalary)} />
-          <Row label="Net take-home pay" value={pesos(f.netTakeHomePay)} />
-          <Row label="Years as member" value={f.yearsAsMember || '0'} />
-          <Row label="Past loans / late payments" value={`${f.priorLoans || 0} / ${f.priorLatePayments || 0}`} />
-        </Grid>
-      </Section>
+        <div className="flex flex-wrap justify-between gap-x-6 gap-y-2">
+          <Field label="Application No." className="min-w-[14rem] flex-1 sm:max-w-[18rem]">{applicationNo}</Field>
+          <Field label="Date" className="min-w-[14rem] flex-1 sm:max-w-[18rem]">{longDate(f.applicationDate)}</Field>
+        </div>
 
-      <Section title="The loan">
-        <Grid>
-          <Row label="Loan type" value={loanTypeLabel[f.loanType]} />
-          <Row label="Amount" value={pesos(f.amount)} />
-          <Row label="Period" value={term ? `${term} month${term === 1 ? '' : 's'}` : '—'} />
-          <Row label="Interest rate" value={`${f.monthlyRate}% per month`} />
-          <Row label="Payroll deduction" value={f.paymentFrequency === 'quincenal' ? 'Quincenal (15th and 30th)' : 'Monthly'} />
-          <Row
-            label="Installment"
-            value={inst ? `${formatPeso(Math.round(inst.monthly))} per month${f.paymentFrequency === 'quincenal' ? ` (${formatPeso(Math.round(inst.quincenal))} per quincena)` : ''}` : '—'}
-          />
-          <Row label="Reason for the loan" value={f.purpose.trim()} wide />
-        </Grid>
-      </Section>
-
-      <Section title="Co-makers">
-        {coMakers.length ? (
-          <Grid>
-            {coMakers.map((id, i) => (
-              <Row key={id} label={i === 0 ? 'Co-maker' : 'Second co-maker'} value={names[id] ? `${names[id]} (member ${id})` : `Member ${id}`} />
+        <section className="space-y-2">
+          <p className="flex min-w-0 flex-wrap items-start gap-x-2">
+            <span className="shrink-0 pt-px">Name:</span>
+            <Fill className="min-w-[8rem] flex-[3] uppercase" caption="Last Name">{f.lastName.trim()}</Fill>
+            <Fill className="min-w-[8rem] flex-[3] uppercase" caption="First Name">{f.firstName.trim()}</Fill>
+            <Fill className="min-w-[4rem] flex-1 text-center uppercase" caption="Middle Initial">{mi}</Fill>
+          </p>
+          <div className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2 print:grid-cols-2">
+            <Field label="Member ID">{memberId && linked ? memberId : memberId ? `${memberId} (not yet a UDEI member)` : 'Not yet a UDEI member'}</Field>
+            <Field label="Date of Birth">{longDate(f.dateOfBirth)}</Field>
+          </div>
+          <Field label="Residence Address">{f.residenceAddress.trim()}</Field>
+          <Field label="Employer">{f.employer.trim()}</Field>
+          <p className="flex flex-wrap gap-x-4 gap-y-1">
+            <span>Employment Status:</span>
+            {(Object.keys(employmentStatusLabel) as EmploymentStatus[]).map((s) => (
+              <Box key={s} checked={f.employmentStatus === s}>{employmentStatusLabel[s]}</Box>
             ))}
-          </Grid>
-        ) : (
-          <p className="text-sm text-brand-600 print:text-black">None named.</p>
-        )}
-      </Section>
+          </p>
+          <div className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2 print:grid-cols-2">
+            <Field label="Monthly Salary">{pesos(f.monthlySalary)}</Field>
+            <Field label="Net take home pay">{pesos(f.netTakeHomePay)}</Field>
+          </div>
+          <div className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-3 print:grid-cols-3">
+            <Field label="Years as member">{f.yearsAsMember || '0'}</Field>
+            <Field label="Past loans">{f.priorLoans || '0'}</Field>
+            <Field label="Late payments">{f.priorLatePayments || '0'}</Field>
+          </div>
+        </section>
 
-      <Section title="To be filled up by the Bookkeeper">
-        {staffView ? (
-          <Grid>
-            <Row label="Long term balance" value={`${pesos(f.longTermBalance)}${f.longTermDueDate ? `, due ${day(f.longTermDueDate)}` : ''}`} />
-            <Row label="Short term balance" value={`${pesos(f.shortTermBalance)}${f.shortTermDueDate ? `, due ${day(f.shortTermDueDate)}` : ''}`} />
-            <Row label="Already deducted per month" value={pesos(f.monthlyPayment)} />
-          </Grid>
-        ) : (
-          <Grid>
-            <Row label="Long term balance / due date" value=" " />
-            <Row label="Short term balance / due date" value=" " />
-          </Grid>
-        )}
-      </Section>
+        <section className="space-y-2">
+          <Heading>Application Agreement</Heading>
+          <p className="flex flex-wrap gap-x-4 gap-y-1">
+            <span>Type of Mutual Assistance:</span>
+            <Box checked={f.loanType === 'long_term'}>Long term</Box>
+            <Box checked={f.loanType === 'emergency'}>Emergency</Box>
+          </p>
+          <p>
+            I hereby apply for a Mutual Assistance in the amount of <Fill className="min-w-[7rem]">{amount > 0 ? formatPeso(amount) : ''}</Fill>{' '}
+            <InParens className="min-w-[14rem]">{amount > 0 ? pesoWords(amount) : ''}</InParens>, payable in{' '}
+            <Fill className="min-w-[3rem] text-center">{term || ''}</Fill> months at{' '}
+            <Fill className="min-w-[3rem] text-center">{f.monthlyRate}</Fill>% per month on the remaining balance, for the purpose of{' '}
+            <Fill className="min-w-[12rem]">{f.purpose.trim()}</Fill>.
+          </p>
+          <p className="flex flex-wrap gap-x-4 gap-y-1">
+            <span>Payroll deduction:</span>
+            <Box checked={quincenal}>Quincenal (15th and 30th)</Box>
+            <Box checked={!quincenal}>Monthly</Box>
+          </p>
+          <Field label="Installment">
+            {inst ? `${formatPeso(Math.round(inst.monthly))} per month${quincenal ? `, ${formatPeso(Math.round(inst.quincenal))} per quincena` : ''}` : ''}
+          </Field>
+          <div className="space-y-1.5 pt-1 sm:text-justify print:text-justify">
+            <p><Box checked={f.payrollDeduction}>{PAYROLL_DEDUCTION_TEXT}</Box></p>
+            <p><Box checked={f.autoRestructure}>{AUTO_RESTRUCTURE_TEXT}</Box></p>
+          </div>
+          {coMakers.length > 0 && (
+            <Field label={coMakers.length > 1 ? 'Co-makers' : 'Co-maker'}>
+              {coMakers.map((c) => (c.name ? `${c.name} (${c.memberId})` : `Member ${c.memberId}`)).join('; ')}
+              <span className="font-normal italic print:hidden"> · statement on the next sheet</span>
+            </Field>
+          )}
+          <div className="flex justify-end">
+            <Signature title="Signature of the Applicant over printed name" name={fullName} className="w-full sm:w-80" />
+          </div>
+        </section>
 
-      <Section title="Supporting documents">
-        {documents.length ? (
-          <ul className="space-y-1 text-sm">
-            {documents.map((d, i) => (
-              <li key={`${d.fileName}-${i}`} className="flex min-w-0 flex-wrap gap-x-2">
-                <span className="font-medium text-ink print:text-black">{d.label}</span>
-                <span className="min-w-0 break-all text-brand-600 print:text-gray-700">{d.fileName}</span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-sm text-brand-600 print:text-black">None attached.</p>
-        )}
-      </Section>
+        <section className="break-inside-avoid space-y-2">
+          <Heading>To be filled up by the Bookkeeper</Heading>
+          <p>Mutual Assistance balance to date:</p>
+          <div className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2 print:grid-cols-2">
+            <Field label="Long term">{staffView ? pesos(f.longTermBalance) : ''}</Field>
+            <Field label="Due date">{staffView ? longDate(f.longTermDueDate) : ''}</Field>
+            <Field label="Short term">{staffView ? pesos(f.shortTermBalance) : ''}</Field>
+            <Field label="Due date">{staffView ? longDate(f.shortTermDueDate) : ''}</Field>
+          </div>
+          <Field label="Already deducted per month">{staffView ? pesos(f.monthlyPayment) : ''}</Field>
+        </section>
 
-      <Section title="Application agreement">
-        <div className="space-y-2 text-sm text-ink print:text-black">
-          <p><span aria-hidden="true">{f.payrollDeduction ? '☑' : '☐'}</span> {PAYROLL_DEDUCTION_TEXT}</p>
-          <p><span aria-hidden="true">{f.autoRestructure ? '☑' : '☐'}</span> {AUTO_RESTRUCTURE_TEXT}</p>
-        </div>
-        <div className="grid grid-cols-1 gap-x-10 sm:grid-cols-2 print:grid-cols-2">
-          <SignatureLine title="Signature of applicant over printed name" name={fullName} />
-          {coMakers.map((id, i) => (
-            <SignatureLine key={id} title={i === 0 ? 'Signature of co-maker' : 'Signature of second co-maker'} name={names[id] ?? `Member ${id}`} />
-          ))}
-        </div>
-      </Section>
+        <section className="break-inside-avoid">
+          <Heading>Approved</Heading>
+          <div className="grid grid-cols-2 gap-x-8 sm:grid-cols-4 print:grid-cols-4">
+            <Signature title="Bookkeeper" />
+            <Signature title="CreCom Chairman" />
+            <Signature title="President" />
+            <Signature title="Treasurer" />
+          </div>
+        </section>
 
-      <Section title="Approvals">
-        <div className="grid grid-cols-2 gap-x-10 sm:grid-cols-4 print:grid-cols-4">
-          <SignatureLine title="Bookkeeper" />
-          <SignatureLine title="CreCom Chairman" />
-          <SignatureLine title="President" />
-          <SignatureLine title="Treasurer" />
-        </div>
-      </Section>
-    </article>
+        <section className="break-inside-avoid border-t border-black pt-2 text-xs">
+          <p className="font-semibold">Supporting documents attached:</p>
+          {documents.length ? (
+            <ul className="mt-1 grid grid-cols-1 gap-x-6 sm:grid-cols-2 print:grid-cols-2">
+              {documents.map((d, i) => (
+                <li key={`${d.fileName}-${i}`} className="min-w-0 break-all">
+                  <Box checked>{d.label}<span className="text-gray-600"> · {d.fileName}</span></Box>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p>None attached.</p>
+          )}
+        </section>
+      </Sheet>
+
+      {coMakers.length > 0 && (
+        <CoMakerForm
+          coMakers={coMakers}
+          borrowerName={fullName}
+          borrowerIsMember={linked}
+          amount={amount}
+          termMonths={term}
+          quincenal={quincenal}
+          applicationDate={f.applicationDate}
+          applicationNo={applicationNo}
+        />
+      )}
+    </div>
   )
 }
