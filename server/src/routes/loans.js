@@ -3,6 +3,7 @@ const mongoose = require("mongoose");
 const { z } = require("zod");
 const Loan = require("../models/Loan");
 const Payment = require("../models/Payment");
+const DeductionRun = require("../models/DeductionRun");
 const Member = require("../models/Member");
 const loans = require("../services/loans");
 const { requireStaff, requireRole } = require("../middleware/auth");
@@ -25,8 +26,10 @@ const releaseSchema = z.object({
 const paymentSchema = z.object({
   amount: z.coerce.number().int({ message: "Enter the amount in centavos." }).min(1, "Enter the amount paid.").max(100_000_000_00),
   paidAt: calendarDate("payment date"),
+  // Payroll and corrections only. Cash, e-money and bank transfers go through the Payments flow
+  // (routes/payments.js: received by the Treasurer with an OR, confirmed by the Bookkeeper).
   // "offset" payments are only made by a release.
-  method: z.enum(["payroll", "cash", "other"], { message: "Choose payroll, cash or other." }),
+  method: z.enum(["payroll", "other"], { message: "Record cash, e-money and bank transfers on the Payments page, where the Treasurer issues the OR. Here: payroll or other." }),
   reference: z.string().trim().max(60).optional(),
 });
 
@@ -117,8 +120,13 @@ router.get(
     const loan = await findLoan(req.params.id);
     if (!loan || !canSee(req.user, loan)) return res.status(404).json({ error: "Loan not found." });
     const payments = await Payment.find({ loan: loan._id }).sort({ paidAt: -1, createdAt: -1 });
+    // Which payroll run posted each payroll payment, for the ledger's OR / run column.
+    const runIds = [...new Set(payments.filter((p) => p.deductionRun).map((p) => String(p.deductionRun)))];
+    const runs = runIds.length ? await DeductionRun.find({ _id: { $in: runIds } }).select("cutoffDate") : [];
+    const cutoffOf = new Map(runs.map((r) => [String(r._id), r.cutoffDate]));
+    const withRun = payments.map((p) => ({ ...p.toJSON(), runCutoff: p.deductionRun ? (cutoffOf.get(String(p.deductionRun)) ?? null) : undefined }));
     const otherActiveLoans = loan.status === "for_release" ? await loans.otherActiveLoans(loan) : undefined;
-    res.json({ loan: loans.present(loan), payments, otherActiveLoans });
+    res.json({ loan: loans.present(loan), payments: withRun, otherActiveLoans });
   }),
 );
 

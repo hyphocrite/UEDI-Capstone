@@ -35,7 +35,8 @@ export function missingTypes(loanType: string, picked: PickedFile[], sent: AppDo
   return requiredFor(loanType).filter((t) => !have.has(t))
 }
 
-async function pick(source: 'camera' | 'files', type: string): Promise<PickedFile | string | null> {
+/** A photo from the camera or a file from the phone: the file, an error message, or null when cancelled. */
+export async function pick(source: 'camera' | 'files', type: string): Promise<PickedFile | string | null> {
   if (source === 'camera') {
     const allowed = await ImagePicker.requestCameraPermissionsAsync()
     if (!allowed.granted) return 'Allow camera access in your phone settings to take a photo.'
@@ -171,6 +172,9 @@ export function ApplicationDocuments({ app, onSent }: { app: Application; onSent
         {sent.length === 0 ? 'None sent yet.' : `${sent.length} sent.`}
         {missing.length ? ` Still needed: ${missing.map((t) => DOCUMENT_LABEL[t]).join(', ')}.` : ''}
       </Text>
+      {sent.some((d) => d.type === 'valid_id' && d.uploaded) ? (
+        <Text style={{ color: colors.muted, fontSize: 13, marginTop: 2 }}>The office will check your ID against your name.</Text>
+      ) : null}
       {app.status !== 'pending' ? null : open ? (
         <View style={{ marginTop: 8 }}>
           <DocumentSlots loanType={app.loan.loanType} files={files} onChange={setFiles} sent={sent} />

@@ -98,10 +98,29 @@ export type LoanApplication = {
   }
   agreement: { payrollDeduction: boolean; autoRestructure: boolean; applicationDate: string }
   /** fileId is set once the file itself was uploaded and can be opened in the viewer. */
-  documents: { fileName: string; type?: string; verdict?: 'verified' | 'review' | 'mismatch' | 'unreadable'; notes?: string[]; fileId?: string; contentType?: string; size?: number; addedAt?: string }[]
+  /** readName: on a valid ID, the name the OCR read from it. */
+  documents: { fileName: string; type?: string; verdict?: 'verified' | 'review' | 'mismatch' | 'unreadable'; notes?: string[]; readName?: string; fileId?: string; contentType?: string; size?: number; addedAt?: string }[]
   status: 'pending' | 'approved' | 'denied'
   /** Members vouching for the loan; signing waits until all have accepted. */
-  coMakers?: { memberId: string; name?: string; status: 'pending' | 'accepted' | 'declined'; respondedAt?: string; note?: string }[]
+  coMakers?: {
+    memberId: string
+    name?: string
+    status: 'pending' | 'accepted' | 'declined'
+    respondedAt?: string
+    note?: string
+    /** The co-maker's signed statement, once uploaded from their Co-maker page. */
+    statement?: { fileName: string; contentType?: string; size?: number; uploadedAt: string }
+  }[]
+  /** A signer asked for a co-maker; approving waits until one accepts or the request is withdrawn. */
+  coMakerRequest?: CoMakerRequest
+  /** Filed under the non-member rule: a member co-maker is required. */
+  nonMember?: boolean
+  /** Staff: UDEI usually asks for a co-maker from this amount (Settings), and there is none. Only a hint. */
+  coMakerSuggested?: boolean
+  /** Staff: the Treasurer's final signature waits for every accepted co-maker's signed statement. */
+  coMakerStatementRequired?: boolean
+  /** The ID name check (server/src/services/idCheck.js). */
+  idCheck?: IdCheck
   /** The models' reasons in plain words. Staff always; members only once denied (no inFavor). */
   explanation?: Explanation | null
   /** Signatures so far, in order. */
@@ -128,6 +147,27 @@ export type LoanApplication = {
   editedAt?: string
   createdAt: string
 }
+
+export type CoMakerRequest = { by: string; byName: string; role: ApprovalStep; note: string; at: string }
+
+/** passed: the OCR confirmed the ID; needs_check: the Bookkeeper compares it; checked / mismatch: they did. */
+export type IdCheckState = 'passed' | 'needs_check' | 'checked' | 'mismatch'
+export type IdCheck = {
+  status: 'passed' | 'needs_check'
+  state?: IdCheckState
+  manual?: { result: 'matches' | 'mismatch'; note?: string; byName?: string; at?: string }
+}
+
+/** The co-makers who accepted but haven't uploaded their signed statement. */
+export const missingStatements = (a: LoanApplication) =>
+  (a.coMakers ?? []).filter((c) => c.status === 'accepted' && !c.statement)
+
+/** A signer's request for a co-maker that still holds up approving (no co-maker accepted yet). */
+export const openCoMakerRequest = (a: LoanApplication) =>
+  a.status === 'pending' && a.coMakerRequest && !(a.coMakers ?? []).some((c) => c.status === 'accepted') ? a.coMakerRequest : null
+
+/** The printable Co-Maker's Statement of one co-maker. */
+export const coMakerFormPath = (applicationId: string, memberId: string) => `/co-maker/${applicationId}/${encodeURIComponent(memberId)}/form`
 
 export type Approval = {
   step: ApprovalStep

@@ -22,9 +22,9 @@ const settingSchema = new mongoose.Schema(
     minMonthlySalary: { type: Number, required: true, min: 0, max: 10_000_000 },
     // Offices or branches shown on sign-up, profiles and member records.
     branches: { type: [{ type: String, trim: true, maxlength: 120 }], default: [] },
-    // How many co-makers each application needs (0 to 2).
-    coMakersRequired: { type: Number, min: 0, max: 2, default: 1 },
-    // Co-makers are needed only for loans of this amount (pesos) or more. 0: every loan.
+    // No longer enforced: members' co-makers are optional, asked for case by case by the signers.
+    coMakersRequired: { type: Number, min: 0, max: 2, default: 0 },
+    // Pending Loans suggests a co-maker for members' loans of this amount (pesos) or more. 0: never.
     coMakersFromAmount: { type: Number, min: 0, max: 10_000_000, default: 50000 },
     // Applicants not linked to a UDEI member number borrow at most this (pesos) and need a member
     // as co-maker. 0 turns the rule off.

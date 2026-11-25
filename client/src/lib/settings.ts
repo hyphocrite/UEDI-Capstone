@@ -9,9 +9,9 @@ export type LoanSettings = {
   products: Record<LoanType, LoanProduct>
   minMonthlySalary: number
   branches: string[]
-  /** How many co-makers each application needs (0 to 2). */
+  /** No longer enforced: a member's co-maker is optional, and signers ask for one case by case. */
   coMakersRequired: number
-  /** Co-makers are needed only for loans of this amount (pesos) or more. 0: every loan. */
+  /** Pending Loans suggests a co-maker for members' loans of this amount (pesos) or more. 0: never. */
   coMakersFromAmount: number
   /** Applicants not linked to a UDEI member number borrow at most this (pesos), with a member as co-maker. 0: no limit. */
   nonMemberMaxAmount: number
@@ -19,9 +19,10 @@ export type LoanSettings = {
   updatedByName: string | null
 }
 
-/** How many co-makers a loan of this amount needs. Same rule as the server (services/settings.js). */
-export function coMakersNeeded(s: LoanSettings, amount: number): number {
-  return amount >= (s.coMakersFromAmount ?? 50000) ? s.coMakersRequired : 0
+/** Whether signers are reminded to consider a co-maker for a loan of this amount. Never a requirement. Same as coMakerSuggested on the server. */
+export function coMakerSuggested(s: LoanSettings, amount: number): boolean {
+  const from = s.coMakersFromAmount ?? 50000
+  return from > 0 && amount >= from
 }
 
 /** Every application needs at least this net take-home pay (pesos). Same as MIN_NET_TAKE_HOME_PAY on the server. */
@@ -39,10 +40,9 @@ export function nonMemberLimit(s: LoanSettings, linked: boolean): number | null 
   return !linked && limit > 0 ? limit : null
 }
 
-/** Co-makers this application needs: the amount rule, and at least one for an applicant who isn't a linked member. */
-export function coMakersRequiredFor(s: LoanSettings, amount: number, linked: boolean): number {
-  const needed = coMakersNeeded(s, amount)
-  return nonMemberLimit(s, linked) !== null ? Math.max(needed, 1) : needed
+/** Co-makers this application needs: one for an applicant who isn't a linked member; for members they are optional. */
+export function coMakersRequiredFor(s: LoanSettings, linked: boolean): number {
+  return nonMemberLimit(s, linked) !== null ? 1 : 0
 }
 
 /** Used until the server answers. Same values as the server's defaults (server/src/services/settings.js). */
@@ -53,7 +53,7 @@ export const FALLBACK_SETTINGS: LoanSettings = {
   },
   minMonthlySalary: 10000,
   branches: ['Main Office'],
-  coMakersRequired: 1,
+  coMakersRequired: 0,
   coMakersFromAmount: 50000,
   nonMemberMaxAmount: 5000,
   updatedAt: null,

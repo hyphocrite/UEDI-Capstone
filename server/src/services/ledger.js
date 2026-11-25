@@ -134,7 +134,41 @@ function summarize(schedule, today = todayInManila()) {
     pastDue: overdue.length > 0,
     pastDueAmount: overdue.reduce((s, x) => s + x.totalDue - x.paid, 0),
     maturesOn: schedule.length ? schedule[schedule.length - 1].dueDate : null,
+    paidAhead: paidAhead(schedule, today),
+    finishesAround: finishesAround(schedule, today),
   };
+}
+
+/**
+ * Installments paid before their due date, from advance payments (cash, e-money, bank) allocated
+ * oldest first: how many are fully paid, and the amount paid on not-yet-due installments.
+ */
+function paidAhead(schedule, today = todayInManila()) {
+  const todayMs = calendarDay(today).getTime();
+  const future = schedule.filter((x) => new Date(x.dueDate).getTime() > todayMs);
+  return {
+    count: future.filter((x) => x.totalDue > 0 && x.paid >= x.totalDue).length,
+    amount: future.reduce((s, x) => s + x.paid, 0),
+  };
+}
+
+/**
+ * When the loan is paid off if payroll keeps deducting each scheduled installment in full on its
+ * cutoff (it isn't reduced by advances): the due date by which the remaining cutoffs add up to the
+ * balance. Null when paid, or when the balance outlasts the schedule (arrears): then it is
+ * after the last due date.
+ */
+function finishesAround(schedule, today = todayInManila()) {
+  const balance = totalPayable(schedule) - schedule.reduce((s, x) => s + x.paid, 0);
+  if (balance <= 0) return null;
+  const todayMs = calendarDay(today).getTime();
+  let covered = 0;
+  for (const x of schedule) {
+    if (new Date(x.dueDate).getTime() < todayMs) continue;
+    covered += x.totalDue;
+    if (covered >= balance) return x.dueDate;
+  }
+  return null;
 }
 
 module.exports = {
@@ -148,4 +182,6 @@ module.exports = {
   totalPayable,
   allocate,
   summarize,
+  paidAhead,
+  finishesAround,
 };

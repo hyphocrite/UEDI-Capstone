@@ -67,7 +67,7 @@ test("a member with loans: balances come from the ledger, refreshed at the Bookk
   assert.deepEqual(app.bookkeeper.loans.map((l) => l.loanNo).sort(), [quincenal.loanNo, monthly.loanNo].sort());
 
   // A payment comes in after filing; the Bookkeeper's signature refreshes the figures and refuses edits.
-  await t.call(`/loans/${quincenal._id}/payments`, { method: "POST", cookie: staff.signer.bookkeeper.cookie, body: { amount: 140_910, paidAt: daysAgo(1), method: "cash" } });
+  await t.call(`/loans/${quincenal._id}/payments`, { method: "POST", cookie: staff.signer.bookkeeper.cookie, body: { amount: 140_910, paidAt: daysAgo(1), method: "other" } });
   const edit = await sign(app, "bookkeeper", { decision: "approved", bookkeeper: { longTermBalance: 0, shortTermBalance: 0 } });
   assert.equal(edit.status, 400);
   assert.match(edit.json.error, /come from the ledger/);

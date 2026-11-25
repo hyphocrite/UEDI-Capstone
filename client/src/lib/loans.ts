@@ -53,9 +53,13 @@ export type Loan = {
   nextDue: { no: number; dueDate: string; amount: number } | null
   pastDue: boolean
   pastDueAmount: number
+  /** Installments paid before their due date by advance payments, and the amount on them. */
+  paidAhead?: { count: number; amount: number }
+  /** When payroll, deducting the same amount every cutoff, pays off the rest. Null when paid or past the schedule. */
+  finishesAround?: string | null
 }
 
-export type PaymentMethod = 'payroll' | 'cash' | 'other' | 'offset'
+export type PaymentMethod = 'payroll' | 'cash' | 'e_money' | 'bank_transfer' | 'other' | 'offset'
 
 export type Payment = {
   _id: string
@@ -63,6 +67,12 @@ export type Payment = {
   paidAt: string
   method: PaymentMethod
   reference?: string
+  /** The Treasurer's Official Receipt (cash, e-money, bank transfer). */
+  orNumber?: string
+  /** The submission on the Payments page this payment came from. */
+  paymentSubmission?: string
+  /** Payroll payments: the cutoff of the deduction run that posted it. */
+  runCutoff?: string | null
   recordedByName?: string
   voided: boolean
   voidReason?: string
@@ -72,14 +82,27 @@ export type Payment = {
 }
 
 export const paymentMethodLabel: Record<PaymentMethod, string> = {
-  payroll: 'Payroll deduction',
+  payroll: 'Payroll',
   cash: 'Cash',
+  e_money: 'E-money',
+  bank_transfer: 'Bank transfer',
   other: 'Other',
-  offset: 'Deducted from a new loan',
+  offset: 'Offset',
 }
 
-/** Methods the Bookkeeper and Treasurer can record by hand. Offsets only come from a release. */
-export const MANUAL_METHODS: PaymentMethod[] = ['payroll', 'cash', 'other']
+/**
+ * Methods the Bookkeeper and Treasurer can record straight onto a loan: payroll and corrections.
+ * Cash, e-money and bank transfers go through the Payments page (OR, then confirm). Offsets only
+ * come from a release.
+ */
+export const MANUAL_METHODS: PaymentMethod[] = ['payroll', 'other']
+
+/** "OR 1234" for receipted payments, "Payroll run Oct 15, 2026" for payroll; the ledger's OR / run column. */
+export function receiptOf(p: Pick<Payment, 'method' | 'orNumber' | 'runCutoff' | 'reference'>): string {
+  if (p.orNumber) return `OR ${p.orNumber}`
+  if (p.method === 'payroll') return p.runCutoff ? `Payroll run ${formatDay(p.runCutoff)}` : p.reference || 'Payroll'
+  return '—'
+}
 
 /** Another active loan of the same borrower, offered on the release form. */
 export type OtherActiveLoan = { _id: string; loanNo: string; loanType: LoanType; balance: number; suggested: boolean }

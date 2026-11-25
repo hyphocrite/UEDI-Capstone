@@ -5,6 +5,7 @@ import { ApplicationDocuments } from '../documents'
 import { colors } from '../theme'
 import { Badge, Card, Empty, Header, KuwiBox, MascotSays, Row, s } from '../ui'
 import { applicationBadge, loanBadge, SIGNERS } from './status'
+import CoMakerAsked from './CoMakerAsked'
 
 type Props = {
   loans: Loan[]
@@ -60,6 +61,12 @@ export default function LoansScreen({ loans, applications, loading, onRefresh, o
             <Row label="Term" value={`${a.loan.termMonths} months at ${a.loan.monthlyRate}%/mo`} />
             <Row label="Submitted" value={date(a.createdAt)} />
             <Steps app={a} />
+            {a.coMakers?.length ? (
+              <Text style={{ color: colors.muted, fontSize: 13, marginTop: 8 }}>
+                Co-maker{a.coMakers.length > 1 ? 's' : ''}: {a.coMakers.map((c) => `${c.name ?? c.memberId} (${c.status === 'pending' ? 'not answered yet' : c.status})`).join(', ')}
+              </Text>
+            ) : null}
+            <CoMakerAsked app={a} onSaved={onRefresh} />
             <ApplicationDocuments app={a} onSent={onRefresh} />
             {a.denialNote ? <Text style={{ color: colors.danger, marginTop: 8 }}>Reason: {a.denialNote}</Text> : null}
             {a.reasons?.against.length ? (

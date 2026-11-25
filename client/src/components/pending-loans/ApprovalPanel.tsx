@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, Hourglass, ThumbsDown, ThumbsUp } from 'lucide-react'
+import { ArrowRight, Hourglass, IdCard, ThumbsDown, ThumbsUp } from 'lucide-react'
 import BookkeeperBalances from './BookkeeperBalances'
 import { useAuth } from '../../context/AuthContext'
 import { api } from '../../lib/api'
 import { useConfirm } from '../../context/ConfirmContext'
+import { missingStatements, openCoMakerRequest } from '../../lib/applications'
 import type { LoanApplication } from '../../lib/applications'
 import { formatDate } from '../../lib/format'
 import { roleLabel } from '../../lib/roles'
@@ -79,6 +80,10 @@ function Outcome({ app }: { app: LoanApplication }) {
 
 const dateInput = (iso?: string) => (iso ? iso.slice(0, 10) : '')
 
+/** Same text as ID_MISMATCH on the server (services/idCheck.js). */
+const ID_MISMATCH = "The ID name doesn't match the applicant. Ask for a correct ID or deny."
+
+
 function SignForm({ app, step, onChange }: { app: LoanApplication; step: ApprovalStep; onChange: (a: LoanApplication) => void }) {
   const books = app.bookkeeper
   const [note, setNote] = useState('')
@@ -95,9 +100,23 @@ function SignForm({ app, step, onChange }: { app: LoanApplication; step: Approva
   const [busy, setBusy] = useState<'approved' | 'denied' | null>(null)
   const [error, setError] = useState('')
   const suggestion = app.assessment?.ensemble.suggestion
+  // The ID name check: when the OCR didn't confirm the ID, the Bookkeeper compares it by hand.
+  const needsIdCheck = step === 'bookkeeper' && app.idCheck?.status === 'needs_check'
+  const [idResult, setIdResult] = useState<'' | 'matches' | 'mismatch'>('')
+  const [idNote, setIdNote] = useState('')
+  const request = openCoMakerRequest(app)
+  const statementsMissing = step === 'treasurer' && app.coMakerStatementRequired ? missingStatements(app) : []
+  const readName = app.documents.find((d) => d.type === 'valid_id' && d.readName)?.readName
 
   const sign = async (decision: 'approved' | 'denied') => {
     const against = suggestion && suggestion !== 'review' && (suggestion === 'approve') !== (decision === 'approved')
+    if (needsIdCheck && !idResult) return setError("Compare the ID with the applicant's name first: tick Matches or Doesn't match.")
+    if (needsIdCheck && idResult === 'mismatch' && !idNote.trim()) return setError("Add a short note on what doesn't match on the ID.")
+    if (needsIdCheck && idResult === 'mismatch' && decision === 'approved') return setError(ID_MISMATCH)
+    if (decision === 'approved' && request) return setError(`${request.byName} asked for a co-maker. Approving waits until a co-maker accepts, or until they withdraw the request.`)
+    if (decision === 'approved' && statementsMissing.length) {
+      return setError(`Wait for ${statementsMissing.map((c) => c.name ?? c.memberId).join(' and ')} to upload the signed Co-Maker's Statement.`)
+    }
     if (decision === 'denied' && !note.trim()) return setError('Add a note explaining why the application is denied.')
     if (against && !note.trim()) return setError('You are going against the ML suggestion. Add a note explaining why.')
     const long = Number(balances.longTermBalance)
@@ -135,6 +154,7 @@ function SignForm({ app, step, onChange }: { app: LoanApplication; step: Approva
         body: JSON.stringify({
           decision,
           note: note.trim() || undefined,
+          idCheck: needsIdCheck && idResult ? { result: idResult, note: idNote.trim() || undefined } : undefined,
           bookkeeper: editableBooks
             ? {
                 longTermBalance: long,
@@ -193,6 +213,44 @@ function SignForm({ app, step, onChange }: { app: LoanApplication; step: Approva
             {field('monthlyPayment', 'Paid per month on these loans (₱)', 'number')}
           </div>
         </fieldset>
+      )}
+
+      {needsIdCheck && (
+        <fieldset className="mb-4 rounded-lg bg-amber-50 p-3 sm:p-4">
+          <legend className="flex items-center gap-1.5 px-1 text-sm font-semibold text-amber-900"><IdCard className="h-4 w-4" /> ID name check</legend>
+          <p className="mb-2 text-xs text-amber-900">
+            The ID couldn't be confirmed automatically{app.documents.some((d) => d.type === 'valid_id' && !d.verdict) ? ' (sent from the phone, or added later)' : ''}. Open it under
+            Supporting documents and compare it with <b>{app.applicant.fullName}</b>.
+            {readName ? <> The OCR read: <b>{readName}</b>.</> : null}
+          </p>
+          <p className="text-sm font-medium text-ink">I compared the ID with the applicant's name:</p>
+          <div className="mt-1 flex flex-wrap gap-x-5 gap-y-1 text-sm">
+            <label className="inline-flex items-center gap-2">
+              <input type="radio" name="idCheck" checked={idResult === 'matches'} onChange={() => setIdResult('matches')} /> Matches
+            </label>
+            <label className="inline-flex items-center gap-2">
+              <input type="radio" name="idCheck" checked={idResult === 'mismatch'} onChange={() => setIdResult('mismatch')} /> Doesn't match
+            </label>
+          </div>
+          {idResult === 'mismatch' && (
+            <>
+              <label className="label mt-2" htmlFor="idNote">What doesn't match? (required)</label>
+              <input id="idNote" className="input" maxLength={500} value={idNote} onChange={(e) => setIdNote(e.target.value)} placeholder="e.g. The ID is in another person's name." />
+              <p className="mt-1 text-xs text-amber-900">{ID_MISMATCH}</p>
+            </>
+          )}
+        </fieldset>
+      )}
+
+      {request && (
+        <p className="mb-4 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          {request.byName} asked for a co-maker, so you can't approve yet. You can still deny.
+        </p>
+      )}
+      {statementsMissing.length > 0 && (
+        <p className="mb-4 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          Your final signature waits for the signed Co-Maker's Statement of {statementsMissing.map((c) => c.name ?? c.memberId).join(' and ')}. You can still deny.
+        </p>
       )}
 
       <label className="label" htmlFor="note">

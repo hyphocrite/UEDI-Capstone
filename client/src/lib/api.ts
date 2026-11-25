@@ -10,6 +10,25 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Opens a stored file (a document or a signed statement) in a new tab. The tab is opened first,
+ * so the browser doesn't block it as a pop-up.
+ */
+export async function openFile(path: string) {
+  const tab = window.open('', '_blank')
+  try {
+    const res = await fetch(`${BASE}${path}`, { credentials: 'include' })
+    if (!res.ok) throw new ApiError((await res.json().catch(() => ({}))).error || 'Could not open the file.', res.status)
+    const url = URL.createObjectURL(await res.blob())
+    if (tab) tab.location.href = url
+    else window.location.href = url
+    setTimeout(() => URL.revokeObjectURL(url), 60_000)
+  } catch (err) {
+    tab?.close()
+    throw err
+  }
+}
+
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers)
   if (init.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json')

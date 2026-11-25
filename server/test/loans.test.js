@@ -90,7 +90,7 @@ test("payments: who may record them, allocation, overpayment, void and payoff", 
   assert.equal(first.status, 201);
   let s = first.json.loan.schedule;
   assert.deepEqual([s[0].paid, s[1].interestPaid, s[1].principalPaid], [140_910, 29_445, 29_645], "oldest first, interest before principal");
-  const second = await pay(loan, signer.treasurer, { amount: 100_000, paidAt: daysAgo(20), method: "cash", reference: "OR 1234" });
+  const second = await pay(loan, signer.treasurer, { amount: 100_000, paidAt: daysAgo(20), method: "other", reference: "Correction 1234" });
   assert.equal(second.json.loan.amountPaid, 300_000);
   assert.equal(second.json.loan.balance, 6_463_690);
 

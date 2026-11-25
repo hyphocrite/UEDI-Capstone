@@ -30,6 +30,9 @@ const LEVEL: Record<Role, number> = {
 
 export const atLeast = (role: Role | undefined, min: Role) => !!role && LEVEL[role] >= LEVEL[min]
 
+/** The Payments page (cash, e-money, bank transfers): the Bookkeeper, and the Treasurer and up. Mirrors server/src/routes/payments.js. */
+export const PAYMENTS_ROLES: Role[] = ['bookkeeper', 'treasurer', 'crecom_chair', 'president', 'admin']
+
 /** Where an account lands after signing in. */
 export const homePath = (role: Role | undefined) => (atLeast(role, 'loan_officer') ? '/dashboard' : '/home')
 

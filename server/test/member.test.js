@@ -79,8 +79,11 @@ test("a member registers, applies and follows the application to a loan", { skip
   const staffView = (await t.call(`/applications/${id}`, { cookie: admin.cookie })).json.application;
   // Filed under their own new member ID; the typed M-0042 is only a claim until the office links it.
   assert.match(staffView.applicant.memberId, /^N-\d{4}$/);
+  // The phone doesn't read the ID, so the Bookkeeper compares it by hand.
+  assert.equal(staffView.idCheck.state, "needs_check");
   for (const role of ["bookkeeper", "crecom_chair", "president", "treasurer"]) {
-    const r = await t.call(`/applications/${id}/approvals`, { method: "POST", cookie: signer[role].cookie, body: { decision: "approved" } });
+    const idCheck = role === "bookkeeper" ? { result: "matches" } : undefined;
+    const r = await t.call(`/applications/${id}/approvals`, { method: "POST", cookie: signer[role].cookie, body: { decision: "approved", idCheck } });
     assert.equal(r.status, 200, r.json.error);
   }
 
@@ -100,6 +103,15 @@ test("a member registers, applies and follows the application to a loan", { skip
   assert.equal(detail.json.loan.status, "active");
   assert.ok(detail.json.loan.nextDue);
   assert.equal(detail.json.loan.schedule.length, 12);
+  assert.deepEqual(detail.json.submissions, []);
+
+  // A payment outside payroll, reported from the phone: it waits for the Treasurer and Bookkeeper.
+  const today = new Date().toISOString().slice(0, 10);
+  const sent = await as(token, `/member/loans/${list[0].id}/payments`, { method: "POST", body: { amount: 50_000, method: "e_money", reference: "MAYA-1", paidAt: today } });
+  assert.equal(sent.status, 201, sent.json.error);
+  const after = (await as(token, `/member/loans/${list[0].id}`)).json;
+  assert.deepEqual(after.submissions.map((s) => [s.status, s.methodLabel]), [["submitted", "E-money"]]);
+  assert.equal(after.payments.length, 0, "nothing posted before the Bookkeeper confirms");
 });
 
 test("members only see their own records and cannot use staff routes", { skip }, async () => {
@@ -187,6 +199,6 @@ test("a member sends supporting documents from the phone, and the office sees th
   assert.deepEqual(Buffer.from(await file.arrayBuffer()), png);
 
   // Not once the application is decided.
-  await t.call(`/applications/${id}/approvals`, { method: "POST", cookie: signer.bookkeeper.cookie, body: { decision: "denied", note: "Test" } });
+  await t.call(`/applications/${id}/approvals`, { method: "POST", cookie: signer.bookkeeper.cookie, body: { decision: "denied", note: "Test", idCheck: { result: "matches" } } });
   assert.equal((await send(token, png)).status, 409);
 });

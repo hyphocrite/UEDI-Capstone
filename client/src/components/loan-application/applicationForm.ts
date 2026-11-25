@@ -336,12 +336,8 @@ export function validateStep(step: FormStep, f: Form, settings: LoanSettings = F
   }
   if (step === 'coMakers') {
     const coMakers = [f.coMaker1, f.coMaker2].map((c) => c.trim()).filter(Boolean)
-    const needed = coMakersRequiredFor(settings, num(f.amount), linked)
-    if (limit !== null && coMakers.length < needed) {
+    if (coMakers.length < coMakersRequiredFor(settings, linked)) {
       return "Applicants who aren't linked to a UDEI member number need a co-maker: a UDEI member who vouches for this loan."
-    }
-    if (coMakers.length < needed) {
-      return `Loans of ₱${settings.coMakersFromAmount.toLocaleString('en-PH')} or more need ${needed === 1 ? 'a co-maker: a UDEI member who vouches for this loan' : `${needed} co-makers`}.`
     }
     if (coMakers.length === 2 && coMakers[0] === coMakers[1]) return 'Name two different co-makers.'
     return ''
@@ -364,6 +360,8 @@ export type DocumentPayload = {
   verdict?: DocumentAnalysis['verdict']
   sha256?: string
   notes?: string[]
+  /** On a valid ID: the name the OCR read, shown to the Bookkeeper next to the declared name. */
+  readName?: string
 }
 
 const optional = (s: string) => s.trim() || undefined

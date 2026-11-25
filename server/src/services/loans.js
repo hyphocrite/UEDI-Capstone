@@ -219,7 +219,7 @@ async function recompute(loan, session = null) {
   return { loan, unapplied };
 }
 
-async function recordPayment(loan, { amount, paidAt, method, reference }, user) {
+async function recordPayment(loan, { amount, paidAt, method, reference, orNumber, paymentSubmission }, user) {
   if (loan.status === "for_release") throw new LoanError(409, "Release the loan before recording payments.");
   if (loan.status === "paid") throw new LoanError(409, "This loan is already fully paid.");
   assertNotFuture(paidAt, "payment date");
@@ -235,6 +235,8 @@ async function recordPayment(loan, { amount, paidAt, method, reference }, user) 
     paidAt: ledger.calendarDay(paidAt),
     method,
     reference,
+    orNumber,
+    paymentSubmission,
     recordedBy: user._id,
     recordedByName: user.fullName,
   });
@@ -264,6 +266,13 @@ async function voidPayment(loan, paymentId, reason, user) {
   if (!payment) {
     const exists = await Payment.exists({ _id: paymentId, loan: loan._id }).catch(() => null);
     throw new LoanError(exists ? 409 : 404, exists ? "This payment was already voided." : "Payment not found.");
+  }
+  if (payment.paymentSubmission) {
+    // Keep the submission's history: it stays posted, with the void noted on it.
+    await require("../models/PaymentSubmission").updateOne(
+      { _id: payment.paymentSubmission },
+      { $set: { voided: { reason, by: user._id, byName: user.fullName, at: payment.voidedAt } } },
+    );
   }
   const { loan: updated } = await recompute(loan);
   return { loan: updated, payment };

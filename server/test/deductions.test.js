@@ -118,7 +118,7 @@ test("remittance, all-or-nothing posting, double posting, unposting", { skip }, 
   assert.equal(saved.json.run.totals.missed, 1);
 
   // A cash payment that leaves less than the remitted amount makes one line invalid: nothing posts.
-  const cash = (await call(`/loans/${q._id}/payments`, { method: "POST", body: { amount: q.balance - 100_000, paidAt: daysAgo(1), method: "cash" } })).json.payment;
+  const cash = (await call(`/loans/${q._id}/payments`, { method: "POST", body: { amount: q.balance - 100_000, paidAt: daysAgo(1), method: "other" } })).json.payment;
   const blocked = await call(`/deductions/${run._id}/post`, { method: "POST" });
   assert.equal(blocked.status, 400);
   assert.match(blocked.json.error, /more than the remaining balance/);

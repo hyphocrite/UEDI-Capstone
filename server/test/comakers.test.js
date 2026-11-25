@@ -14,6 +14,7 @@ before(async () => {
   t = await setup();
   staff = await staffUp(t);
   const Setting = require("../src/models/Setting");
+  // Members' co-makers are optional; coMakersRequired no longer forces one (see the last test).
   await Setting.updateOne({ key: "loan" }, { $set: { coMakersRequired: 1, coMakersFromAmount: 0 } });
   const Member = require("../src/models/Member");
   await Member.create([
@@ -41,7 +42,6 @@ test("co-makers must be members with accounts, confirm before signing, and see t
   await link(backer.id, "C-11");
   const file = (coMakers) => t.call("/applications", { method: "POST", cookie: borrower.cookie, body: { ...application(0), coMakers } });
 
-  assert.match((await file([])).json.error, /Name a co-maker/);
   assert.match((await file(["C-12"])).json.error, /has no account yet/);
   assert.match((await file(["C-10"])).json.error, /their own co-maker/);
   assert.match((await file(["C-11", "C-11"])).json.error, /once/);
@@ -99,7 +99,7 @@ test("a declined co-maker blocks approval but not denial", { skip }, async () =>
   assert.equal((await sign(app, "bookkeeper", "denied")).status, 200);
 });
 
-test("co-makers are needed only from the amount set in Settings", { skip }, async () => {
+test("a member's co-maker is optional: from the Settings amount signers only get a suggestion", { skip }, async () => {
   const Setting = require("../src/models/Setting");
   const Member = require("../src/models/Member");
   await Member.create({ memberId: "C-30", lastName: "Small", firstName: "Sam" });
@@ -108,13 +108,25 @@ test("co-makers are needed only from the amount set in Settings", { skip }, asyn
     const sam = await t.register("Sam Small", "sam@uedi.test");
     await link(sam.id, "C-30");
     const file = (amount) => t.call("/applications", { method: "POST", cookie: sam.cookie, body: { ...application(0, { loan: { amount } }), coMakers: [] } });
+    const view = async (app) => (await t.call(`/applications/${app._id}`, { cookie: staff.officer.cookie })).json.application;
 
     const small = await file(25000);
     assert.equal(small.status, 201, small.json.error);
-    assert.deepEqual(small.json.application.coMakers, []);
-    const big = await file(50000);
-    assert.equal(big.status, 400);
-    assert.match(big.json.error, /Loans of ₱50,000 or more need a co-maker/);
+    assert.equal((await view(small.json.application)).coMakerSuggested, false);
+
+    // ₱60,000 without a co-maker: filed, with a hint for the signers, and signed in the usual order.
+    const big = await file(60000);
+    assert.equal(big.status, 201, big.json.error);
+    assert.deepEqual(big.json.application.coMakers, []);
+    assert.equal(big.json.application.coMakerSuggested, undefined, "the hint is for staff");
+    assert.equal((await view(big.json.application)).coMakerSuggested, true);
+    assert.equal((await sign(big.json.application, "crecom_chair")).status, 403, "the Bookkeeper still signs first");
+    let last;
+    for (const role of ["bookkeeper", "crecom_chair", "president", "treasurer"]) {
+      last = await sign(big.json.application, role);
+      assert.equal(last.status, 200, `${role}: ${last.json.error}`);
+    }
+    assert.equal(last.json.application.status, "approved");
 
     const shown = (await t.call("/settings", { cookie: sam.cookie })).json.settings;
     assert.equal(shown.coMakersFromAmount, 50000);

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { BarChart3, BrainCircuit, CalendarCheck, CalendarDays, ClipboardCheck, FilePlus2, Handshake, HandCoins, History, House, LayoutDashboard, LogOut, Menu, PiggyBank, ReceiptText, Settings, Siren, UserRound, Users, X } from 'lucide-react'
+import { BarChart3, BrainCircuit, CalendarCheck, CalendarDays, ClipboardCheck, FilePlus2, Handshake, HandCoins, History, House, LayoutDashboard, LogOut, Menu, PiggyBank, ReceiptText, Settings, Siren, UserRound, Users, Wallet, X } from 'lucide-react'
 import BrandLogo from '../components/BrandLogo'
 import MemberTabBar from '../components/MemberTabBar'
 import SessionTimeout from '../components/SessionTimeout'
@@ -8,14 +8,14 @@ import { useAuth } from '../context/AuthContext'
 import { api } from '../lib/api'
 import { awaitingUser } from '../lib/applications'
 import type { LoanApplication } from '../lib/applications'
-import { atLeast, homePath, roleLabel } from '../lib/roles'
+import { atLeast, homePath, PAYMENTS_ROLES, roleLabel } from '../lib/roles'
 import type { Role } from '../lib/roles'
 
 type Section = 'Overview' | 'Members' | 'Loans' | 'Records' | 'Admin'
 
 // min: shown to this role and every role above it (see lib/roles.ts). roles: shown only to these roles.
 // Must match the route guards in App.tsx. section: the heading it sits under in the sidebar.
-const nav: { to: string; label: string; icon: typeof Users; section: Section; end?: boolean; min?: Role; roles?: Role[] }[] = [
+const nav: { to: string; label: string; icon: typeof Users; section: Section; end?: boolean; min?: Role; roles?: Role[]; badge?: 'payments' }[] = [
   { to: '/home', label: 'Home', icon: House, section: 'Overview', roles: ['staff'] },
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, section: 'Overview', min: 'loan_officer' },
   { to: '/members', label: 'Members', icon: Users, section: 'Members', min: 'loan_officer' },
@@ -27,6 +27,7 @@ const nav: { to: string; label: string; icon: typeof Users; section: Section; en
   { to: '/attendance', label: 'Attendance', icon: CalendarCheck, section: 'Records', min: 'loan_officer' },
   { to: '/retirement-plans', label: 'Retirement Plans', icon: PiggyBank, section: 'Records', min: 'loan_officer' },
   { to: '/deductions', label: 'Payroll Deductions', icon: ReceiptText, section: 'Records', roles: ['bookkeeper', 'treasurer', 'admin'] },
+  { to: '/payments', label: 'Payments', icon: Wallet, section: 'Records', roles: PAYMENTS_ROLES, badge: 'payments' },
   { to: '/reports', label: 'Reports', icon: BarChart3, section: 'Records', min: 'treasurer' },
   { to: '/settings', label: 'Loan Settings', icon: Settings, section: 'Admin', min: 'crecom_chair' },
   { to: '/credit-model', label: 'Credit Model', icon: BrainCircuit, section: 'Admin', min: 'admin' },
@@ -77,11 +78,42 @@ function TodayBox() {
   )
 }
 
+/**
+ * How many payments wait on this role: To receive for the Treasurer, To confirm for the Bookkeeper.
+ * Counted again on each page change and when the Payments page acts on one.
+ */
+function usePaymentsBadge(role: Role | undefined) {
+  const { pathname } = useLocation()
+  const [count, setCount] = useState(0)
+  const [tick, setTick] = useState(0)
+  useEffect(() => {
+    const bump = () => setTick((t) => t + 1)
+    window.addEventListener('udei:payments-changed', bump)
+    return () => window.removeEventListener('udei:payments-changed', bump)
+  }, [])
+  useEffect(() => {
+    if (role !== 'treasurer' && role !== 'bookkeeper') return
+    let live = true
+    api<{ submitted: number; received: number }>('/api/payments/counts')
+      .then((c) => live && setCount(role === 'treasurer' ? c.submitted : c.received))
+      .catch(() => live && setCount(0))
+    return () => {
+      live = false
+    }
+  }, [role, pathname, tick])
+  return role === 'treasurer' || role === 'bookkeeper' ? count : 0
+}
+
 export default function AppLayout() {
   const { session, logout } = useAuth()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const role = session?.role
+  const paymentsWaiting = usePaymentsBadge(role)
+  const badge = (b?: 'payments') =>
+    b === 'payments' && paymentsWaiting > 0 ? (
+      <span className="ml-auto rounded-full bg-accent px-1.5 text-xs font-bold text-white" aria-label={`${paymentsWaiting} waiting`}>{paymentsWaiting}</span>
+    ) : null
   const items = nav
     .filter((n) => (n.roles ? !!role && n.roles.includes(role) : atLeast(role, n.min ?? 'staff')))
     .map((n) => (n.to === '/loans' && !atLeast(role, 'loan_officer') ? { ...n, label: 'My Loans' } : n))
@@ -131,10 +163,11 @@ export default function AppLayout() {
                 <div key={section}>
                   <p className="mb-1 px-3 text-[10px] font-semibold tracking-wider text-brand-300 uppercase">{section}</p>
                   <div className="flex flex-col gap-0.5">
-                    {list.map(({ to, label, icon: Icon, end }) => (
+                    {list.map(({ to, label, icon: Icon, end, badge: b }) => (
                       <NavLink key={to} to={to} end={end} className={sideClass}>
                         {icon(Icon)}
                         {label}
+                        {badge(b)}
                       </NavLink>
                     ))}
                   </div>
@@ -162,10 +195,11 @@ export default function AppLayout() {
 
           {!wide && (
           <nav className={`hidden items-center gap-0.5 ${desktop}`} aria-label="Main">
-            {items.map(({ to, label, icon: Icon, end }) => (
+            {items.map(({ to, label, icon: Icon, end, badge: b }) => (
               <NavLink key={to} to={to} end={end} className={linkClass}>
                 {icon(Icon)}
                 {label}
+                {badge(b)}
               </NavLink>
             ))}
           </nav>
@@ -195,10 +229,11 @@ export default function AppLayout() {
         {open && !member && (
           <div className={`border-t border-white/10 px-4 pb-4 ${hide}`}>
             <nav className="mt-3 flex flex-col gap-1" aria-label="Mobile">
-              {items.map(({ to, label, icon: Icon, end }) => (
+              {items.map(({ to, label, icon: Icon, end, badge: b }) => (
                 <NavLink key={to} to={to} end={end} className={linkClass} onClick={() => setOpen(false)}>
                   {icon(Icon)}
                   {label}
+                  {badge(b)}
                 </NavLink>
               ))}
               <NavLink to="/profile" className={linkClass} onClick={() => setOpen(false)}>
