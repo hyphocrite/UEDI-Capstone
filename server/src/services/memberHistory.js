@@ -1,5 +1,5 @@
 const Loan = require("../models/Loan");
-const loans = require("./loans");
+const lateness = require("./lateness");
 const ledger = require("./ledger");
 
 // A member's loan history, for the loan form's "History with UDEI" fields and the member score.
@@ -22,7 +22,8 @@ async function historiesFor(members) {
 }
 
 function historyFrom(member, released) {
-  const lateInSystem = released.filter((l) => loans.present(l).pastDue || ["missed", "partial"].includes(l.lastDeduction?.result));
+  // Late by the schedule's due dates, or a payroll deduction missed while on payroll (services/lateness.js).
+  const lateInSystem = released.filter((l) => lateness.isLate(l));
   const opening = member.openingLoan || {};
   const spreadsheetLoans = (opening.balanceStartOfYear > 0 ? 1 : 0) + (opening.loansThisYear || 0);
   const priorLoans = released.length + spreadsheetLoans;

@@ -7,7 +7,8 @@ Field names follow UEDI's paper form (camelCase, as the Express API sends them):
   Loan:        loanType (long_term | emergency), loanAmount, termMonths, monthlyRate (% per month)
   Bookkeeper:  longTermBalance, shortTermBalance (Mutual Assistance balance to date)
   UEDI records (optional): yearsAsMember, priorLoans, priorLatePayments, age,
-                           employmentStatus, documentsFlagged
+                           employmentStatus, documentsFlagged, paymentMode
+                           (payroll | bonus | cash | e_money | bank_transfer)
 
 Optional fields are only used when the training data has them. A model trained on a CSV
 without `age` never looks at age, even if the API sends it.
@@ -20,6 +21,8 @@ import pandas as pd
 
 LOAN_TYPES = ["long_term", "emergency"]
 EMPLOYMENT_STATUSES = ["permanent", "temporary", "contractual", "job_order"]
+# How the member pays (the bookkeeper, 2026-11-24). Optional: data without it trains as before.
+PAYMENT_MODES = ["payroll", "bonus", "cash", "e_money", "bank_transfer"]
 
 # Fields on the form itself. Every past loan and every new application must have them.
 REQUIRED_FIELDS = ["loanType", "loanAmount", "termMonths", "monthlyRate", "monthlySalary", "netTakeHomePay"]
@@ -34,6 +37,7 @@ OPTIONAL_FIELDS = {
     "age": 40.0,
     "employmentStatus": "permanent",
     "documentsFlagged": 0.0,
+    "paymentMode": "payroll",
 }
 
 RAW_FIELDS = REQUIRED_FIELDS + list(OPTIONAL_FIELDS)
@@ -57,6 +61,7 @@ FEATURE_SOURCES: dict[str, list[str]] = {
     "age": ["age"],
     "employment_not_permanent": ["employmentStatus"],
     "documents_flagged": ["documentsFlagged"],
+    "payment_not_payroll": ["paymentMode"],
 }
 ALL_FEATURES = list(FEATURE_SOURCES)
 
@@ -79,6 +84,7 @@ FEATURE_LABELS = {
     "age": "Age",
     "employment_not_permanent": "Not a permanent employee",
     "documents_flagged": "Flagged documents",
+    "payment_not_payroll": "Not paid by payroll deduction",
 }
 
 
@@ -152,6 +158,8 @@ def build_features(raw: pd.DataFrame, features: list[str] | None = None) -> pd.D
             "age": raw["age"].astype(float),
             "employment_not_permanent": (status != "permanent").astype(float),
             "documents_flagged": raw["documentsFlagged"].astype(float),
+            # Bonus, cash, e-money or bank instead of payroll deduction.
+            "payment_not_payroll": (raw["paymentMode"].astype(str).str.strip().str.lower() != "payroll").astype(float),
         },
         index=raw.index,
     )

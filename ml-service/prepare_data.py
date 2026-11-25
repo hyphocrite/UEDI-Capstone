@@ -80,7 +80,14 @@ def label_defaults(df: pd.DataFrame, rule: dict) -> pd.Series:
 
 
 def repayment_score(df: pd.DataFrame) -> pd.Series:
-    """The Repayment Performance Score: share of the scheduled amortization paid on time, x 100."""
+    """The Repayment Performance Score: share of the scheduled amortization paid on time, x 100.
+
+    amortization paid in full by each due date / amortization scheduled so far. Every "late" is
+    judged by the schedule's due dates, not by months: a loan charged to a bonus has one due date
+    (the bonus release), so it counts as 0 scheduled until that date, and a month the member pays
+    by cash or bank instead of payroll is not a missed deduction. An optional paymentMode column
+    (payroll | bonus | cash | e_money | bank_transfer) is passed through as a feature.
+    """
     if TARGET in df.columns:
         return to_number(df[TARGET])
     if {"amountScheduled", "amountPaidOnTime"} <= set(df.columns):
