@@ -28,6 +28,8 @@ async function createRun(cutoffDate, user, { kind = "payroll", bonusType } = {})
   const what = bonus ? `${paymentModes.BONUS_LABELS[bonusType]} run on ${d.dayKey(cutoff)}` : `run for ${d.dayKey(cutoff)}`;
   const same = bonus ? { cutoffDate: cutoff, kind: "bonus", bonusType } : { cutoffDate: cutoff, kind: { $in: ["payroll", null] } };
   if (await DeductionRun.exists(same)) throw new RunError(409, `There is already a ${what}.`);
+  // Short term overdue by this cutoff becomes long term first, so the run uses the new installment.
+  await require("./conversions").convertOverdueShortTerm();
   const loans = bonus ? await Loan.find({ status: "active", paymentModeHistory: { $elemMatch: { mode: "bonus", bonusType } } }) : await Loan.find({ status: "active", "schedule.dueDate": cutoff });
   const lines = bonus ? d.buildBonusLines(loans, cutoff, bonusType) : d.buildLines(loans, cutoff);
   try {

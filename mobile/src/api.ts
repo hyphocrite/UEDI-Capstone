@@ -74,6 +74,8 @@ export type Loan = {
   /** How it is paid this month. */
   paymentModeNow?: PaymentMode
   paymentModeLabel?: string
+  /** When a short term that wasn't paid in time became long term. */
+  convertedAt?: string | null
   paymentModeHistory?: { mode: PaymentMode; bonusType: BonusType | null; effectiveFrom: string; requestedAt?: string; note: string | null }[]
   schedule: Installment[]
 }

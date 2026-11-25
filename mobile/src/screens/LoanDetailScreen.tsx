@@ -51,6 +51,11 @@ export default function LoanDetailScreen({ id, onBack }: { id: string; onBack: (
               <Row label="Rate" value={`${loan.monthlyRate}% per month`} />
               <Row label="Term" value={loan.paymentMode === 'bonus' && loan.schedule.length === 1 ? `One payment on ${date(loan.schedule[0].dueDate)}` : `${loan.termMonths} months, ${loan.paymentFrequency}`} />
               <Row label="Mode of payment" value={loan.paymentModeLabel ?? 'Payroll deduction'} />
+              {loan.convertedAt ? (
+                <Text style={{ color: colors.warn, marginTop: 6 }}>
+                  {`Converted to long term on ${date(loan.convertedAt)}: the short term wasn't fully paid by the end of its term.`}
+                </Text>
+              ) : null}
               <Row label="Released" value={date(loan.releasedAt)} />
               <Row label="Matures" value={date(loan.maturesOn)} />
               {loan.pastDue ? <Row label="Overdue" value={centavos(loan.pastDueAmount)} strong /> : null}

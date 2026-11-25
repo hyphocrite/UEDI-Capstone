@@ -6,6 +6,7 @@ import PageHeader from '../components/PageHeader'
 import SendPaymentForm from '../components/payments/SendPaymentForm'
 import SubmissionList from '../components/payments/SubmissionList'
 import PaymentModePanel from '../components/loans/PaymentModePanel'
+import ConversionNote, { ConversionBadge } from '../components/loans/ConversionNote'
 import StatusBadge from '../components/StatusBadge'
 import { PaymentForm, ReleaseForm } from '../components/loans/LoanForms'
 import PaymentHistory from '../components/loans/PaymentHistory'
@@ -108,6 +109,7 @@ export default function LoanDetailPage() {
       <section className="card mb-6 min-w-0 p-4 sm:p-5">
         <div className="mb-4 flex flex-wrap items-center gap-3">
           <StatusBadge status={displayStatus(loan)} />
+          <ConversionBadge loan={loan} />
           {loan.pastDue && <span className="text-sm font-semibold text-red-700">{formatCentavos(loan.pastDueAmount)} past due</span>}
         </div>
         <dl className="grid grid-cols-1 gap-x-6 gap-y-3 text-sm min-[420px]:grid-cols-2 lg:grid-cols-4">
@@ -184,6 +186,8 @@ export default function LoanDetailPage() {
         <Modal title={borrower ? 'Send a payment' : 'Record walk-in payment'} open={sending} onClose={() => setSending(false)}>
           <SendPaymentForm loan={loan} office={!borrower} onSent={sent} onCancel={() => setSending(false)} />
         </Modal>
+
+        <ConversionNote loan={loan} />
 
         {loan.schedule.length > 0 && (
           <section className="card min-w-0">

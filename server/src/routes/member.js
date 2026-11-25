@@ -356,6 +356,8 @@ const loanView = (loan) => {
     bonusType: l.bonusType || null,
     paymentModeNow: l.paymentModeNow,
     paymentModeLabel: l.paymentModeLabel,
+    // Short term that became long term when unpaid at the end of its term.
+    convertedAt: l.conversions?.length ? l.conversions[l.conversions.length - 1].at : null,
     paymentModeHistory: (l.paymentModeHistory || []).map(({ mode, bonusType, effectiveFrom, requestedAt, note }) => ({ mode, bonusType: bonusType || null, effectiveFrom, requestedAt, note: note || null })),
     finishesAround: l.finishesAround,
     schedule: (l.schedule || []).map(({ no, dueDate, totalDue, paid }) => ({ no, dueDate, totalDue, paid })),

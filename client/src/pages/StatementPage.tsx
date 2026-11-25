@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import ConversionNote, { ConversionBadge } from '../components/loans/ConversionNote'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, FileText } from 'lucide-react'
 import BrandLogo from '../components/BrandLogo'
@@ -102,6 +103,12 @@ export default function StatementPage() {
           </tbody>
         </table>
 
+        {loan.conversions?.length ? (
+          <div className="mt-6">
+            <ConversionBadge loan={loan} />
+            <div className="mt-2"><ConversionNote loan={loan} /></div>
+          </div>
+        ) : null}
         <h2 className="mt-6 mb-2 font-semibold text-brand-800">Payment schedule</h2>
         <table className="w-full text-sm">
           <thead className="table-head">

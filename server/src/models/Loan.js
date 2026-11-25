@@ -85,6 +85,23 @@ const loanSchema = new mongoose.Schema(
         { _id: false },
       ),
     ],
+    // Short term still unpaid after its term becomes long term (services/conversions.js): the same
+    // loan and loan no., with the old schedule kept here for history.
+    conversions: [
+      new mongoose.Schema(
+        {
+          at: { type: Date, required: true },
+          fromType: { type: String, enum: LOAN_TYPES },
+          toType: { type: String, enum: LOAN_TYPES },
+          // The unpaid balance (principal and unpaid interest) that was spread again, in centavos.
+          balance: { type: Number, validate: Number.isInteger },
+          oldSchedule: [installmentSchema],
+          newTermMonths: Number,
+          monthlyRate: Number,
+        },
+        { _id: false },
+      ),
+    ],
     // This loan's line on the latest posted payroll run, for the "Missed deduction" flag.
     lastDeduction: {
       run: { type: mongoose.Schema.Types.ObjectId, ref: "DeductionRun" },

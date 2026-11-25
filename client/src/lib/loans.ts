@@ -64,6 +64,8 @@ export type Loan = {
   paymentModeHistory?: PaymentModeChange[]
   paymentModeNow?: PaymentMode
   paymentModeLabel?: string
+  /** Short term that became long term when unpaid at the end of its term; the old schedule is kept. */
+  conversions?: { at: string; fromType: LoanType; toType: LoanType; balance: number; oldSchedule: Installment[]; newTermMonths: number; monthlyRate: number }[]
 }
 
 export type PaymentMethod = 'payroll' | 'cash' | 'e_money' | 'bank_transfer' | 'other' | 'offset'
