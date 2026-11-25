@@ -28,15 +28,17 @@ type Props = {
   quincenal: boolean
   applicationDate: string
   applicationNo?: string
+  /** Printed on its own (the co-maker's copy), not as the second sheet after the application. */
+  standalone?: boolean
 }
 
 /**
  * The co-maker's statement: a second sheet, laid out like the application form, with each co-maker's
  * details and their signature. Printed on its own page after the application.
  */
-export default function CoMakerForm({ coMakers, borrowerName, borrowerIsMember, amount, termMonths, quincenal, applicationDate, applicationNo }: Props) {
+export default function CoMakerForm({ coMakers, borrowerName, borrowerIsMember, amount, termMonths, quincenal, applicationDate, applicationNo, standalone = false }: Props) {
   return (
-    <Sheet next label="Co-maker's statement">
+    <Sheet next={!standalone} label="Co-maker's statement">
       <Letterhead title="Co-Maker's Statement" note={applicationNo ? `Attached to application ${applicationNo}` : 'Attached to the Mutual Assistance Application Form'} />
 
       <p>

@@ -63,6 +63,7 @@ function SignedOut() {
 }
 
 function MemberHome() {
+  const { session } = useAuth()
   const [tab, setTab] = useState<Tab>('home')
   const [openLoan, setOpenLoan] = useState<string | null>(null)
   const [loans, setLoans] = useState<Loan[]>([])
@@ -118,7 +119,7 @@ function MemberHome() {
           />
         ) : null}
         {tab === 'loans' ? <LoansScreen {...shared} /> : null}
-        {tab === 'comaker' ? <CoMakerScreen onChanged={refresh} /> : null}
+        {tab === 'comaker' ? <CoMakerScreen onChanged={refresh} memberId={session?.memberId ?? session?.memberNo} /> : null}
         {tab === 'profile' ? <ProfileScreen reminders={reminders} score={score} /> : null}
       </View>
 

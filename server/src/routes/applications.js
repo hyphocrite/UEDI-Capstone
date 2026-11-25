@@ -14,6 +14,7 @@ const { explain } = require("../services/explain");
 const documentFiles = require("../services/documentFiles");
 const coMakers = require("../services/coMakers");
 const settings = require("../services/settings");
+const { idCheckStatus, idCheckState, ID_MISMATCH } = require("../services/idCheck");
 
 const router = express.Router();
 router.use(requireStaff);
@@ -26,13 +27,18 @@ const ownApplications = (user) => ({
 /**
  * What this user may see of an application. Staff get the scores and the plain-language
  * explanation. Members never get the scores; once denied, they get the explanation (reasons and
- * what they can do), without numbers.
+ * what they can do), without numbers. With the Loan Settings, staff also get whether to suggest a co-maker.
  */
-function forViewer(user, app) {
+function forViewer(user, app, rules) {
   // toJSON, like a plain res.json: it fills in currentStep for applications from before the chain.
   const out = app.toJSON();
   const explanation = explain(out.assessment);
-  if (seesAllLoans(user)) return { ...out, explanation };
+  out.idCheck = { ...out.idCheck, state: idCheckState(out) };
+  if (seesAllLoans(user)) {
+    out.coMakerSuggested = !out.nonMember && !out.coMakers?.length && !!rules && settings.coMakerSuggested(rules, out.loan.amount);
+    out.coMakerStatementRequired = coMakers.statementRequired(out);
+    return { ...out, explanation };
+  }
   delete out.assessment;
   delete out.assessmentError;
   if (out.status === "denied" && explanation) out.explanation = { against: explanation.against, tips: explanation.tips };
@@ -68,6 +74,8 @@ const documentCheckSchema = z.object({
   verdict: z.enum(["verified", "review", "mismatch", "unreadable"]).optional(),
   sha256: z.string().max(64).optional(),
   notes: z.array(z.string().max(300)).max(20).optional(),
+  // On a valid ID: the name the OCR read, shown to the Bookkeeper next to the declared name.
+  readName: z.string().trim().max(130).optional(),
 });
 
 // The supporting documents every application must have, by loan type. Kept in step with
@@ -147,6 +155,13 @@ const approvalSchema = z.object({
   decision: z.enum(["approved", "denied"], { message: "Choose approve or deny." }),
   note: z.string().trim().max(1000).optional(),
   bookkeeper: bookkeeperSchema.optional(),
+  // The Bookkeeper's own comparison of the ID with the applicant's name, when the OCR couldn't confirm it.
+  idCheck: z
+    .object({
+      result: z.enum(["matches", "mismatch"], { message: "Tick whether the ID matches the applicant's name." }),
+      note: z.string().trim().max(500).optional(),
+    })
+    .optional(),
 });
 
 async function nextApplicationNo() {
@@ -187,18 +202,20 @@ async function bookkeeperFor(memberId, typed) {
  */
 async function resolveCoMakers(rules, data) {
   const memberId = data.applicant.memberId;
-  const needed = settings.coMakersNeeded(rules, data.loan.amount);
   const limit = rules.nonMemberMaxAmount;
+  data.nonMember = false;
+  // Members: co-makers are optional (up to 2). Signers can still ask for one case by case.
   if (!limit || (await memberIds.isLinked(memberId))) {
-    return coMakers.resolve(data.coMakers, memberId, needed, rules.coMakersFromAmount);
+    return coMakers.resolve(data.coMakers, memberId, 0);
   }
+  data.nonMember = true;
   if (data.loan.amount > limit) {
     throw new coMakers.CoMakerError(`Applicants who aren't linked to a UDEI member number can borrow at most ${peso(limit)}.`);
   }
   if (!data.coMakers.some((c) => String(c).trim())) {
     throw new coMakers.CoMakerError("Applicants who aren't linked to a UDEI member number need a co-maker: a UDEI member who vouches for this loan.");
   }
-  return coMakers.resolve(data.coMakers, memberId, Math.max(needed, 1), rules.coMakersFromAmount, { membersOnly: true });
+  return coMakers.resolve(data.coMakers, memberId, 1, { membersOnly: true });
 }
 
 /** Saves a new application from a parsed createSchema body and scores it. Also used by the member app. */
@@ -213,6 +230,7 @@ async function createApplication(data, user) {
         ...data,
         applicant: { ...data.applicant, fullName: fullNameOf(data.applicant) },
         bookkeeper,
+        idCheck: { status: idCheckStatus(data.documents) },
         applicationNo: await nextApplicationNo(),
         currentStep: STEPS[0],
         approvals: [],
@@ -278,8 +296,8 @@ router.get("/", async (req, res, next) => {
       filter = { ...awaitingStepFilter(role), "approvals.signedBy": { $ne: req.user._id } };
     }
     if (!seesAllLoans(req.user)) filter = { $and: [filter, ownApplications(req.user)] };
-    const apps = await Application.find(filter).sort({ createdAt: -1 }).limit(200);
-    res.json({ applications: apps.map((a) => forViewer(req.user, a)) });
+    const [apps, rules] = await Promise.all([Application.find(filter).sort({ createdAt: -1 }).limit(200), settings.get()]);
+    res.json({ applications: apps.map((a) => forViewer(req.user, a, rules)) });
   } catch (err) {
     next(err);
   }
@@ -306,7 +324,7 @@ router.get("/:id", async (req, res, next) => {
   try {
     const app = await findVisible(req);
     if (!app) return res.status(404).json({ error: "Application not found." });
-    res.json({ application: forViewer(req.user, app) });
+    res.json({ application: forViewer(req.user, app, await settings.get()) });
   } catch (err) {
     next(err);
   }
@@ -356,6 +374,7 @@ router.put("/:id", async (req, res, next) => {
           bookkeeper: await bookkeeperFor(data.applicant.memberId, data.bookkeeper),
           agreement: data.agreement,
           coMakers: nextCoMakers,
+          nonMember: data.nonMember,
           editedAt: new Date(),
         },
       },
@@ -400,6 +419,12 @@ router.post("/:id/documents", async (req, res, next) => {
       { returnDocument: "after", runValidators: true },
     );
     if (!updated) return res.status(409).json({ error: "The application changed in the meantime. Reload and try again." });
+    // A new ID can settle the name check.
+    const idStatus = idCheckStatus(updated.documents);
+    if (updated.idCheck?.status !== idStatus) {
+      updated.idCheck = { ...(updated.idCheck?.toObject?.() ?? {}), status: idStatus };
+      await updated.save();
+    }
     const first = updated.documents.length - added.length;
     auditNote(res, { details: { added: added.map((d) => `${d.fileName}${d.verdict ? ` (${d.verdict})` : ""}`), afterSignatures: updated.approvals.length } });
     res.status(201).json({ application: forViewer(req.user, updated), indexes: added.map((_, i) => first + i) });
@@ -487,7 +512,7 @@ router.post("/:id/approvals", async (req, res, next) => {
   try {
     const parsed = approvalSchema.safeParse(req.body || {});
     if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0].message });
-    const { decision, bookkeeper } = parsed.data;
+    const { decision, bookkeeper, idCheck } = parsed.data;
     const note = parsed.data.note || undefined;
 
     const app = await Application.findById(req.params.id).catch(() => null);
@@ -502,6 +527,10 @@ router.post("/:id/approvals", async (req, res, next) => {
     // Co-makers confirm first; a denial needs no co-maker answer.
     const waiting = coMakers.blocking(app);
     if (waiting && decision === "approved") return res.status(409).json({ error: waiting, code: "CO_MAKERS_PENDING" });
+    // A signer asked for a co-maker: nobody approves until one accepts (or the request is withdrawn).
+    // A denial still goes through, so an applicant who finds no co-maker can be turned down.
+    const requested = coMakers.requestBlocking(app);
+    if (requested && decision === "approved") return res.status(409).json({ error: requested, code: "CO_MAKER_REQUESTED" });
 
     if (req.user.role !== step) {
       return res.status(403).json({ error: `It is the ${STEP_LABELS[step]}'s turn to sign this application.` });
@@ -523,6 +552,23 @@ router.post("/:id/approvals", async (req, res, next) => {
     if (decision === "denied" && !note) {
       return res.status(400).json({ error: "Add a note explaining why the application is denied." });
     }
+    // The Treasurer's final signature: for non-members, the co-makers' signed statements must be in.
+    const statements = step === "treasurer" && decision === "approved" ? coMakers.missingStatements(app) : null;
+    if (statements) return res.status(409).json({ error: statements, code: "CO_MAKER_STATEMENT_MISSING" });
+
+    // The ID name check: when the OCR didn't confirm the ID, the Bookkeeper compares it by hand.
+    const idStatus = idCheckStatus(app.documents);
+    let idManual;
+    if (idCheck && step !== "bookkeeper") return res.status(400).json({ error: "Only the Bookkeeper compares the ID." });
+    if (step === "bookkeeper" && idStatus === "needs_check") {
+      if (!idCheck) {
+        return res.status(400).json({ error: "Compare the ID with the applicant's name first: tick Matches or Doesn't match.", code: "ID_CHECK_NEEDED" });
+      }
+      const idNote = idCheck.note || undefined;
+      if (idCheck.result === "mismatch" && !idNote) return res.status(400).json({ error: "Add a short note on what doesn't match on the ID." });
+      if (idCheck.result === "mismatch" && decision === "approved") return res.status(400).json({ error: ID_MISMATCH, code: "ID_MISMATCH" });
+      idManual = { result: idCheck.result, note: idNote, by: req.user._id, byName: req.user.fullName, at: new Date() };
+    }
     const followed = followsSuggestion(app.assessment?.ensemble?.suggestion, decision);
     if (followed === false && !note) {
       return res.status(400).json({ error: "Add a note explaining why you are going against the suggestion." });
@@ -539,6 +585,8 @@ router.post("/:id/approvals", async (req, res, next) => {
       : bookkeeper && { ...bookkeeper, source: "manual", loans: [] };
     const booksChanged = books && !sameBooks(books, app.bookkeeper?.toObject?.() ?? app.bookkeeper);
     if (books) set.bookkeeper = books;
+    if (step === "bookkeeper") set["idCheck.status"] = idStatus;
+    if (idManual) set["idCheck.manual"] = idManual;
 
     const signature = {
       step,
@@ -571,7 +619,7 @@ router.post("/:id/approvals", async (req, res, next) => {
     }
     auditNote(res, {
       action: decision === "denied" ? "Application denied" : updated.status === "approved" ? "Application approved (final, loan created)" : "Application approved",
-      details: { decision, note, step: STEP_LABELS[step], result: updated.status, nextStep: updated.status === "pending" ? STEP_LABELS[updated.currentStep] : undefined, loanNo: updated.loanNo, balancesCorrected: !!booksChanged },
+      details: { decision, note, step: STEP_LABELS[step], result: updated.status, nextStep: updated.status === "pending" ? STEP_LABELS[updated.currentStep] : undefined, loanNo: updated.loanNo, balancesCorrected: !!booksChanged, idCheck: idManual ? `Compared by hand: ${idManual.result === "matches" ? "matches" : "doesn't match"}${idManual.note ? ` (${idManual.note})` : ""}` : undefined },
     });
     res.json({ application: forViewer(req.user, updated) });
   } catch (err) {
@@ -579,7 +627,112 @@ router.post("/:id/approvals", async (req, res, next) => {
   }
 });
 
+// Signers who may ask, case by case, for a co-maker on a member's application.
+const CO_MAKER_ASKERS = ["bookkeeper", "crecom_chair", "president"];
+const requestSchema = z.object({
+  note: z.string({ message: "Say why a co-maker is needed." }).trim().min(3, "Say why a co-maker is needed.").max(500),
+});
+
+// A signer asks for a co-maker. Approving waits until one accepts; the applicant is emailed.
+router.post("/:id/co-maker-request", async (req, res, next) => {
+  try {
+    if (!CO_MAKER_ASKERS.includes(req.user.role)) {
+      return res.status(403).json({ error: "Only the Bookkeeper, CreCom Chairman or President can ask for a co-maker." });
+    }
+    const parsed = requestSchema.safeParse(req.body || {});
+    if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0].message });
+    const app = await Application.findById(req.params.id).catch(() => null);
+    if (!app) return res.status(404).json({ error: "Application not found." });
+    auditNote(res, { target: `${app.applicationNo} · ${app.applicant.fullName}` });
+    if (app.status !== "pending") return res.status(409).json({ error: `This application was already ${app.status}.` });
+    if (app.coMakerRequest) return res.status(409).json({ error: `${app.coMakerRequest.byName} already asked for a co-maker.` });
+    if (app.coMakers.some((c) => c.status === "accepted")) return res.status(409).json({ error: "A co-maker already accepted this application." });
+
+    const request = { by: req.user._id, byName: req.user.fullName, role: req.user.role, note: parsed.data.note, at: new Date() };
+    const updated = await Application.findOneAndUpdate(
+      { _id: app._id, status: "pending", coMakerRequest: { $exists: false } },
+      { $set: { coMakerRequest: request } },
+      { returnDocument: "after", runValidators: true },
+    );
+    if (!updated) return res.status(409).json({ error: "The application changed in the meantime. Reload and try again." });
+    coMakers.notifyRequested(updated).catch(() => {});
+    auditNote(res, { details: { note: request.note, by: `${request.byName} (${STEP_LABELS[request.role]})` } });
+    res.json({ application: forViewer(req.user, updated, await settings.get()) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// The signer who asked for a co-maker withdraws the request.
+router.delete("/:id/co-maker-request", async (req, res, next) => {
+  try {
+    const app = await Application.findById(req.params.id).catch(() => null);
+    if (!app) return res.status(404).json({ error: "Application not found." });
+    auditNote(res, { target: `${app.applicationNo} · ${app.applicant.fullName}` });
+    if (!app.coMakerRequest) return res.status(404).json({ error: "Nobody asked for a co-maker on this application." });
+    if (!app.coMakerRequest.by.equals(req.user._id)) {
+      return res.status(403).json({ error: `Only ${app.coMakerRequest.byName}, who asked for the co-maker, can withdraw the request.` });
+    }
+    const before = { note: app.coMakerRequest.note, at: app.coMakerRequest.at };
+    const updated = await Application.findOneAndUpdate(
+      { _id: app._id, "coMakerRequest.by": req.user._id },
+      { $unset: { coMakerRequest: 1 } },
+      { returnDocument: "after" },
+    );
+    if (!updated) return res.status(409).json({ error: "The application changed in the meantime. Reload and try again." });
+    auditNote(res, { before });
+    res.json({ application: forViewer(req.user, updated, await settings.get()) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// The applicant names co-makers after filing: any time before anyone signs, and later when a signer
+// asked for one. The body is the full list. Co-makers already named keep their answer, and once
+// someone signed, a co-maker who accepted stays on. Also mounted for the member app (routes/member.js),
+// which shows the application its own way (view).
+const setCoMakers = (view) => async (req, res, next) => {
+  try {
+    const parsed = z.object({ coMakers: z.array(z.string().trim().max(32)).max(2) }).safeParse(req.body || {});
+    if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0].message });
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ error: "Application not found." });
+    const app = await Application.findById(req.params.id);
+    if (!app) return res.status(404).json({ error: "Application not found." });
+    auditNote(res, { target: `${app.applicationNo} · ${app.applicant.fullName}` });
+    if (!filedBy(app, req.user)) return res.status(403).json({ error: "Only the person who filed the application can name its co-makers." });
+    if (app.status !== "pending") return res.status(409).json({ error: `This application was already ${app.status}.` });
+    if (app.approvals.length && !app.coMakerRequest) {
+      return res.status(409).json({ error: "Signing has started, so co-makers can only be added when a signer asks for one.", code: "EDIT_CLOSED" });
+    }
+    const named = await coMakers.resolve(parsed.data.coMakers, app.applicant.memberId, app.nonMember ? 1 : 0, { membersOnly: !!app.nonMember });
+    const dropped = app.coMakers.filter((c) => c.status === "accepted" && !named.some((n) => n.memberId === c.memberId));
+    if (app.approvals.length && dropped.length) {
+      return res.status(409).json({ error: `${dropped.map((c) => c.name).join(" and ")} already accepted and can't be removed once signing has started.` });
+    }
+    const nextCoMakers = named.map((c) => app.coMakers.find((x) => x.memberId === c.memberId)?.toObject() ?? c);
+    const added = nextCoMakers.filter((c) => !app.coMakers.some((x) => x.memberId === c.memberId));
+    const before = { coMakers: app.coMakers.map((c) => `${c.memberId} (${c.status})`) };
+    const updated = await Application.findOneAndUpdate(
+      { _id: app._id, status: "pending", $expr: { $eq: [{ $size: { $ifNull: ["$approvals", []] } }, app.approvals.length] } },
+      { $set: { coMakers: nextCoMakers } },
+      { returnDocument: "after", runValidators: true },
+    );
+    if (!updated) return res.status(409).json({ error: "The application changed in the meantime. Reload and try again." });
+    if (added.length) coMakers.notifyNamed({ ...updated.toObject(), coMakers: added }).catch(() => {});
+    auditNote(res, {
+      before,
+      details: { coMakers: updated.coMakers.map((c) => `${c.memberId} (${c.status})`), added: added.map((c) => c.memberId), afterRequest: !!updated.coMakerRequest },
+    });
+    res.json({ application: view(req.user, updated) });
+  } catch (err) {
+    if (err instanceof coMakers.CoMakerError) return res.status(400).json({ error: err.message });
+    next(err);
+  }
+};
+router.put("/:id/co-makers", setCoMakers(forViewer));
+
 module.exports = router;
+module.exports.setCoMakers = setCoMakers;
 module.exports.createSchema = createSchema;
 module.exports.createApplication = createApplication;
 module.exports.missingDocuments = missingDocuments;

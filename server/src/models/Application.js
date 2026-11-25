@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const { STEPS, currentStepOf } = require("../services/approvals");
+const { idCheckStatus } = require("../services/idCheck");
 
 // Fields follow UEDI's Mutual Assistance Application Form.
 const LOAN_TYPES = ["long_term", "emergency"];
@@ -15,6 +16,8 @@ const documentSchema = new mongoose.Schema(
     verdict: { type: String, enum: ["verified", "review", "mismatch", "unreadable"] },
     sha256: { type: String, maxlength: 64 },
     notes: [{ type: String, maxlength: 300 }],
+    // On an ID: the name the applicant's browser read from it, shown next to the declared name.
+    readName: { type: String, maxlength: 130 },
     // The stored file (services/documentFiles.js), once the applicant's browser has uploaded it.
     fileId: { type: mongoose.Schema.Types.ObjectId },
     contentType: String,
@@ -34,6 +37,39 @@ const coMakerSchema = new mongoose.Schema(
     status: { type: String, enum: ["pending", "accepted", "declined"], default: "pending" },
     respondedAt: Date,
     note: { type: String, maxlength: 300 },
+    // The co-maker's statement, signed on paper and uploaded by the co-maker (services/documentFiles.js).
+    statement: {
+      type: new mongoose.Schema(
+        { fileId: mongoose.Schema.Types.ObjectId, fileName: String, contentType: String, size: Number, uploadedAt: Date },
+        { _id: false },
+      ),
+      default: undefined,
+    },
+  },
+  { _id: false },
+);
+
+// A signer asking, case by case, for a co-maker on a member's application. Signing waits until a
+// co-maker accepts, or the signer who asked withdraws it.
+const coMakerRequestSchema = new mongoose.Schema(
+  {
+    by: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    byName: String,
+    role: { type: String, enum: STEPS },
+    note: { type: String, required: true, maxlength: 500 },
+    at: { type: Date, required: true },
+  },
+  { _id: false },
+);
+
+// The Bookkeeper's own comparison of the ID with the applicant's name, when the OCR couldn't confirm it.
+const idCheckManualSchema = new mongoose.Schema(
+  {
+    result: { type: String, enum: ["matches", "mismatch"], required: true },
+    note: { type: String, maxlength: 500 },
+    by: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    byName: String,
+    at: Date,
   },
   { _id: false },
 );
@@ -165,6 +201,15 @@ const applicationSchema = new mongoose.Schema(
     },
     documents: [documentSchema],
     coMakers: { type: [coMakerSchema], default: [] },
+    coMakerRequest: { type: coMakerRequestSchema, default: undefined },
+    // Filed for someone not linked to a UDEI member number, under the non-member rule (co-maker required).
+    nonMember: Boolean,
+    // Whether the name on the valid ID was confirmed: by the OCR ("passed"), or still to be compared
+    // by the Bookkeeper ("needs_check"). Worked out from the documents (services/idCheck.js).
+    idCheck: {
+      status: { type: String, enum: ["passed", "needs_check"] },
+      manual: { type: idCheckManualSchema, default: undefined },
+    },
     status: { type: String, enum: STATUSES, default: "pending", index: true },
     assessment: assessmentSchema,
     assessmentError: String,
@@ -195,6 +240,8 @@ const applicationSchema = new mongoose.Schema(
 applicationSchema.set("toJSON", {
   transform(_doc, ret) {
     ret.currentStep = currentStepOf(ret);
+    // Applications from before the ID check get it worked out from their documents.
+    ret.idCheck = { ...ret.idCheck, status: idCheckStatus(ret.documents) };
     ret.approvals = ret.approvals || [];
     return ret;
   },

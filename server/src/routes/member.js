@@ -10,7 +10,7 @@ const Loan = require("../models/Loan");
 const Payment = require("../models/Payment");
 const loans = require("../services/loans");
 const { STEP_LABELS, currentStepOf } = require("../services/approvals");
-const { createSchema, createApplication, missingDocuments } = require("./applications");
+const { createSchema, createApplication, missingDocuments, setCoMakers } = require("./applications");
 const { signSession, requireAuth } = require("../middleware/auth");
 const { rateLimit } = require("../middleware/rateLimit");
 const verification = require("../services/emailVerification");
@@ -194,6 +194,13 @@ function memberView(app) {
     loanNo: app.loanNo || null,
     createdAt: app.createdAt,
     documents: (app.documents || []).map((d) => ({ fileName: d.fileName, type: d.type || null, uploaded: !!d.fileId, addedAt: d.addedAt || null })),
+    coMakers: (app.coMakers || []).map((c) => ({ memberId: c.memberId, name: c.name || null, status: c.status, statementUploaded: !!c.statement?.fileId })),
+    // A signer asked for a co-maker: who, and why. The member names one with PUT /applications/:id/co-makers.
+    coMakerRequest:
+      app.status === "pending" && app.coMakerRequest && !(app.coMakers || []).some((c) => c.status === "accepted")
+        ? { byName: app.coMakerRequest.byName, role: STEP_LABELS[app.coMakerRequest.role] || null, note: app.coMakerRequest.note, at: app.coMakerRequest.at }
+        : null,
+    nonMember: !!app.nonMember,
   };
 }
 
@@ -251,6 +258,9 @@ router.post("/applications", async (req, res, next) => {
     next(err);
   }
 });
+
+// Name co-makers after filing (when a signer asks for one, or before anyone signs).
+router.put("/applications/:id/co-makers", setCoMakers((_user, app) => memberView(app)));
 
 // Kept in step with DOCUMENT_TYPES in client/src/lib/ocr/documentTypes.ts.
 const DOCUMENT_TYPES = ["valid_id", "employee_id", "payslip", "certificate_of_employment", "proof_of_address", "application_form", "other"];

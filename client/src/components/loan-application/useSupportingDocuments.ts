@@ -151,6 +151,7 @@ export function useSupportingDocuments(applicant: Applicant, loanType: LoanType)
           .filter((c) => c.status === 'fail' || c.status === 'warn')
           .map((c) => `${c.label}: ${c.detail}`.slice(0, 300))
           .slice(0, 20),
+        readName: effectiveType(d, a) === 'valid_id' ? a?.fields.name?.slice(0, 130) || undefined : undefined,
       }
     })
 

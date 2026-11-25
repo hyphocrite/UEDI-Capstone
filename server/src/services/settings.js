@@ -12,7 +12,9 @@ const DEFAULTS = Object.freeze({
   },
   minMonthlySalary: 10000,
   branches: ["Main Office"],
-  coMakersRequired: 1,
+  // Members never need a co-maker by amount: signers ask case by case. Kept for older saved settings.
+  coMakersRequired: 0,
+  // Signers are reminded that UDEI usually asks for a co-maker from this amount (pesos). 0: no reminder.
   coMakersFromAmount: 50000,
   // Applicants not linked to a UDEI member number: at most this much, with a member as co-maker.
   nonMemberMaxAmount: 5000,
@@ -21,9 +23,10 @@ const DEFAULTS = Object.freeze({
 // Every application needs at least this net take-home pay (pesos).
 const MIN_NET_TAKE_HOME_PAY = 5000;
 
-/** How many co-makers a loan of this amount (pesos) needs under these rules. */
-function coMakersNeeded(rules, amount) {
-  return Number(amount) >= (rules.coMakersFromAmount ?? DEFAULTS.coMakersFromAmount) ? rules.coMakersRequired : 0;
+/** Whether signers should be reminded to consider a co-maker for a loan of this amount (pesos). Never a requirement. */
+function coMakerSuggested(rules, amount) {
+  const from = rules.coMakersFromAmount ?? DEFAULTS.coMakersFromAmount;
+  return from > 0 && Number(amount) >= from;
 }
 
 function shape(doc) {
@@ -71,4 +74,4 @@ function checkApplication(rules, { monthlySalary, loanType, termMonths }) {
   return null;
 }
 
-module.exports = { DEFAULTS, MIN_NET_TAKE_HOME_PAY, get, save, checkApplication, coMakersNeeded };
+module.exports = { DEFAULTS, MIN_NET_TAKE_HOME_PAY, get, save, checkApplication, coMakerSuggested };

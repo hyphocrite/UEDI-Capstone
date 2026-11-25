@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { AlertTriangle, CheckCircle2, Handshake, XCircle } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import ProgressBar from '../components/ProgressBar'
+import StatementActions from '../components/comaker/StatementActions'
+import { useAuth } from '../context/AuthContext'
 import { useConfirm } from '../context/ConfirmContext'
 import { api } from '../lib/api'
 import { loanTypeLabel } from '../lib/applications'
@@ -23,6 +25,9 @@ type Request = {
   myStatus: 'pending' | 'accepted' | 'declined'
   respondedAt: string | null
   otherCoMakers: { name: string; status: string }[]
+  statementUploaded?: boolean
+  statementUploadedAt?: string | null
+  statementRequired?: boolean
 }
 type VouchedLoan = {
   loanId: string
@@ -45,6 +50,8 @@ type Portal = { linked: boolean; requests: Request[]; loans: VouchedLoan[]; aler
  */
 export default function CoMakerPage() {
   const confirm = useConfirm()
+  const { session } = useAuth()
+  const myId = session?.memberId ?? ''
   const [data, setData] = useState<Portal | null>(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState<string | null>(null)
@@ -118,6 +125,10 @@ export default function CoMakerPage() {
                       <p className="font-semibold text-ink">{r.borrowerName} asks you to vouch for {formatPeso(r.amount)}</p>
                       <p className="text-sm text-brand-600">{loanTypeLabel[r.loanType]} · {r.termMonths} months{r.purpose ? ` · “${r.purpose}”` : ''}</p>
                       <p className="text-xs text-brand-500">{r.applicationNo} · filed {formatDate(r.filedAt)}{r.otherCoMakers.length ? ` · other co-maker: ${r.otherCoMakers.map((c) => `${c.name} (${c.status})`).join(', ')}` : ''}</p>
+                      {myId && (
+                        <StatementActions applicationId={r.applicationId} memberId={myId} uploadedAt={r.statementUploadedAt ?? null}
+                          required={!!r.statementRequired} canUpload onUploaded={() => void load()} />
+                      )}
                     </div>
                     <div className="flex shrink-0 gap-2">
                       <button className="btn-ghost" disabled={busy !== null} onClick={() => void respond(r, 'declined')}><XCircle className="h-4 w-4" /> Decline</button>
@@ -158,11 +169,17 @@ export default function CoMakerPage() {
               <h2 className="border-b border-brand-100 px-4 py-3 font-semibold text-brand-800">Your earlier answers</h2>
               <ul className="divide-y divide-brand-50 text-sm">
                 {answered.map((r) => (
-                  <li key={r.applicationId} className="flex flex-wrap justify-between gap-2 px-4 py-3">
-                    <span>{r.borrowerName} · {formatPeso(r.amount)} <span className="text-brand-500">({r.applicationNo})</span></span>
-                    <span className="text-brand-600">
-                      You {r.myStatus === 'pending' ? "didn't answer" : r.myStatus}{r.respondedAt ? ` on ${formatDate(r.respondedAt)}` : ''} · application {r.status}{r.waitingFor ? `, at the ${r.waitingFor}` : ''}
-                    </span>
+                  <li key={r.applicationId} className="px-4 py-3">
+                    <div className="flex flex-wrap justify-between gap-2">
+                      <span>{r.borrowerName} · {formatPeso(r.amount)} <span className="text-brand-500">({r.applicationNo})</span></span>
+                      <span className="text-brand-600">
+                        You {r.myStatus === 'pending' ? "didn't answer" : r.myStatus}{r.respondedAt ? ` on ${formatDate(r.respondedAt)}` : ''} · application {r.status}{r.waitingFor ? `, at the ${r.waitingFor}` : ''}
+                      </span>
+                    </div>
+                    {myId && r.myStatus === 'accepted' && (
+                      <StatementActions applicationId={r.applicationId} memberId={myId} uploadedAt={r.statementUploadedAt ?? null}
+                        required={!!r.statementRequired} canUpload={r.status === 'pending'} onUploaded={() => void load()} />
+                    )}
                   </li>
                 ))}
               </ul>

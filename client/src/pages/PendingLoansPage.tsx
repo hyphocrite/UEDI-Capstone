@@ -5,10 +5,11 @@ import PageHeader from '../components/PageHeader'
 import StatusBadge from '../components/StatusBadge'
 import ApplicationDetail from '../components/pending-loans/ApplicationDetail'
 import SuggestionBadge from '../components/pending-loans/SuggestionBadge'
+import IdCheckChip from '../components/pending-loans/IdCheckChip'
 import { MascotSays } from '../components/mascot/Mascot'
 import { useAuth } from '../context/AuthContext'
 import { api } from '../lib/api'
-import { awaitingUser, creditScore, loanTypeLabel } from '../lib/applications'
+import { awaitingUser, creditScore, loanTypeLabel, openCoMakerRequest } from '../lib/applications'
 import type { LoanApplication, ModelInfo } from '../lib/applications'
 import { formatDate, formatPeso } from '../lib/format'
 import { isSigner, stepShortLabel } from '../lib/roles'
@@ -180,6 +181,12 @@ export default function PendingLoansPage() {
                     <p className="mt-0.5 text-xs text-brand-500">
                       {a.applicationNo}
                       {s && ` · credit score ${creditScore(s).toFixed(2)}`}
+                    </p>
+                    <p className="mt-1 flex flex-wrap gap-1">
+                      <IdCheckChip app={a} />
+                      {openCoMakerRequest(a) && (
+                        <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800 ring-1 ring-amber-200 ring-inset">Co-maker asked for</span>
+                      )}
                     </p>
                     {a.status === 'pending' && a.currentStep !== 'none' && (
                       <>

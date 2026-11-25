@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
-import { RefreshControl, ScrollView, Text, TextInput, View } from 'react-native'
-import { api, type CoMakerPortal, type CoMakerRequest, type VouchedLoan } from '../api'
+import { Linking, RefreshControl, ScrollView, Text, TextInput, View } from 'react-native'
+import { api, coMakerFormUrl, type CoMakerPortal, type CoMakerRequest, type VouchedLoan } from '../api'
 import { confirmAction } from '../confirm'
 import { centavos, date, LOAN_TYPE_LABEL, pesos } from '../format'
 import { colors } from '../theme'
@@ -16,7 +16,30 @@ const STANDING: Record<VouchedLoan['standing'], { text: string; tone: 'green' | 
  * The co-maker portal, as on the web Co-maker page: alerts on top, requests waiting for your answer
  * (accept or decline, each confirmed first), and the loans you vouched for.
  */
-export default function CoMakerScreen({ onChanged }: { onChanged: () => void }) {
+/**
+ * Opens your co-maker's statement in the browser (the UDEI web app), to print, sign and upload there.
+ * React Native's own Linking, so no extra package is needed.
+ */
+function StatementLink({ request: r, memberId }: { request: CoMakerRequest; memberId: string | null | undefined }) {
+  const [error, setError] = useState<string | null>(null)
+  if (!memberId) return null
+  const open = () => Linking.openURL(coMakerFormUrl(r.applicationId, memberId)).catch(() => setError("Couldn't open the browser."))
+  return (
+    <View style={{ marginTop: 10 }}>
+      <Button variant="outline" title="Open my co-maker's statement" onPress={open} />
+      <Text style={{ color: r.statementUploaded ? colors.accent : colors.muted, fontSize: 12, marginTop: 4 }}>
+        {r.statementUploaded
+          ? `Signed copy uploaded${r.statementUploadedAt ? ` ${date(r.statementUploadedAt)}` : ''}.`
+          : r.statementRequired
+            ? "The borrower isn't a UDEI member yet: print it, sign it and upload the signed copy from the web Co-maker page before the final signature."
+            : 'Print it and sign it; you can upload the signed copy from the web Co-maker page.'}
+      </Text>
+      <ErrorText text={error} />
+    </View>
+  )
+}
+
+export default function CoMakerScreen({ onChanged, memberId }: { onChanged: () => void; memberId?: string | null }) {
   const [portal, setPortal] = useState<CoMakerPortal | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -58,7 +81,7 @@ export default function CoMakerScreen({ onChanged }: { onChanged: () => void }) 
           <>
             <Text style={s.sectionTitle}>Waiting for your answer</Text>
             {waiting.length ? waiting.map((r) => (
-              <RequestCard key={r.applicationId} request={r} onAnswered={() => { load(); onChanged() }} />
+              <RequestCard key={r.applicationId} request={r} memberId={memberId} onAnswered={() => { load(); onChanged() }} />
             )) : <Empty text="No requests waiting for your answer." />}
 
             <Text style={s.sectionTitle}>Loans you vouched for</Text>
@@ -82,6 +105,7 @@ export default function CoMakerScreen({ onChanged }: { onChanged: () => void }) 
                   <Card key={r.applicationId}>
                     <Row label={r.borrowerName} value={pesos(r.amount)} />
                     <Text style={{ color: colors.muted }}>You {r.myStatus}{r.respondedAt ? ` on ${date(r.respondedAt)}` : ''} · application {r.status}</Text>
+                    {r.myStatus === 'accepted' && r.status === 'pending' ? <StatementLink request={r} memberId={memberId} /> : null}
                   </Card>
                 ))}
               </>
@@ -93,7 +117,7 @@ export default function CoMakerScreen({ onChanged }: { onChanged: () => void }) 
   )
 }
 
-function RequestCard({ request: r, onAnswered }: { request: CoMakerRequest; onAnswered: () => void }) {
+function RequestCard({ request: r, memberId, onAnswered }: { request: CoMakerRequest; memberId?: string | null; onAnswered: () => void }) {
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState<'accepted' | 'declined' | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -125,6 +149,7 @@ function RequestCard({ request: r, onAnswered }: { request: CoMakerRequest; onAn
       <Row label={LOAN_TYPE_LABEL[r.loanType] ?? r.loanType} value={`${pesos(r.amount)} · ${r.termMonths} months`} strong />
       {r.purpose ? <Text style={{ color: colors.muted }}>“{r.purpose}”</Text> : null}
       <Text style={{ color: colors.muted, fontSize: 12, marginTop: 4 }}>{r.applicationNo} · filed {date(r.filedAt)}</Text>
+      <StatementLink request={r} memberId={memberId} />
       <TextInput
         value={note}
         onChangeText={setNote}

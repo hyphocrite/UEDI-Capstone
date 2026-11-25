@@ -6,8 +6,8 @@ import { api } from '../../lib/api'
 
 type Lookup = { state: 'idle' | 'checking' | 'ok' | 'error'; text: string }
 
-/** One member number, with the member's name looked up as it is typed. */
-function CoMakerField({ id, label, value, onChange, applicantId }: {
+/** One member number, with the member's name looked up as it is typed. Also used on My Loans. */
+export function CoMakerField({ id, label, value, onChange, applicantId }: {
   id: string
   label: string
   value: string
@@ -49,18 +49,14 @@ function CoMakerField({ id, label, value, onChange, applicantId }: {
  * The co-makers: UDEI members who vouch for the loan. They confirm in their co-maker portal
  * before the Bookkeeper can sign, and are told if the borrower later misses a payment.
  */
-export default function CoMakersSection({ form, update, required, perLoan, fromAmount, nonMemberLimit }: {
+export default function CoMakersSection({ form, update, required, nonMemberLimit }: {
   form: Form
   update: (patch: Partial<Form>) => void
-  /** Needed for this application's amount. */
+  /** Co-makers this application needs: 1 for an applicant who isn't a linked member, else 0. */
   required: number
-  /** Needed for loans of fromAmount or more (Settings). */
-  perLoan: number
-  fromAmount: number
   /** The most an applicant who isn't a linked member can borrow, or null for a linked member. */
   nonMemberLimit: number | null
 }) {
-  const rule = perLoan > 0 && fromAmount > 0 ? `Loans of ₱${fromAmount.toLocaleString('en-PH')} or more need ${perLoan === 1 ? 'one' : perLoan}. ` : ''
   return (
     <FormSection title="Co-makers">
       <p className="mb-3 flex items-start gap-2 text-sm text-brand-700">
@@ -68,7 +64,7 @@ export default function CoMakersSection({ form, update, required, perLoan, fromA
         <span>
           {nonMemberLimit !== null
             ? "The applicant isn't linked to a UDEI member number, so a co-maker is required: a full UDEI member, not someone who has only signed up. "
-            : required === 0 ? `Optional for this amount. ${rule}` : `${required === 1 ? 'One co-maker is' : `${required} co-makers are`} required for this amount. `}
+            : 'Optional for UDEI members: name one or two if you like. The signers may still ask for one, depending on the loan. '}
           A co-maker is a UDEI member with an account who vouches for this loan. They confirm online before signing starts,
           and can see how the loan is being paid.
         </span>

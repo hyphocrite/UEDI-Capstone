@@ -52,7 +52,7 @@ const faqs = [
   },
   {
     q: 'Do I need a co-maker?',
-    a: 'Only for larger loans. The office sets the amount from which co-makers are needed; the loan form tells you when your loan needs one.',
+    a: "For UDEI members a co-maker is optional; the signers may ask for one case by case, and you'll see why on My Loans. Applicants who aren't UDEI members yet always need a member as co-maker.",
   },
   {
     q: 'Does a computer decide my loan?',

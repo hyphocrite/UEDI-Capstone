@@ -378,7 +378,7 @@ export default function LoanApplicationPage() {
           <AgreementSection form={form} update={update} onLoanTypeChange={changeLoanType} linked={linked} />
         </div>
         <div className={`grid min-w-0 grid-cols-1 gap-6 ${onPage('coMakers')}`}>
-          <CoMakersSection form={form} update={update} required={coMakersRequiredFor(settings, Number(form.amount) || 0, linked)} perLoan={settings.coMakersRequired} fromAmount={settings.coMakersFromAmount} nonMemberLimit={nonMemberLimit(settings, linked)} />
+          <CoMakersSection form={form} update={update} required={coMakersRequiredFor(settings, linked)} nonMemberLimit={nonMemberLimit(settings, linked)} />
           {staffView && <BookkeeperSection form={form} update={update} ledger={ledger} />}
         </div>
         <div className={`grid min-w-0 grid-cols-1 gap-6 ${onPage('documents')}`}>

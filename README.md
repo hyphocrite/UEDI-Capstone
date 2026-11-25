@@ -67,9 +67,19 @@ See [mobile/README.md](mobile/README.md).
   how many members vouch for them, and past repayment. Parts without data are left out, not counted
   against the member; months after the last contribution anyone has on record count as "not entered
   yet", so import contributions regularly.
-- **Co-makers**: each application names 1 or 2 members with accounts (Loan Settings sets how many).
-  They confirm on their **Co-maker** page before the Bookkeeper can sign, see how the loans they
-  vouched for are paid, and are emailed when they're named and when a payroll deduction is missed.
+- **Co-makers**: optional for UDEI members (up to 2), mandatory for applicants not linked to a member
+  number (they borrow at most ₱5,000). Loan Settings only sets the amount from which Pending Loans
+  *suggests* one. The Bookkeeper, CreCom Chairman or President can **ask for a co-maker** case by case,
+  with a note: the applicant is emailed and names one from My Loans, and nobody can approve until a
+  co-maker accepts or the signer withdraws the request. Co-makers confirm on their **Co-maker** page,
+  print their own Co-Maker's Statement (`/co-maker/:applicationId/:memberId/form`) and upload it
+  signed. For non-members the Treasurer can't give the final signature until it is uploaded (the rule
+  is `statementRequired` in `server/src/services/coMakers.js`). They see how the loans they vouched for
+  are paid, and are emailed when they're named and when a payroll deduction is missed.
+- **ID name check**: an application's valid ID counts as checked only when the OCR verified it.
+  Otherwise (flagged by the OCR, sent from the phone, or added later) the Bookkeeper ticks whether the
+  ID matches the applicant's name when signing; "Doesn't match" needs a note and blocks approving, not
+  denying. Pending Loans shows an "ID name" chip on each application.
 - **Early warning** (Loan Officer and up): the chance each active loan misses a payment in the next 60
   days, from a second XGBoost model in the ML service with plain reasons (e.g. stopped saving). It is
   trained on SAMPLE snapshots until there is history: `npm --prefix server run export:early-warning --

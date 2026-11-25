@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { CheckCircle2, Hourglass, Paperclip, Pencil, XCircle } from 'lucide-react'
+import { CheckCircle2, Hourglass, Paperclip, Pencil, Printer, XCircle } from 'lucide-react'
+import CoMakerRequestNotice from './CoMakerRequestNotice'
 import { useAuth } from '../../context/AuthContext'
 import { api } from '../../lib/api'
 import { KuwiReasons, KuwiTips, MascotSays } from '../mascot/Mascot'
-import { canAddDocuments, canChange, loanTypeLabel } from '../../lib/applications'
+import { canAddDocuments, canChange, coMakerFormPath, loanTypeLabel } from '../../lib/applications'
 import type { LoanApplication } from '../../lib/applications'
 import { formatDate, formatDateTime, formatPeso } from '../../lib/format'
 import { roleLabel } from '../../lib/roles'
@@ -26,6 +27,7 @@ export default function MyApplications() {
   }, [])
 
   if (!apps?.length) return null
+  const replace = (updated: LoanApplication) => setApps((list) => list?.map((a) => (a._id === updated._id ? updated : a)) ?? null)
 
   return (
     <>
@@ -54,10 +56,18 @@ export default function MyApplications() {
               </p>
 
               {(a.coMakers?.length ?? 0) > 0 && (
-                <p className="mt-1 text-xs text-brand-600">
-                  Co-maker{a.coMakers!.length > 1 ? 's' : ''}: {a.coMakers!.map((c) => `${c.name ?? c.memberId} (${c.status === 'pending' ? 'not answered yet' : c.status})`).join(', ')}
-                </p>
+                <div className="mt-1 text-xs text-brand-600">
+                  <p>Co-maker{a.coMakers!.length > 1 ? 's' : ''}: {a.coMakers!.map((c) => `${c.name ?? c.memberId} (${c.status === 'pending' ? 'not answered yet' : c.status})`).join(', ')}</p>
+                  <p className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
+                    {a.coMakers!.filter((c) => c.status !== 'declined').map((c) => (
+                      <Link key={c.memberId} to={coMakerFormPath(a._id, c.memberId)} className="inline-flex items-center gap-1 font-semibold text-brand-700 underline">
+                        <Printer className="h-3.5 w-3.5" /> Co-maker's statement{a.coMakers!.length > 1 ? ` (${c.name ?? c.memberId})` : ''}
+                      </Link>
+                    ))}
+                  </p>
+                </div>
               )}
+              <CoMakerRequestNotice app={a} onChange={replace} />
               {a.status === 'pending' && (
                 <p className="mt-2 flex items-center gap-2 text-sm text-brand-700">
                   <Hourglass className="h-4 w-4 shrink-0 text-amber-600" />

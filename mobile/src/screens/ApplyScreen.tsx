@@ -209,10 +209,8 @@ export default function ApplyScreen({ onDone }: { onDone: () => void }) {
             )}
             <Field
               label={
-                nonMemberLimit !== null ? "Co-maker's member number"
-                : (rules.coMakersRequired ?? 1) === 0 ? 'Co-maker (optional)'
-                  : amount >= (rules.coMakersFromAmount ?? 0) ? "Co-maker's member number"
-                    : `Co-maker (optional under ₱${(rules.coMakersFromAmount ?? 0).toLocaleString('en-PH')})`
+                // For members a co-maker is optional; the office may still ask for one case by case.
+                nonMemberLimit !== null ? "Co-maker's member number" : 'Co-maker (optional)'
               }
               value={f.coMaker1} onChangeText={set('coMaker1')} placeholder="A UDEI member who vouches for you" />
             <Field label="Second co-maker (optional)" value={f.coMaker2} onChangeText={set('coMaker2')} placeholder="Member number" />

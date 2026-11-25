@@ -171,6 +171,9 @@ export function ApplicationDocuments({ app, onSent }: { app: Application; onSent
         {sent.length === 0 ? 'None sent yet.' : `${sent.length} sent.`}
         {missing.length ? ` Still needed: ${missing.map((t) => DOCUMENT_LABEL[t]).join(', ')}.` : ''}
       </Text>
+      {sent.some((d) => d.type === 'valid_id' && d.uploaded) ? (
+        <Text style={{ color: colors.muted, fontSize: 13, marginTop: 2 }}>The office will check your ID against your name.</Text>
+      ) : null}
       {app.status !== 'pending' ? null : open ? (
         <View style={{ marginTop: 8 }}>
           <DocumentSlots loanType={app.loan.loanType} files={files} onChange={setFiles} sent={sent} />

@@ -58,6 +58,7 @@ export default function DocumentViewer({ app, index, onIndex, onClose }: {
   const label = doc.type ? documentType(doc.type as DocumentTypeId)?.label ?? doc.type : 'Document'
   const rows: [string, string][] = [
     ['Name', a.fullName],
+    ...(doc.type === 'valid_id' ? [['Name the OCR read from the ID', doc.readName || 'Nothing read (check by eye)'] as [string, string]] : []),
     ['Member ID', a.memberId || '—'],
     ['Residence address', a.residenceAddress],
     ['Employer', a.employer],

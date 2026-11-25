@@ -26,7 +26,7 @@ const toDraft = (s: LoanSettings): Draft => ({
   },
   minMonthlySalary: String(s.minMonthlySalary),
   branches: [...s.branches],
-  coMakersRequired: String(s.coMakersRequired ?? 1),
+  coMakersRequired: String(s.coMakersRequired ?? 0),
   coMakersFromAmount: String(s.coMakersFromAmount ?? 50000),
 })
 
@@ -76,11 +76,9 @@ export default function SettingsPage() {
     if (Number(draft.minMonthlySalary) !== current.minMonthlySalary) {
       list.push(`Minimum monthly salary: ${formatPeso(current.minMonthlySalary)} → ${formatPeso(Number(draft.minMonthlySalary))}`)
     }
-    if (Number(draft.coMakersRequired) !== (current.coMakersRequired ?? 1)) {
-      list.push(`Co-makers required: ${current.coMakersRequired ?? 1} → ${draft.coMakersRequired}`)
-    }
     if (Number(draft.coMakersFromAmount) !== (current.coMakersFromAmount ?? 50000)) {
-      list.push(`Co-makers needed from: ${formatPeso(current.coMakersFromAmount ?? 50000)} → ${formatPeso(Number(draft.coMakersFromAmount))}`)
+      const shown = (n: number) => (n > 0 ? formatPeso(n) : 'never')
+      list.push(`Suggest a co-maker from: ${shown(current.coMakersFromAmount ?? 50000)} → ${shown(Number(draft.coMakersFromAmount))}`)
     }
     const added = draft.branches.filter((b) => !current.branches.includes(b))
     const removed = current.branches.filter((b) => !draft.branches.includes(b))
@@ -200,25 +198,19 @@ export default function SettingsPage() {
               onChange={(e) => { touch(); setDraft((d) => ({ ...d, minMonthlySalary: e.target.value })) }} />
           </div>
           <h2 className="mt-5 font-semibold text-brand-800">Co-makers</h2>
-          <p className="mt-1 text-sm text-brand-600">Members who vouch for the loan and confirm online before signing starts. Smaller loans don't need them.</p>
+          <p className="mt-1 text-sm text-brand-600">
+            For members a co-maker is optional: the signers ask for one case by case on Pending Loans. Applicants who aren't UDEI
+            members always need one.
+          </p>
           <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-brand-700">
-            <select className="input w-40" aria-label="Co-makers required" value={draft.coMakersRequired}
-              onChange={(e) => { touch(); setDraft((d) => ({ ...d, coMakersRequired: e.target.value })) }}>
-              <option value="0">None required</option>
-              <option value="1">1 co-maker</option>
-              <option value="2">2 co-makers</option>
-            </select>
-            {draft.coMakersRequired !== '0' && (
-              <>
-                <span>for loans of</span>
-                <span className="font-semibold">₱</span>
-                <input type="number" min={0} step={5000} className="input w-36" aria-label="Co-makers needed from this amount" value={draft.coMakersFromAmount}
-                  onChange={(e) => { touch(); setDraft((d) => ({ ...d, coMakersFromAmount: e.target.value })) }} />
-                <span>or more</span>
-              </>
-            )}
+            <span>Suggest a co-maker from</span>
+            <span className="font-semibold">₱</span>
+            <input type="number" min={0} step={5000} className="input w-36" aria-label="Suggest a co-maker from this amount" value={draft.coMakersFromAmount}
+              onChange={(e) => { touch(); setDraft((d) => ({ ...d, coMakersFromAmount: e.target.value })) }} />
           </div>
-          {draft.coMakersRequired !== '0' && Number(draft.coMakersFromAmount) === 0 && <p className="mt-1 text-xs text-brand-500">₱0 means every loan needs them.</p>}
+          <p className="mt-1 text-xs text-brand-500">
+            Signers see a reminder on members' applications from this amount that have no co-maker. It never blocks signing. ₱0 turns the reminder off.
+          </p>
         </section>
 
         <section className="card p-5">

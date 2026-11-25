@@ -23,6 +23,7 @@ import CreditModelPage from './pages/CreditModelPage'
 import AuditLogPage from './pages/AuditLogPage'
 import StatementPage from './pages/StatementPage'
 import CoMakerPage from './pages/CoMakerPage'
+import CoMakerFormPage from './pages/CoMakerFormPage'
 import EarlyWarningPage from './pages/EarlyWarningPage'
 import AttendancePage from './pages/AttendancePage'
 import ProfilePage from './pages/ProfilePage'
@@ -68,6 +69,7 @@ export default function App() {
           <Route path="/loans/:id/statement" element={<StatementPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/co-maker" element={<CoMakerPage />} />
+          <Route path="/co-maker/:applicationId/:memberId/form" element={<CoMakerFormPage />} />
 
           <Route element={<RequireLevel min="loan_officer" />}>
             <Route path="/loans/pending" element={<PendingLoansPage />} />
