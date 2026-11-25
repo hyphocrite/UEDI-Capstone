@@ -123,7 +123,48 @@ export default function PaymentsPage() {
           <EmptyState icon={ReceiptText} title={`Nothing ${TABS.find((t) => t.status === tab)?.label.toLowerCase()}`}
             hint={tab === 'submitted' ? 'Payments members send, and walk-in payments, wait here for the Treasurer.' : tab === 'received' ? 'Payments with an OR wait here for the Bookkeeper.' : undefined} />
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          {/* Phones: one card per payment instead of a wide table. */}
+          <ul className="divide-y divide-brand-50 sm:hidden">
+            {pageRows.map((s) => (
+              <li key={s._id} className="px-4 py-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-ink">{s.borrowerName}</p>
+                    <p className="text-xs text-brand-600">
+                      {s.memberId ? `UDEI ${s.memberId} · ` : ''}<Link to={`/loans/${s.loan}`} className="underline">{s.loanNo}</Link>
+                    </p>
+                  </div>
+                  <p className="shrink-0 font-bold text-ink tabular-nums">{formatCentavos(s.amount)}</p>
+                </div>
+                <p className="mt-1 text-sm text-brand-700">
+                  {s.methodLabel} · paid {formatDay(s.paidAt)}{s.reference ? ` · ref. ${s.reference}` : ''}
+                  {s.received?.orNumber && <span className="font-semibold"> · OR {s.received.orNumber}</span>}
+                </p>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <SubmissionStatusChip s={s} />
+                  {s.proof && (
+                    <button type="button" className="inline-flex items-center gap-1 text-xs text-brand-700 underline" onClick={() => openFile(`/api/payments/${s._id}/proof`).catch((e: unknown) => setError(e instanceof Error ? e.message : 'Could not open the file.'))}>
+                      <Paperclip className="h-3.5 w-3.5" /> Proof
+                    </button>
+                  )}
+                </div>
+                <div className="mt-2 flex gap-2">
+                  {canAct(s) ? (
+                    <>
+                      <button type="button" className="btn-primary flex-1 py-1.5 text-sm" onClick={() => setOpen({ sub: s, action: role === 'treasurer' ? 'receive' : 'confirm' })}>
+                        {role === 'treasurer' ? 'Receive' : 'Confirm'}
+                      </button>
+                      <button type="button" className="btn-ghost flex-1 py-1.5 text-sm text-red-700" onClick={() => setOpen({ sub: s, action: 'reject' })}>Reject</button>
+                    </>
+                  ) : (
+                    <button type="button" className="btn-ghost py-1.5 text-sm" onClick={() => setOpen({ sub: s, action: 'view' })}>Details</button>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+          <div className="hidden overflow-x-auto sm:block">
             <table className="w-full text-sm">
               <thead className="table-head">
                 <tr>
@@ -179,6 +220,7 @@ export default function PaymentsPage() {
               </tbody>
             </table>
           </div>
+          </>
         )}
         <Pagination page={page} pageSize={PAGE_SIZE} total={shown.length} onPage={setPage} />
       </div>
