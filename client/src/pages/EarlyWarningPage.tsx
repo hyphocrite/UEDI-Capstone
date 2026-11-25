@@ -72,7 +72,7 @@ export default function EarlyWarningPage() {
       {model && (
         <p className="mb-4 rounded-lg bg-brand-50 px-4 py-3 text-sm text-brand-700">
           XGBoost model{model.trainedOn === 'sample' ? <b className="text-amber-700"> trained on sample data, not UDEI's history yet</b> : ` trained on ${model.rows} ${model.trainedOn} snapshots`}:
-          AUC {model.xgboost.aucRoc.toFixed(2)} (Logistic Regression baseline {model.logisticBaseline.aucRoc.toFixed(2)}). Of the loans it marks high risk,
+          AUC {model.xgboost.aucRoc.toFixed(2)} (Logistic Regression baseline {model.logisticBaseline.aucRoc.toFixed(2)}). Of the mutual assistance it marks high risk,
           about {Math.round(model.xgboost.precision * 100)}% go on to miss a payment, and it catches about {Math.round(model.xgboost.recall * 100)}% of those that do.
           It is a prompt to check on the borrower, not a decision.
         </p>

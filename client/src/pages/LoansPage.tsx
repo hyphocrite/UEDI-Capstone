@@ -182,7 +182,7 @@ export default function LoansPage() {
             <p className="text-sm text-brand-600">
               Yearly totals from UDEI's mutual assistance ledger as of {formatDay(carried[0].asOf)}. The ledger has no rates or schedules,
               so these are balances only. Once the Bookkeeper sets a member's payroll deduction on the Members page, the
-              balance moves to the loans above and payroll deduction runs include it.
+              balance moves to the list above and payroll deduction runs include it.
             </p>
           </div>
           <div className="overflow-x-auto">

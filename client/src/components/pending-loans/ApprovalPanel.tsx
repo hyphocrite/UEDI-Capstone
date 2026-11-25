@@ -204,7 +204,7 @@ function SignForm({ app, step, onChange }: { app: LoanApplication; step: Approva
       {editableBooks && (
         <fieldset className="mb-4 rounded-lg bg-brand-50 p-3 sm:p-4">
           <legend className="px-1 text-sm font-semibold text-brand-800">Mutual Assistance balance to date</legend>
-          <p className="mb-3 text-xs text-brand-600">No loans on record for this member. Check the typed balances against your books and correct them if needed.</p>
+          <p className="mb-3 text-xs text-brand-600">No mutual assistance on record for this member. Check the typed balances against your books and correct them if needed.</p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {field('longTermBalance', 'Long term balance (₱)', 'number')}
             {field('longTermDueDate', 'Long term due date', 'date')}

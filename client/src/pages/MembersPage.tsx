@@ -252,7 +252,7 @@ export default function MembersPage() {
         </div>
         <Pagination page={current} pageSize={PER_PAGE} total={sorted.length} onPage={toPage} />
         <p className="border-t border-brand-100 px-4 py-3 text-xs text-brand-500">
-          Loan balance is what the member owes on loans in this system plus the balance carried over from UDEI's ledger
+          The mutual assistance balance is what the member owes in this system plus the balance carried over from UDEI's ledger
           {list.find((m) => m.openingLoan)?.openingLoan?.asOf ? ` (as of ${formatDate(list.find((m) => m.openingLoan)!.openingLoan!.asOf)})` : ''}.
         </p>
       </div>

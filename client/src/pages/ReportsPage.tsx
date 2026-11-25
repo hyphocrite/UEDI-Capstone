@@ -158,8 +158,8 @@ export default function ReportsPage() {
         </table>
       </div>
       <p className="mt-3 text-xs text-brand-500">
-        Includes loans and payments recorded in the system and those imported from UDEI's 2026 ledger. Payments made by
-        offsetting an old loan against a new one are not counted as collections.
+        Includes mutual assistance and payments recorded in the system and those imported from UDEI's 2026 ledger. Payments made by
+        offsetting an old mutual assistance against a new one are not counted as collections.
       </p>
     </>
   )

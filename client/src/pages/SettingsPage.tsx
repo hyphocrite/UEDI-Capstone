@@ -199,7 +199,7 @@ export default function SettingsPage() {
           </div>
           <h2 className="mt-5 font-semibold text-brand-800">Co-makers</h2>
           <p className="mt-1 text-sm text-brand-600">
-            For members a co-maker is optional: the signers ask for one case by case on Pending Loans. Applicants who aren't UDEI
+            For members a co-maker is optional: the signers ask for one case by case on Pending Applications. Applicants who aren't UDEI
             members always need one.
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-brand-700">

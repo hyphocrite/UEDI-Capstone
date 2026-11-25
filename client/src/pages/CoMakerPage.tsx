@@ -74,7 +74,7 @@ export default function CoMakerPage() {
       message: decision === 'accepted' ? (
         <>
           <p>You agree to be co-maker for <b>{r.borrowerName}</b>'s {loanTypeLabel[r.loanType].toLowerCase()} loan of <b>{formatPeso(r.amount)}</b> over {r.termMonths} months.</p>
-          <p>As co-maker you vouch that they will pay. UDEI may contact you if payments are missed. You can follow the loan on this page.</p>
+          <p>As co-maker you vouch that they will pay. UDEI may contact you if payments are missed. You can follow its payments on this page.</p>
         </>
       ) : (
         <p>{r.borrowerName}'s application can't be approved without a co-maker. They will need to ask someone else.</p>
