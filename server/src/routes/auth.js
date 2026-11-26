@@ -18,6 +18,7 @@ const { rateLimit } = require("../middleware/rateLimit");
 const verification = require("../services/emailVerification");
 const { auditNote } = require("../middleware/audit");
 const memberIds = require("../services/memberIds");
+const { consentRecord } = require("../config/privacy");
 
 const router = express.Router();
 
@@ -40,6 +41,8 @@ const registerSchema = z.object({
     .regex(/[A-Za-z]/, "Password must include a letter.")
     .regex(/[0-9]/, "Password must include a number."),
   branch: z.string().trim().max(120).optional(),
+  // RA 10173: the Privacy Notice must be agreed to before an account is made.
+  privacyConsent: z.literal(true, { message: "Tick the box to agree to the Privacy Notice." }),
 });
 
 const loginSchema = z.object({
@@ -84,7 +87,7 @@ router.post("/register", registerLimit, async (req, res, next) => {
     // The very first account becomes the administrator.
     const role = (await User.estimatedDocumentCount()) === 0 ? "admin" : "staff";
     const passwordHash = await bcrypt.hash(password, 12);
-    const user = await User.create({ fullName, email, passwordHash, role, branch, emailVerified: false });
+    const user = await User.create({ fullName, email, passwordHash, role, branch, emailVerified: false, privacyConsent: consentRecord(req) });
     // Every account after the administrator is a member with its own new member ID until the
     // office links it to their UDEI number.
     if (role !== "admin") await memberIds.ensureFor(user);

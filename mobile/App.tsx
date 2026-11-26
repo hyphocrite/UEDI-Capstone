@@ -7,6 +7,7 @@ import { api, type Application, type CoMakerPortal, type Loan, type MyScore } fr
 import { AuthProvider, useAuth } from './src/auth'
 import { scheduleDueReminders } from './src/reminders'
 import { colors } from './src/theme'
+import { ConsentScreen } from './src/screens/PrivacyNotice'
 import AuthScreen from './src/screens/AuthScreen'
 import HomeScreen from './src/screens/HomeScreen'
 import ApplyScreen from './src/screens/ApplyScreen'
@@ -47,8 +48,9 @@ export default function App() {
 }
 
 function Root() {
-  const { session, ready } = useAuth()
+  const { session, ready, updateSession } = useAuth()
   if (!ready) return <ActivityIndicator color={colors.primary} style={{ flex: 1 }} />
+  if (session?.needsConsent) return <ConsentScreen onAgreed={updateSession} />
   return session ? <MemberHome key={session.id} /> : <SignedOut />
 }
 

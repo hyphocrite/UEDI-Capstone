@@ -12,6 +12,8 @@ export type Session = {
   branch: string | null
   /** The member record this account is linked to; members see the loans filed under it. */
   memberId: string | null
+  /** True until the account agrees to the current Privacy Notice (asked once after sign-in). */
+  needsConsent?: boolean
 }
 
 export type RegisterInput = {
@@ -19,6 +21,8 @@ export type RegisterInput = {
   email: string
   password: string
   branch?: string
+  /** Agreement to the Privacy Notice; the server refuses sign-ups without it. */
+  privacyConsent: boolean
 }
 
 export type RegisterResult = { email: string; emailSent: boolean }

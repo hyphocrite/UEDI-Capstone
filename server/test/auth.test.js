@@ -39,7 +39,7 @@ async function call(path, { method = "GET", body, cookie } = {}) {
 const post = (path, body, cookie) => call(path, { method: "POST", body, cookie });
 
 test("register, verify email, session, duplicate, login, logout", { skip: !uri && "TEST_MONGODB_URI not set" }, async () => {
-  const account = { fullName: "Maria Santos", email: "Maria@UEDI.coop", password: "secret123" };
+  const account = { fullName: "Maria Santos", email: "Maria@UEDI.coop", password: "secret123", privacyConsent: true };
 
   const bad = await post("/auth/register", { ...account, password: "short" });
   assert.equal(bad.status, 400);
@@ -77,7 +77,7 @@ test("register, verify email, session, duplicate, login, logout", { skip: !uri &
   const dup = await post("/auth/register", account);
   assert.equal(dup.status, 409);
 
-  await post("/auth/register", { fullName: "Jose Reyes", email: "jose@uedi.coop", password: "secret456" });
+  await post("/auth/register", { fullName: "Jose Reyes", email: "jose@uedi.coop", password: "secret456", privacyConsent: true });
   const second = await post("/auth/verify-email", { email: "jose@uedi.coop", code: lastCode("jose@uedi.coop") });
   assert.equal(second.json.session.role, "staff");
 
@@ -107,7 +107,7 @@ test("register, verify email, session, duplicate, login, logout", { skip: !uri &
 
 test("a code is used up after five wrong guesses; resend gives a new one", { skip: !uri && "TEST_MONGODB_URI not set" }, async () => {
   const email = "ana@uedi.coop";
-  await post("/auth/register", { fullName: "Ana Cruz", email, password: "secret789" });
+  await post("/auth/register", { fullName: "Ana Cruz", email, password: "secret789", privacyConsent: true });
   const code = lastCode(email);
   const wrongCode = String((Number(code) + 1) % 1_000_000).padStart(6, "0");
 
@@ -141,7 +141,7 @@ test("accounts made before verification existed can still sign in", { skip: !uri
 
 test("forgot password: emailed code, new password, old sessions end", { skip: !uri && "TEST_MONGODB_URI not set" }, async () => {
   const email = "rosa@uedi.coop";
-  await post("/auth/register", { fullName: "Rosa Lim", email, password: "oldpass123" });
+  await post("/auth/register", { fullName: "Rosa Lim", email, password: "oldpass123", privacyConsent: true });
   const signedIn = await post("/auth/verify-email", { email, code: lastCode(email) });
   const oldCookie = signedIn.setCookie.split(";")[0];
 
@@ -182,7 +182,7 @@ test("forgot password: emailed code, new password, old sessions end", { skip: !u
 
 test("a reset code is used up after five wrong guesses", { skip: !uri && "TEST_MONGODB_URI not set" }, async () => {
   const email = "ben@uedi.coop";
-  await post("/auth/register", { fullName: "Ben Ramos", email, password: "secret123" });
+  await post("/auth/register", { fullName: "Ben Ramos", email, password: "secret123", privacyConsent: true });
   await post("/auth/verify-email", { email, code: lastCode(email) });
   await post("/auth/forgot-password", { email });
   const code = lastCode(email);
@@ -195,7 +195,7 @@ test("a reset code is used up after five wrong guesses", { skip: !uri && "TEST_M
 
 test("a reset also verifies an account that never entered its sign-up code", { skip: !uri && "TEST_MONGODB_URI not set" }, async () => {
   const email = "carla@uedi.coop";
-  await post("/auth/register", { fullName: "Carla Diaz", email, password: "secret123" });
+  await post("/auth/register", { fullName: "Carla Diaz", email, password: "secret123", privacyConsent: true });
   await post("/auth/forgot-password", { email });
   const reset = await post("/auth/reset-password", { email, code: lastCode(email), newPassword: "newpass456" });
   assert.equal(reset.status, 200);

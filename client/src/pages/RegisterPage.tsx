@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { UserPlus } from 'lucide-react'
+import { CONSENT } from '../lib/privacy'
 import AuthShell from '../components/AuthShell'
 import PasswordInput from '../components/PasswordInput'
 import { useAuth } from '../context/AuthContext'
@@ -24,6 +25,7 @@ export default function RegisterPage() {
   const [form, setForm] = useState({ fullName: '', email: '', branch: '', password: '', confirm: '' })
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [agreed, setAgreed] = useState(false)
 
   if (session) return <Navigate to="/dashboard" replace />
 
@@ -32,7 +34,7 @@ export default function RegisterPage() {
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    const problem = validate(form)
+    const problem = validate(form) || (agreed ? '' : 'Tick the box to agree to the Privacy Notice.')
     if (problem) return setError(problem)
     setError('')
     setBusy(true)
@@ -42,6 +44,7 @@ export default function RegisterPage() {
         email: form.email.trim(),
         password: form.password,
         branch: form.branch || branches[0],
+        privacyConsent: agreed,
       })
       navigate('/verify-email', { replace: true, state: { email, emailSent } })
     } catch (err) {
@@ -90,6 +93,13 @@ export default function RegisterPage() {
           </div>
         </div>
         <p className="text-xs text-brand-500">At least 8 characters, with a letter and a number.</p>
+        <label className="flex items-start gap-3 rounded-lg bg-brand-50 p-3 text-sm text-ink">
+          <input type="checkbox" className="mt-1 shrink-0" checked={agreed} onChange={(e) => { setAgreed(e.target.checked); setError('') }} />
+          <span>
+            {CONSENT.account}{' '}
+            <Link to="/privacy" target="_blank" className="font-semibold text-brand-800 underline">Read the Privacy Notice</Link>
+          </span>
+        </label>
         {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{error}</p>}
         <button type="submit" className="btn-primary w-full py-2.5" disabled={busy}>
           <UserPlus className="h-4 w-4" />

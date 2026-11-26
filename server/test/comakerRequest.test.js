@@ -68,7 +68,7 @@ test("a signer's request for a co-maker blocks approving until a co-maker accept
   assert.equal(named.status, 200, named.json.error);
   assert.equal((await sign(app, "crecom_chair")).json.code, "CO_MAKERS_PENDING", "still waiting for the co-maker's answer");
 
-  assert.equal((await t.call(`/comaker/requests/${app._id}`, { method: "POST", cookie: backer.cookie, body: { decision: "accepted" } })).status, 200);
+  assert.equal((await t.call(`/comaker/requests/${app._id}`, { method: "POST", cookie: backer.cookie, body: { decision: "accepted", consent: true } })).status, 200);
   for (const role of ["crecom_chair", "president", "treasurer"]) assert.equal((await sign(app, role)).status, 200, role);
 });
 

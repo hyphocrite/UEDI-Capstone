@@ -56,7 +56,7 @@ test("a linked member gets their own score, worded to them, and nobody else's", 
 
 test("the mobile app gets its own score with a Bearer token", { skip }, async () => {
   const email = "pia@uedi.test";
-  await t.call("/member/register", { method: "POST", body: { fullName: "Pia Phone", email, memberNo: "S-03", password: "secret123" } });
+  await t.call("/member/register", { method: "POST", body: { fullName: "Pia Phone", email, memberNo: "S-03", password: "secret123", privacyConsent: true } });
   const token = (await t.call("/member/verify-email", { method: "POST", body: { email, code: lastCode(email) } })).json.token;
   const bearer = (path) => t.call(path, { headers: { Authorization: `Bearer ${token}` } });
 

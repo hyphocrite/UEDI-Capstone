@@ -96,7 +96,7 @@ test("co-makers are asked again when the loan they vouched for changes", { skip 
       await t.call(`/auth/users/${u.id}/member`, { method: "PATCH", cookie: staff.officer.cookie, body: { memberId: id } });
     }
     const app = (await t.call("/applications", { method: "POST", cookie: borrower.cookie, body: { ...application(0), coMakers: ["E-11"] } })).json.application;
-    assert.equal((await t.call(`/comaker/requests/${app._id}`, { method: "POST", cookie: backer.cookie, body: { decision: "accepted" } })).status, 200);
+    assert.equal((await t.call(`/comaker/requests/${app._id}`, { method: "POST", cookie: backer.cookie, body: { decision: "accepted", consent: true } })).status, 200);
 
     // Only the reason changes: the co-maker's yes stands.
     const sameLoan = await edit(borrower.cookie, app, { coMakers: ["E-11"], loan: { purpose: "Tuition for my daughter" } });

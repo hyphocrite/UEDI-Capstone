@@ -13,6 +13,7 @@ const ACTIONS = [
   ["POST", /^\/api\/auth\/reset-password$/, "Password reset"],
   ["POST", /^\/api\/auth\/login$/, "Signed in"],
   ["POST", /^\/api\/auth\/logout$/, "Signed out"],
+  ["POST", /^\/api\/me\/consent$/, "Privacy Notice agreed to"],
   ["POST", /^\/api\/auth\/refresh$/, "Stayed signed in"],
   ["PATCH", /^\/api\/auth\/profile$/, "Profile updated"],
   ["POST", /^\/api\/auth\/password$/, "Password changed"],

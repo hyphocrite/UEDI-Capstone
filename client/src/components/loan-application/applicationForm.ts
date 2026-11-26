@@ -58,6 +58,9 @@ export type Form = {
   payrollDeduction: boolean
   autoRestructure: boolean
 
+  /** Agreement to use the application, documents and payment history to evaluate it (RA 10173). */
+  consent: boolean
+
   /** Member numbers of the co-makers ('' when not named). */
   coMaker1: string
   coMaker2: string
@@ -122,6 +125,7 @@ export const emptyForm = (): Form => ({
 
   payrollDeduction: false,
   autoRestructure: false,
+  consent: false,
   coMaker1: '',
   coMaker2: '',
 })
@@ -300,6 +304,7 @@ export function formFromApplication(a: LoanApplication): Form {
     monthlyPayment: String(b?.monthlyPayment ?? 0),
     payrollDeduction: a.agreement.payrollDeduction,
     autoRestructure: a.agreement.autoRestructure,
+    consent: false,
     coMaker1: a.coMakers?.[0]?.memberId ?? '',
     coMaker2: a.coMakers?.[1]?.memberId ?? '',
   }
@@ -369,6 +374,9 @@ export function validateStep(step: FormStep, f: Form, settings: LoanSettings = F
     if (coMakers.length === 2 && coMakers[0] === coMakers[1]) return 'Name two different co-makers.'
     return ''
   }
+  if (step === 'review' && !f.consent) {
+    return 'Tick the box to agree that UDEI may use the application, documents and payment history to evaluate it.'
+  }
   return ''
 }
 
@@ -433,6 +441,7 @@ export function buildPayload(f: Form, documents: DocumentPayload[]) {
       autoRestructure: f.autoRestructure,
       applicationDate: f.applicationDate,
     },
+    consent: f.consent,
     coMakers: [f.coMaker1, f.coMaker2].map((c) => c.trim()).filter(Boolean),
     documents,
   }

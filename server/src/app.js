@@ -41,6 +41,12 @@ function createApp() {
   app.use(loadUser);
   app.use(audit);
 
+  // The Privacy Notice's version and the office contact, for the /privacy page and the app.
+  app.get("/api/privacy", (_req, res) => {
+    const privacy = require("./config/privacy");
+    res.json({ version: privacy.PRIVACY_NOTICE_VERSION, contactEmail: privacy.contactEmail() });
+  });
+
   app.get("/api/health", (_req, res) => {
     res.json({ ok: true, db: mongoose.connection.readyState === 1 ? "connected" : "disconnected" });
   });

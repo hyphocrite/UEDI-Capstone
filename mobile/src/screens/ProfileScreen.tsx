@@ -1,4 +1,5 @@
 import { ScrollView, Text, View } from 'react-native'
+import { PrivacyLink } from './PrivacyNotice'
 import { API_URL, type MyScore } from '../api'
 import { useAuth } from '../auth'
 import { colors } from '../theme'
@@ -27,6 +28,7 @@ export default function ProfileScreen({ reminders, score }: { reminders: number 
                 : 'No reminders set. Allow notifications for this app to get due-date reminders.'}
           </Text>
         </Card>
+        <PrivacyLink label="Privacy Notice" />
         <Button variant="outline" title="Sign out" onPress={signOut} />
         <Text style={{ color: colors.muted, fontSize: 11, textAlign: 'center', marginTop: 24 }}>Server: {API_URL}</Text>
       </ScrollView>

@@ -77,7 +77,7 @@ test("the Treasurer's final signature on a non-member's loan waits for the signe
   const app = (await file(staff.officer.cookie, nonMember(5000, ["L-2"]))).json.application;
   assert.equal(app.nonMember, true);
   assert.equal(app.coMakerStatementRequired, true);
-  assert.equal((await t.call(`/comaker/requests/${app._id}`, { method: "POST", cookie: carl.cookie, body: { decision: "accepted" } })).status, 200);
+  assert.equal((await t.call(`/comaker/requests/${app._id}`, { method: "POST", cookie: carl.cookie, body: { decision: "accepted", consent: true } })).status, 200);
   const sign = (role) => t.call(`/applications/${app._id}/approvals`, { method: "POST", cookie: staff.signer[role].cookie, body: { decision: "approved" } });
   for (const role of ["bookkeeper", "crecom_chair", "president"]) assert.equal((await sign(role)).status, 200, role);
 

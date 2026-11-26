@@ -22,6 +22,8 @@ const env = {
   // and stop unsent mail from being printed.
   authRateLimit: process.env.AUTH_RATE_LIMIT !== "off",
   quietMail: process.env.QUIET_MAIL === "1",
+  // The UDEI office email on the Privacy Notice, for questions and data requests.
+  officeEmail: (process.env.OFFICE_EMAIL || process.env.MAIL_FROM || "").replace(/^.*<([^>]+)>.*$/, "$1").trim() || null,
 };
 
 if (!env.jwtSecret) {

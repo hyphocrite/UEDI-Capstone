@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, Check, FilePlus2, Pencil, Printer, Save, Send } from 'lucide-react'
+import { CONSENT } from '../lib/privacy'
 import PageHeader from '../components/PageHeader'
 import AgreementSection from '../components/loan-application/AgreementSection'
 import ApplicationPreview from '../components/loan-application/ApplicationPreview'
@@ -404,6 +405,13 @@ export default function LoanApplicationPage() {
               </div>
             )}
             <ApplicationPreview form={form} documents={previewDocuments()} staffView={staffView} linked={linked} applicationNo={original?.applicationNo} />
+            <label className="card flex items-start gap-3 p-4 text-sm text-ink print:hidden">
+              <input type="checkbox" className="mt-1 shrink-0" checked={form.consent} onChange={(e) => update({ consent: e.target.checked })} />
+              <span>
+                {staffView ? 'The applicant agrees: ' : ''}{CONSENT.application}{' '}
+                <Link to="/privacy" target="_blank" className="font-semibold text-brand-800 underline">Privacy Notice</Link>
+              </span>
+            </label>
           </div>
         )}
 

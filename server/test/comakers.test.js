@@ -65,8 +65,8 @@ test("co-makers must be members with accounts, confirm before signing, and see t
   const portal = (await t.call("/comaker", { cookie: backer.cookie })).json;
   assert.equal(portal.requests[0].myStatus, "pending");
   assert.equal(portal.requests[0].assessment, undefined, "no scores in the portal");
-  assert.equal((await t.call(`/comaker/requests/${app._id}`, { method: "POST", cookie: borrower.cookie, body: { decision: "accepted" } })).status, 404, "only the named co-maker answers");
-  assert.equal((await t.call(`/comaker/requests/${app._id}`, { method: "POST", cookie: backer.cookie, body: { decision: "accepted" } })).status, 200);
+  assert.equal((await t.call(`/comaker/requests/${app._id}`, { method: "POST", cookie: borrower.cookie, body: { decision: "accepted", consent: true } })).status, 404, "only the named co-maker answers");
+  assert.equal((await t.call(`/comaker/requests/${app._id}`, { method: "POST", cookie: backer.cookie, body: { decision: "accepted", consent: true } })).status, 200);
   assert.equal((await t.call(`/comaker/requests/${app._id}`, { method: "POST", cookie: backer.cookie, body: { decision: "declined" } })).status, 409, "once");
 
   for (const role of ["bookkeeper", "crecom_chair", "president", "treasurer"]) assert.equal((await sign(app, role)).status, 200, role);

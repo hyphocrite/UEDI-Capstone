@@ -19,6 +19,7 @@ const { rateLimit } = require("../middleware/rateLimit");
 const verification = require("../services/emailVerification");
 const { auditNote } = require("../middleware/audit");
 const memberIds = require("../services/memberIds");
+const { consentRecord } = require("../config/privacy");
 const { explain } = require("../services/explain");
 const settings = require("../services/settings");
 const documentFiles = require("../services/documentFiles");
@@ -38,6 +39,8 @@ const registerSchema = z.object({
   memberNo: z.string().trim().min(1, "Enter your UDEI member number.").max(32),
   phone: z.string().trim().max(20).optional(),
   password,
+  // RA 10173: the Privacy Notice must be agreed to before an account is made.
+  privacyConsent: z.literal(true, { message: "Tick the box to agree to the Privacy Notice." }),
 });
 
 const loginSchema = z.object({
@@ -68,6 +71,8 @@ const applySchema = z.object({
   // The types of the supporting documents the app sends right after filing (one per request).
   // Every required type must be among them.
   documentTypes: z.array(z.string().trim().max(64)).max(30).default([]),
+  // Agreement that UDEI may use the application, documents and payment history to evaluate it.
+  consent: z.literal(true, { message: "Tick the box to agree that UDEI may use the application, documents and payment history to evaluate it." }),
 });
 
 const codeSchema = z.object({
@@ -108,7 +113,7 @@ router.post("/register", registerLimit, async (req, res, next) => {
       return res.status(409).json({ error: "An account with this email already exists." });
     }
     const passwordHash = await bcrypt.hash(pw, 12);
-    const user = await User.create({ fullName, email, memberNo, phone, passwordHash, role: "member", emailVerified: false });
+    const user = await User.create({ fullName, email, memberNo, phone, passwordHash, role: "member", emailVerified: false, privacyConsent: consentRecord(req) });
     // Their own new member ID. The number they typed (memberNo) is only a claim until the office
     // links the account to it, which merges the two.
     await memberIds.ensureFor(user);
@@ -255,12 +260,13 @@ router.post("/applications", async (req, res, next) => {
         purpose: f.purpose,
       },
       agreement: { payrollDeduction: true, autoRestructure: true, applicationDate: new Date() },
+      consent: true,
       coMakers: f.coMakers,
     });
     if (!full.success) return res.status(400).json({ error: firstIssue(full) });
     const bonusError = applyRules(rules, full.data);
     if (bonusError) return res.status(400).json({ error: bonusError });
-    const app = await createApplication(full.data, req.user);
+    const app = await createApplication(full.data, req.user, req);
     res.status(201).json({ application: memberView(app) });
   } catch (err) {
     if (err?.name === "CoMakerError" || err?.constructor?.name === "CoMakerError") return res.status(400).json({ error: err.message });

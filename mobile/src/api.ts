@@ -18,6 +18,8 @@ export type Session = {
   memberNo: string | null
   /** The member number the account is linked to, or its own provisional N-… ID until the office links it. */
   memberId?: string | null
+  /** True until the account agrees to the current Privacy Notice (asked once after sign-in). */
+  needsConsent?: boolean
 }
 
 export type Application = {
@@ -201,7 +203,7 @@ async function request<T>(path: string, options: { method?: string; body?: unkno
 export const api = {
   login: (email: string, password: string) =>
     request<{ token: string; session: Session }>('/member/login', { method: 'POST', body: { email, password } }),
-  register: (body: { fullName: string; email: string; memberNo: string; phone?: string; password: string }) =>
+  register: (body: { fullName: string; email: string; memberNo: string; phone?: string; password: string; privacyConsent: boolean }) =>
     request<{ verificationRequired: true; email: string; emailSent: boolean }>('/member/register', { method: 'POST', body }),
   verifyEmail: (email: string, code: string) =>
     request<{ token: string; session: Session }>('/member/verify-email', { method: 'POST', body: { email, code } }),
@@ -256,5 +258,9 @@ export const api = {
     request<{ application: Application }>(`/member/applications/${applicationId}/co-makers`, { method: 'PUT', body: { coMakers } }),
   coMaker: () => request<CoMakerPortal>('/comaker'),
   respondCoMaker: (applicationId: string, decision: 'accepted' | 'declined', note?: string) =>
-    request<{ request: CoMakerRequest }>(`/comaker/requests/${applicationId}`, { method: 'POST', body: { decision, ...(note ? { note } : {}) } }),
+    request<{ request: CoMakerRequest }>(`/comaker/requests/${applicationId}`, { method: 'POST', body: { decision, ...(note ? { note } : {}), ...(decision === 'accepted' ? { consent: true } : {}) } }),
+  /** The Privacy Notice's version and the office contact. */
+  privacy: () => request<{ version: string; contactEmail: string | null }>('/privacy'),
+  /** Agrees to the current Privacy Notice (accounts made before consent was asked). */
+  consent: () => request<{ session: Session }>('/me/consent', { method: 'POST', body: { privacyConsent: true } }),
 }

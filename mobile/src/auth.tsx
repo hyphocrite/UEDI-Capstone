@@ -8,9 +8,11 @@ type Auth = {
   ready: boolean
   signIn: (email: string, password: string) => Promise<void>
   /** Creates the account and emails a code. Returns the (normalised) email and whether the email went out. */
-  register: (body: { fullName: string; email: string; memberNo: string; phone?: string; password: string }) => Promise<{ email: string; emailSent: boolean }>
+  register: (body: { fullName: string; email: string; memberNo: string; phone?: string; password: string; privacyConsent: boolean }) => Promise<{ email: string; emailSent: boolean }>
   verifyEmail: (email: string, code: string) => Promise<void>
   signOut: () => Promise<void>
+  /** Replaces the session (after agreeing to the Privacy Notice). */
+  updateSession: (s: Session) => void
 }
 
 const AuthContext = createContext<Auth | null>(null)
@@ -61,6 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       verifyEmail: async (email, code) => start(await api.verifyEmail(email, code)),
       signOut,
+      updateSession: setSession,
     }),
     [session, ready, signOut],
   )

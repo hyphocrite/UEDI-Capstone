@@ -26,6 +26,8 @@ const userSchema = new mongoose.Schema(
     memberNo: { type: String, trim: true, maxlength: 32 },
     phone: { type: String, trim: true, maxlength: 20 },
     lastLoginAt: { type: Date },
+    // Agreement to the Privacy Notice (config/privacy.js): which version, when, from which IP.
+    privacyConsent: { type: new mongoose.Schema({ version: String, at: Date, ip: String }, { _id: false }), default: undefined },
     // Sessions started before this (a password change) no longer work.
     sessionsValidAfter: { type: Date },
     // false until the emailed code is entered. Accounts made before verification existed have no
@@ -59,6 +61,8 @@ userSchema.methods.toSession = function toSession() {
     branch: this.branch || null,
     memberId: this.memberId || null,
     memberNo: this.memberNo || null,
+    // Accounts that haven't agreed to the current Privacy Notice are asked once after sign-in.
+    needsConsent: this.privacyConsent?.version !== require("../config/privacy").PRIVACY_NOTICE_VERSION,
   };
 };
 

@@ -71,7 +71,7 @@ async function call(path, { method = "GET", body, cookie } = {}) {
 
 /** Registers and verifies an account; returns its session cookie. */
 async function signUp(fullName, email) {
-  await call("/auth/register", { method: "POST", body: { fullName, email, password: "secret123" } });
+  await call("/auth/register", { method: "POST", body: { fullName, email, password: "secret123", privacyConsent: true } });
   const r = await call("/auth/verify-email", { method: "POST", body: { email, code: lastCode(email) } });
   return r.setCookie.split(";")[0];
 }
@@ -85,6 +85,7 @@ const application = (late = 0) => ({
   loan: { loanType: "long_term", amount: 60000, termMonths: 12, monthlyRate: 1, paymentFrequency: "quincenal", purpose: "House repair" },
   bookkeeper: { longTermBalance: 12000, shortTermBalance: 0 },
   agreement: { payrollDeduction: true, autoRestructure: true, applicationDate: "2026-10-19" },
+  consent: true,
   documents: [
     { fileName: "id.jpg", type: "valid_id", verdict: "verified" },
     { fileName: "slip.jpg", type: "payslip", verdict: "mismatch" },

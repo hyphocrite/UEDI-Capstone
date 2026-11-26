@@ -40,6 +40,8 @@ const coMakerSchema = new mongoose.Schema(
     status: { type: String, enum: ["pending", "accepted", "declined"], default: "pending" },
     respondedAt: Date,
     note: { type: String, maxlength: 300 },
+    // The co-maker's agreement that UDEI may use their data as co-maker, given when accepting.
+    consent: { type: new mongoose.Schema({ version: String, at: Date, ip: String }, { _id: false }), default: undefined },
     // The co-maker's statement, signed on paper and uploaded by the co-maker (services/documentFiles.js).
     statement: {
       type: new mongoose.Schema(
@@ -200,6 +202,9 @@ const applicationSchema = new mongoose.Schema(
         ),
       ],
     },
+    // The applicant's agreement that UDEI may use the application, documents and payment history to
+    // evaluate it, including an automated credit score reviewed by officers (config/privacy.js).
+    consent: { type: new mongoose.Schema({ version: String, at: Date, ip: String }, { _id: false }), default: undefined },
     agreement: {
       payrollDeduction: { type: Boolean, required: true },
       autoRestructure: { type: Boolean, required: true },

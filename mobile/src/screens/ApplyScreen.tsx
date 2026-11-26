@@ -8,6 +8,8 @@ import { DOCUMENT_LABEL, DocumentSlots, missingTypes, sendAll } from '../documen
 import { pesos } from '../format'
 import { BONUS_OPTIONS, FALLBACK_BONUS_CALENDAR, MODE_OPTIONS, monthsBetween, nextBonusDate } from '../paymentModes'
 import type { BonusType, PaymentMode } from '../paymentModes'
+import { CONSENT } from '../privacy'
+import { PrivacyLink } from './PrivacyNotice'
 import { colors } from '../theme'
 import { Button, Card, Check, Choice, ErrorText, Field, Header, Row, s } from '../ui'
 
@@ -59,6 +61,7 @@ export default function ApplyScreen({ onDone }: { onDone: () => void }) {
     coMaker2: '',
     payrollDeduction: false,
     autoRestructure: false,
+    consent: false,
   })
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -108,6 +111,7 @@ export default function ApplyScreen({ onDone }: { onDone: () => void }) {
     }
     const missing = missingTypes(f.loanType, files).map((t) => DOCUMENT_LABEL[t])
     if (missing.length) return setError(`Supporting documents are required. Still missing: ${missing.join(', ')}.`)
+    if (!f.consent) return setError('Tick the box to agree that UDEI may use your application, documents and payment history to evaluate it.')
     if (f.paymentMode === 'bonus' && !f.bonusType) return setError('Choose which bonus it is charged to: Mid-year, Year-end, CNA or SRI.')
     if (bonus && bonus.months > MAX_TERM[f.loanType]) return setError(`The next ${bonus.label} is ${bonus.months} months away, more than ${MAX_TERM[f.loanType]} months. Choose another bonus or mode of payment.`)
     const kind = f.loanType === 'long_term' ? 'Long term' : 'Short term (Emergency)'
@@ -136,6 +140,7 @@ export default function ApplyScreen({ onDone }: { onDone: () => void }) {
         purpose: f.purpose.trim(),
         payrollDeduction: f.payrollDeduction,
         autoRestructure: f.autoRestructure,
+        consent: f.consent,
         coMakers: [f.coMaker1, f.coMaker2].map((c) => c.trim()).filter(Boolean),
         // The documents sent right after filing; the server checks every required one is there.
         documentTypes: files.map((d) => d.type),
@@ -283,6 +288,8 @@ export default function ApplyScreen({ onDone }: { onDone: () => void }) {
               onChange={set('autoRestructure')}
               label="If the mutual assistance is not fully paid at maturity, I agree it will be restructured automatically."
             />
+            <Check value={f.consent} onChange={set('consent')} label={CONSENT.application} />
+            <PrivacyLink label="Privacy Notice" />
           </Card>
 
           <ErrorText text={error} />

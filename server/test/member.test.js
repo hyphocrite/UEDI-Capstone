@@ -30,7 +30,7 @@ async function as(token, path, { method = "GET", body } = {}) {
 async function member(email, memberNo = "M-0042") {
   const r = await t.call("/member/register", {
     method: "POST",
-    body: { fullName: "Maria C. Santos", email, memberNo, password: "secret123" },
+    body: { fullName: "Maria C. Santos", email, memberNo, password: "secret123", privacyConsent: true },
   });
   assert.equal(r.status, 201, r.json.error);
   const v = await t.call("/member/verify-email", { method: "POST", body: { email, code: lastCode(email) } });
@@ -43,7 +43,7 @@ const apply = (overrides = {}) => ({
   employer: "Davao del Norte State College", monthlySalary: 38000, netTakeHomePay: 24000,
   loanType: "long_term", amount: 30000, termMonths: 12, paymentFrequency: "monthly", purpose: "School fees",
   payrollDeduction: true, autoRestructure: true,
-  documentTypes: ["valid_id", "payslip", "proof_of_address", "application_form"], ...overrides,
+  documentTypes: ["valid_id", "payslip", "proof_of_address", "application_form"], consent: true, ...overrides,
 });
 
 test("a member registers, applies and follows the application to a loan", { skip }, async () => {
@@ -135,7 +135,7 @@ test("members only see their own records and cannot use staff routes", { skip },
 
 test("a member must verify their email before the app gets a token", { skip }, async () => {
   const email = "pedro@uedi.test";
-  const body = { fullName: "Pedro Reyes", email, memberNo: "M-0077", password: "secret123" };
+  const body = { fullName: "Pedro Reyes", email, memberNo: "M-0077", password: "secret123", privacyConsent: true };
   const reg = await t.call("/member/register", { method: "POST", body });
   assert.equal(reg.status, 201, reg.json.error);
   assert.equal(reg.json.verificationRequired, true);
