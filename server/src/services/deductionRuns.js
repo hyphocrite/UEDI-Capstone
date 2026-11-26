@@ -139,11 +139,16 @@ async function post(run, user) {
     }
     if (problems.length) throw Object.assign(new RunError(400, problems[0]), { problems });
 
+    const rules = await require("./settings").get();
     const write = async (session) => {
       const created = [];
       for (const l of lines.filter((x) => x.remitted > 0)) {
+        // The service fee comes off what payroll remitted; the rest reduces the balance. The run's
+        // remitted totals stay gross.
+        const serviceFee = require("./settings").serviceFeeFor(rules, l.remitted, "payroll");
+        if (l.remitted - serviceFee < 1) continue;
         const [p] = await Payment.create(
-          [{ loan: l.loan, amount: l.remitted, paidAt: locked.cutoffDate, method: "payroll", reference: locked.kind === "bonus" ? `${paymentModes.BONUS_LABELS[locked.bonusType]} run ${d.dayKey(locked.cutoffDate)}` : `Payroll run ${d.dayKey(locked.cutoffDate)}`, deductionRun: locked._id, recordedBy: user._id, recordedByName: user.fullName }],
+          [{ loan: l.loan, amount: l.remitted - serviceFee, grossAmount: l.remitted, serviceFee, paidAt: locked.cutoffDate, method: "payroll", reference: locked.kind === "bonus" ? `${paymentModes.BONUS_LABELS[locked.bonusType]} run ${d.dayKey(locked.cutoffDate)}` : `Payroll run ${d.dayKey(locked.cutoffDate)}`, deductionRun: locked._id, recordedBy: user._id, recordedByName: user.fullName }],
           { session },
         );
         created.push(p._id);

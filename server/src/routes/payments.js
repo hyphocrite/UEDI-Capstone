@@ -116,6 +116,20 @@ router.get(
   }),
 );
 
+// The month's posted cash, e-money and bank payments, and its payroll deductions, as Excel.
+router.get(
+  "/export.xlsx",
+  handle(async (req, res) => {
+    if (!reviews(req.user)) return res.status(403).json({ error: "You do not have access to this action." });
+    if (!/^\d{4}-\d{2}$/.test(req.query.month || "")) return res.status(400).json({ error: "Choose a month." });
+    const wb = await require("../services/ledgerExport").paymentsWorkbook(req.query.month);
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename="UDEI-Payments-${req.query.month}.xlsx"`);
+    await wb.xlsx.write(res);
+    res.end();
+  }),
+);
+
 // The borrower's own submissions on one loan (web). Staff use GET /?loan=.
 router.get(
   "/mine",

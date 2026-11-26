@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Download, FileText, HandCoins, PiggyBank, TrendingUp, Wallet, BarChart3 } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
+import LedgerExportButton from '../components/LedgerExportButton'
 import StatCard from '../components/StatCard'
 import { api } from '../lib/api'
 import { formatCentavos } from '../lib/loans'
@@ -13,6 +14,8 @@ type Row = {
   loansReleased: number
   newLoans: number
   loanCollections: number
+  /** Service fees taken from payments (the 1% SF), on top of the collections. */
+  serviceFees?: number
   planContributions: number
   monthlyDues: number
   applications: number
@@ -83,6 +86,7 @@ export default function ReportsPage() {
         actions={
           <div className="flex gap-2 print:hidden">
             <button className="btn-ghost" onClick={download} disabled={!report}><Download className="h-4 w-4" /> Excel (CSV)</button>
+            <LedgerExportButton />
             <button className="btn-ghost" onClick={() => window.print()} disabled={!report}><FileText className="h-4 w-4" /> Print or PDF</button>
           </div>
         }
@@ -101,7 +105,7 @@ export default function ReportsPage() {
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard icon={HandCoins} label="Mutual assistance released" value={report ? short(sum(rows, 'loansReleased')) : '…'} hint={`${sum(rows, 'newLoans')} mutual assistance · ${caption}`} />
-        <StatCard icon={Wallet} label="Mutual assistance collections" value={report ? short(sum(rows, 'loanCollections')) : '…'} hint={caption} />
+        <StatCard icon={Wallet} label="Mutual assistance collections" value={report ? short(sum(rows, 'loanCollections')) : '…'} hint={`Service fees collected: ${report ? short(rows.reduce((s, r) => s + (r.serviceFees ?? 0), 0)) : '…'}`} />
         <StatCard icon={PiggyBank} label="Retirement contributions" value={report ? short(sum(rows, 'planContributions')) : '…'} hint={`plus ${short(sum(rows, 'monthlyDues'))} in dues`} />
         <StatCard icon={TrendingUp} label="Applications" value={report ? String(sum(rows, 'applications')) : '…'} hint={`${sum(rows, 'approved')} approved, ${sum(rows, 'denied')} denied`} />
       </div>

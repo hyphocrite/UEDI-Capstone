@@ -11,6 +11,8 @@ import MemberForm from '../components/members/MemberForm'
 import CarriedDeductionForm from '../components/members/CarriedDeductionForm'
 import MemberScoreModal from '../components/members/MemberScoreModal'
 import { useAuth } from '../context/AuthContext'
+import LedgerExportButton from '../components/LedgerExportButton'
+import { atLeast } from '../lib/roles'
 import { api } from '../lib/api'
 import { waitingToLink } from '../lib/accounts'
 import type { Account } from '../lib/accounts'
@@ -114,9 +116,12 @@ export default function MembersPage() {
         title="Members"
         subtitle="Everyone enrolled with UDEI, their Mutual Assistance balance and retirement plan."
         actions={
-          <button className="btn-primary" onClick={() => setEditing('new')}>
-            <Plus className="h-4 w-4" /> Add member
-          </button>
+          <>
+            {(session?.role === 'bookkeeper' || atLeast(session?.role, 'treasurer')) && <LedgerExportButton />}
+            <button className="btn-primary" onClick={() => setEditing('new')}>
+              <Plus className="h-4 w-4" /> Add member
+            </button>
+          </>
         }
       />
 

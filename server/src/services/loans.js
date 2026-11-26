@@ -251,7 +251,7 @@ async function recompute(loan, session = null) {
   return { loan, unapplied };
 }
 
-async function recordPayment(loan, { amount, paidAt, method, reference, orNumber, paymentSubmission }, user) {
+async function recordPayment(loan, { amount, paidAt, method, reference, orNumber, paymentSubmission, serviceFee = 0, grossAmount }, user) {
   if (loan.status === "for_release") throw new LoanError(409, "Release the mutual assistance before recording payments.");
   if (loan.status === "paid") throw new LoanError(409, "This mutual assistance is already fully paid.");
   assertNotFuture(paidAt, "payment date");
@@ -269,6 +269,8 @@ async function recordPayment(loan, { amount, paidAt, method, reference, orNumber
     reference,
     orNumber,
     paymentSubmission,
+    serviceFee,
+    grossAmount: grossAmount ?? amount + serviceFee,
     recordedBy: user._id,
     recordedByName: user.fullName,
   });

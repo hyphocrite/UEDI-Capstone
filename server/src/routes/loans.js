@@ -7,7 +7,8 @@ const DeductionRun = require("../models/DeductionRun");
 const Member = require("../models/Member");
 const loans = require("../services/loans");
 const { requireStaff, requireRole } = require("../middleware/auth");
-const { seesAllLoans } = require("../config/access");
+const { seesAllLoans, atLeast } = require("../config/access");
+const ledger = require("../services/ledger");
 const { auditNote } = require("../middleware/audit");
 
 // Every amount in this API is an integer number of centavos (₱1 = 100).
@@ -132,6 +133,22 @@ router.get(
       return res.status(403).json({ error: "You can only look up your own balances." });
     }
     res.json({ balances: await loans.balancesFor(memberId) });
+  }),
+);
+
+// UDEI's "INDIV. LEDGER" sheet for a year (services/ledgerExport.js), for every member or one.
+router.get(
+  "/ledger.xlsx",
+  handle(async (req, res) => {
+    if (!(req.user.role === "bookkeeper" || atLeast(req.user.role, "treasurer"))) return res.status(403).json({ error: "You do not have access to this action." });
+    const year = Number(req.query.year) || ledger.todayInManila().getUTCFullYear();
+    if (year < 2000 || year > 2100) return res.status(400).json({ error: "Choose a year." });
+    const memberId = typeof req.query.memberId === "string" ? req.query.memberId.trim().slice(0, 32) : "";
+    const wb = await require("../services/ledgerExport").individualLedger(year, { memberId: memberId || undefined });
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename="UDEI-Individual-Ledger-${year}${memberId ? `-${memberId.replace(/[^A-Za-z0-9-]/g, "")}` : ""}.xlsx"`);
+    await wb.xlsx.write(res);
+    res.end();
   }),
 );
 

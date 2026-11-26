@@ -29,6 +29,20 @@ export async function openFile(path: string) {
   }
 }
 
+/** Downloads a file (an Excel export) under `fileName`. */
+export async function downloadFile(path: string, fileName: string) {
+  const res = await fetch(`${BASE}${path}`, { credentials: 'include' })
+  if (!res.ok) throw new ApiError((await res.json().catch(() => ({}))).error || 'Could not download the file.', res.status)
+  const url = URL.createObjectURL(await res.blob())
+  const a = document.createElement('a')
+  a.href = url
+  a.download = fileName
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 60_000)
+}
+
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers)
   if (init.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json')

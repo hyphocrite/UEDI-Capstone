@@ -76,6 +76,9 @@ export type Payment = {
   paidAt: string
   method: PaymentMethod
   reference?: string
+  /** The service fee taken from it (1% of payroll postings by default), and the gross received. */
+  serviceFee?: number
+  grossAmount?: number
   /** The Treasurer's Official Receipt (cash, e-money, bank transfer). */
   orNumber?: string
   /** The submission on the Payments page this payment came from. */

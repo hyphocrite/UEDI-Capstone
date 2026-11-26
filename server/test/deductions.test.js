@@ -132,12 +132,13 @@ test("remittance, all-or-nothing posting, double posting, unposting", { skip }, 
   assert.equal(posted.json.run.postedByName, "Test bookkeeper");
   const qPays = (await payments(q)).filter((p) => p.method === "payroll" && !p.voided);
   assert.equal(qPays.length, 1);
-  assert.equal(qPays[0].amount, 140_910);
+  // The 1% service fee (Settings.serviceFee) comes off what payroll remitted.
+  assert.deepEqual([qPays[0].grossAmount, qPays[0].serviceFee, qPays[0].amount], [140_910, 1_409, 139_501]);
   assert.equal(qPays[0].paidAt.slice(0, 10), "2026-09-15", "dated the cutoff, no UTC shift");
   assert.equal((await payments(other)).filter((p) => p.method === "payroll").length, 0, "a missed line records no payment");
   const qAfter = (await call(`/loans/${q._id}`)).json.loan;
-  assert.equal(qAfter.amountPaid, 140_910);
-  assert.equal(qAfter.schedule[0].paid, 140_910, "applied to the oldest installment");
+  assert.equal(qAfter.amountPaid, 139_501);
+  assert.equal(qAfter.schedule[0].paid, 139_501, "applied to the oldest installment");
   assert.equal(qAfter.lastDeduction.result, "full");
   const oAfter = (await call(`/loans/${other._id}`)).json.loan;
   assert.deepEqual([oAfter.lastDeduction.result, oAfter.lastDeduction.reason], ["missed", "lwop"]);

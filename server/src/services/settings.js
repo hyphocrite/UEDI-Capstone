@@ -89,6 +89,16 @@ async function save(data, user) {
   return shape(doc);
 }
 
+/**
+ * The service fee on a payment of `gross` centavos made by `method`: Settings.serviceFee.rate
+ * percent when the method is in appliesTo, rounded half up to whole centavos, else 0.
+ */
+function serviceFeeFor(rules, gross, method) {
+  const fee = rules.serviceFee || DEFAULTS.serviceFee;
+  if (!fee.rate || !fee.appliesTo.includes(method)) return 0;
+  return Math.floor((gross * fee.rate) / 100 + 0.5);
+}
+
 /** An error message when the application breaks a rule, else null. */
 function checkApplication(rules, { monthlySalary, loanType, termMonths }) {
   if (monthlySalary < rules.minMonthlySalary) {
@@ -118,4 +128,4 @@ async function migrate() {
   return untouched;
 }
 
-module.exports = { DEFAULTS, migrate, MIN_NET_TAKE_HOME_PAY, get, save, checkApplication, coMakerSuggested };
+module.exports = { DEFAULTS, migrate, serviceFeeFor, MIN_NET_TAKE_HOME_PAY, get, save, checkApplication, coMakerSuggested };

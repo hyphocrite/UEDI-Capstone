@@ -7,6 +7,7 @@ import SendPaymentForm from '../components/payments/SendPaymentForm'
 import SubmissionList from '../components/payments/SubmissionList'
 import PaymentModePanel from '../components/loans/PaymentModePanel'
 import ConversionNote, { ConversionBadge } from '../components/loans/ConversionNote'
+import LedgerExportButton from '../components/LedgerExportButton'
 import StatusBadge from '../components/StatusBadge'
 import { PaymentForm, ReleaseForm } from '../components/loans/LoanForms'
 import PaymentHistory from '../components/loans/PaymentHistory'
@@ -90,6 +91,9 @@ export default function LoanDetailPage() {
           <>
             {loan.status !== 'for_release' && (
               <Link to={`/loans/${loan._id}/statement`} className="btn-ghost"><FileText className="h-4 w-4" /> Statement of account</Link>
+            )}
+            {loan.memberId && loan.status !== 'for_release' && (session?.role === 'bookkeeper' || atLeast(session?.role, 'treasurer')) && (
+              <LedgerExportButton memberId={loan.memberId} label="Download ledger (Excel)" />
             )}
             {back}
           </>

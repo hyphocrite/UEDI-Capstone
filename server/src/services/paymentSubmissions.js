@@ -128,12 +128,16 @@ async function confirm(sub, user) {
     if (locked.amount > balance) {
       throw new LoanError(409, `${peso(locked.amount)} is more than the remaining balance of ${peso(balance)}. Reject it and refund the difference, or ask the Treasurer to correct it.`);
     }
+    // The service fee applies to cash, e-money and bank only when Settings.serviceFee says so.
+    const serviceFee = require("./settings").serviceFeeFor(await require("./settings").get(), locked.amount, locked.method);
     let result;
     try {
       result = await loans.recordPayment(
         loan,
         {
-          amount: locked.amount,
+          amount: locked.amount - serviceFee,
+          serviceFee,
+          grossAmount: locked.amount,
           paidAt: locked.paidAt.toISOString().slice(0, 10),
           method: locked.method,
           reference: locked.reference,

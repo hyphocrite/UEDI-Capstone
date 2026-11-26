@@ -50,6 +50,8 @@ const emptyRow = (b) => ({
   loansReleased: 0,
   newLoans: 0,
   loanCollections: 0,
+  // The service fee taken from payments (Payment.serviceFee), on top of the collections.
+  serviceFees: 0,
   planContributions: 0,
   monthlyDues: 0,
   applications: 0,
@@ -80,7 +82,7 @@ router.get("/", async (req, res, next) => {
       // Ledger loans are old balances carried over, not money released in the period.
       Loan.find({ "release.releasedAt": { $gte: from, $lt: to }, source: { $ne: "ledger" } }).select("principal release.releasedAt").lean(),
       // Offsets are paid from a new loan's proceeds, not new money coming in.
-      Payment.find({ paidAt: { $gte: from, $lt: to }, voided: false, method: { $ne: "offset" } }).select("amount paidAt").lean(),
+      Payment.find({ paidAt: { $gte: from, $lt: to }, voided: false, method: { $ne: "offset" } }).select("amount serviceFee paidAt").lean(),
       LedgerHistory.find({ date: { $gte: from, $lt: to } }).lean(),
       Application.find({ $or: [{ createdAt: wide }, { "approvals.signedAt": wide }] }).select("createdAt status approvals").lean(),
       RetirementPlan.find({ "contributions.paidAt": { $gte: from, $lt: to } }).select("contributions").lean(),
@@ -91,7 +93,10 @@ router.get("/", async (req, res, next) => {
       addTo(rows, list, l.release.releasedAt, "loansReleased", l.principal);
       addTo(rows, list, l.release.releasedAt, "newLoans");
     }
-    for (const p of payments) addTo(rows, list, p.paidAt, "loanCollections", p.amount);
+    for (const p of payments) {
+      addTo(rows, list, p.paidAt, "loanCollections", p.amount);
+      if (p.serviceFee) addTo(rows, list, p.paidAt, "serviceFees", p.serviceFee);
+    }
     for (const h of history) {
       if (h.kind === "payment") addTo(rows, list, h.date, "loanCollections", h.amount);
       else {
