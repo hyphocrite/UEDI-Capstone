@@ -20,6 +20,7 @@ const verification = require("../services/emailVerification");
 const { auditNote } = require("../middleware/audit");
 const memberIds = require("../services/memberIds");
 const { consentRecord } = require("../config/privacy");
+const { isMemberAccount } = require("../config/access");
 const { explain } = require("../services/explain");
 const settings = require("../services/settings");
 const documentFiles = require("../services/documentFiles");
@@ -94,7 +95,7 @@ const firstIssue = (result) => result.error.issues[0]?.message || "Invalid input
 
 function requireMember(req, res, next) {
   if (!req.user) return res.status(401).json({ error: "Please sign in." });
-  if (req.user.role !== "member") return res.status(403).json({ error: "This app is for UDEI members." });
+  if (!isMemberAccount(req.user)) return res.status(403).json({ error: "This app is for UDEI members. Office accounts sign in on the web." });
   next();
 }
 
@@ -113,7 +114,8 @@ router.post("/register", registerLimit, async (req, res, next) => {
       return res.status(409).json({ error: "An account with this email already exists." });
     }
     const passwordHash = await bcrypt.hash(pw, 12);
-    const user = await User.create({ fullName, email, memberNo, phone, passwordHash, role: "member", emailVerified: false, privacyConsent: consentRecord(req) });
+    // The same kind of account as a web sign-up (role staff, shown as Member).
+    const user = await User.create({ fullName, email, memberNo, phone, passwordHash, role: "staff", emailVerified: false, privacyConsent: consentRecord(req) });
     // Their own new member ID. The number they typed (memberNo) is only a claim until the office
     // links the account to it, which merges the two.
     await memberIds.ensureFor(user);
@@ -141,7 +143,7 @@ router.post("/verify-email", verifyLimit, async (req, res, next) => {
       return res.status(400).json({ error: "This code has expired or was tried too many times. Request a new code." });
     }
     // Verified either way; staff then sign in on the web app.
-    if (user.role !== "member") return res.status(403).json({ error: "Staff accounts sign in on the UDEI office web app." });
+    if (!isMemberAccount(user)) return res.status(403).json({ error: "Office accounts sign in on the UDEI web app." });
     res.json(reply(user, res));
   } catch (err) {
     next(err);
@@ -168,8 +170,8 @@ router.post("/login", loginLimit, async (req, res, next) => {
     const user = await User.findOne({ email: parsed.data.email }).select("+passwordHash");
     const ok = await bcrypt.compare(parsed.data.password, user?.passwordHash ?? DUMMY_HASH);
     if (!user || !ok) return res.status(401).json({ error: "Invalid email or password." });
-    if (user.role !== "member") {
-      return res.status(403).json({ error: "Staff accounts sign in on the UDEI office web app." });
+    if (!isMemberAccount(user)) {
+      return res.status(403).json({ error: "Office accounts sign in on the UDEI web app." });
     }
     if (user.emailVerified === false) {
       return res.status(403).json({ error: "Verify your email before signing in.", code: "EMAIL_NOT_VERIFIED" });

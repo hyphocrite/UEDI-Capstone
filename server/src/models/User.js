@@ -2,7 +2,9 @@ const mongoose = require("mongoose");
 
 // loan_officer takes in applications; the four signer roles sign the approval chain
 // (see services/approvals.js); admin manages users but does not sign.
-// member is a cooperative member using the mobile app: they only see their own applications and loans.
+// staff (shown as "Member") is a member's own account, made by signing up on the web or in the app:
+// it sees only its own applications and loans. "member" is the same, kept for older mobile sign-ups
+// until scripts/migrate-signup-roles.js changes them to staff.
 const ROLES = ["admin", "loan_officer", "bookkeeper", "treasurer", "crecom_chair", "president", "staff", "member"];
 
 const userSchema = new mongoose.Schema(
@@ -57,7 +59,8 @@ userSchema.methods.toSession = function toSession() {
     id: this._id.toString(),
     fullName: this.fullName,
     email: this.email,
-    role: this.role,
+    // Older mobile sign-ups ("member") are shown as the one member role.
+    role: this.role === "member" ? "staff" : this.role,
     branch: this.branch || null,
     memberId: this.memberId || null,
     memberNo: this.memberNo || null,

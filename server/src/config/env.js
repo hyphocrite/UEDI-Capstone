@@ -2,6 +2,19 @@ require("dotenv").config();
 
 const isProduction = process.env.NODE_ENV === "production";
 
+/**
+ * Express "trust proxy": how many proxies sit in front of the API (Render, and Vercel's /api
+ * rewrite), so req.ip and the rate limits use the real client IP from X-Forwarded-For instead of
+ * one shared proxy IP for everyone. TRUST_PROXY: a hop count, true/false, or an address list.
+ * Default 1 in production, false in development and tests.
+ */
+function trustProxy(value) {
+  if (value === undefined || value === "") return isProduction ? 1 : false;
+  if (/^(true|false)$/i.test(value)) return value.toLowerCase() === "true";
+  if (/^\d+$/.test(value)) return Number(value);
+  return value;
+}
+
 const env = {
   isProduction,
   port: Number(process.env.PORT) || 5000,
@@ -22,6 +35,10 @@ const env = {
   // and stop unsent mail from being printed.
   authRateLimit: process.env.AUTH_RATE_LIMIT !== "off",
   quietMail: process.env.QUIET_MAIL === "1",
+  trustProxy: trustProxy(process.env.TRUST_PROXY),
+  // Whether the very first account to sign up on the web becomes the administrator. Off in
+  // production (use scripts/create-dev-admin or set ALLOW_FIRST_ADMIN=true once), on otherwise.
+  allowFirstAdmin: process.env.ALLOW_FIRST_ADMIN ? process.env.ALLOW_FIRST_ADMIN === "true" : !isProduction,
   // The UDEI office email on the Privacy Notice, for questions and data requests.
   officeEmail: (process.env.OFFICE_EMAIL || process.env.MAIL_FROM || "").replace(/^.*<([^>]+)>.*$/, "$1").trim() || null,
 };

@@ -37,7 +37,7 @@ router.get("/", async (req, res, next) => {
       Application.find({}).sort({ createdAt: -1 }).limit(2000).select("applicationNo applicant.fullName loan.amount loan.loanType status currentStep approvals createdAt assessment.ensemble.suggestion").lean(),
       Member.aggregate([{ $group: { _id: "$status", n: { $sum: 1 } } }]),
       // Member accounts that still have only their own new ID (N-…): the office should link them.
-      User.countDocuments({ role: "staff", memberId: /^N-/ }),
+      User.countDocuments({ role: { $in: ["staff", "member"] }, memberId: /^N-/ }),
       RetirementPlan.find({}).limit(5000),
     ]);
 
