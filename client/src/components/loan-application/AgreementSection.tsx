@@ -64,7 +64,7 @@ export default function AgreementSection({ form, update, onLoanTypeChange, linke
             <input id="applicationDate" type="date" className="input" value={form.applicationDate} onChange={(e) => update({ applicationDate: e.target.value })} />
           </Field>
           <div className="min-w-0">
-            <span className="label">Loan type</span>
+            <span className="label">Type of mutual assistance</span>
             <Choice
               name="loanType"
               value={form.loanType}
