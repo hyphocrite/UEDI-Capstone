@@ -89,7 +89,7 @@ export default function ReportsPage() {
       </div>
       <PageHeader icon={BarChart3}
         title="Reports"
-        subtitle="Mutual assistance released and collected, retirement contributions and applications, from UDEI's records."
+        subtitle="Money released and collected, retirement contributions and applications."
         actions={
           <div className="flex gap-2 print:hidden">
             <button className="btn-ghost" onClick={download} disabled={!report}><Download className="h-4 w-4" /> Excel (CSV)</button>

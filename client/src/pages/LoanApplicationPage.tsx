@@ -287,7 +287,7 @@ export default function LoanApplicationPage() {
   if (!staffView && !ownMemberId) {
     return (
       <div className="mx-auto max-w-xl">
-        <PageHeader icon={FilePlus2} title="Apply for Mutual Assistance" subtitle="Mutual Assistance Application Form, United DNSC Employees, Inc." />
+        <PageHeader icon={FilePlus2} title="Apply for Mutual Assistance" subtitle="UDEI Mutual Assistance Application Form" />
         <p className="card p-5 text-sm text-amber-800">
           Your account isn't linked to a member record yet. Ask the UDEI office to link it, then you can apply here.
         </p>
@@ -317,7 +317,7 @@ export default function LoanApplicationPage() {
         ) : (
           <PageHeader icon={FilePlus2}
             title={staffView ? 'Mutual Assistance Application' : 'Apply for Mutual Assistance'}
-            subtitle="Mutual Assistance Application Form, United DNSC Employees, Inc. Supporting documents are read and checked against the form."
+            subtitle="UDEI Mutual Assistance Application Form"
           />
         )}
 

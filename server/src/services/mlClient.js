@@ -51,16 +51,18 @@ async function call(path, init = {}) {
     });
   } catch (err) {
     if (err?.name === "TimeoutError") {
-      throw new Error("The ML service took too long to answer. It may be waking up; try Run models again in a minute.");
+      throw new Error("The credit model took too long to answer. It may be waking up; try Run models again in a minute.");
     }
-    throw new Error(`The ML service is not reachable at ${env.mlServiceUrl}. Check ML_SERVICE_URL, or start it with \`npm run ml\`.`);
+    // The address is for whoever runs the server, not for the screen.
+    console.error(`Credit model (ML service) not reachable at ${env.mlServiceUrl}: ${err?.message}`);
+    throw new Error("The credit model can't be reached right now. Try Run models again later, or ask the administrator to check it.");
   }
   const body = await res.json().catch(() => ({}));
   if (!res.ok) {
-    let detail = typeof body.detail === "string" ? body.detail : `ML service error (${res.status}).`;
+    let detail = typeof body.detail === "string" ? body.detail : `The credit model answered with an error (${res.status}).`;
     // FastAPI lists the fields it rejected; name them so staff know what to correct.
     if (Array.isArray(body.detail) && body.detail.length) {
-      detail = "The ML service rejected: " + body.detail.map((d) => `${(d.loc || []).filter((x) => x !== "body").join(".")} (${d.msg})`).join("; ");
+      detail = "The credit model could not read: " + body.detail.map((d) => `${(d.loc || []).filter((x) => x !== "body").join(".")} (${d.msg})`).join("; ");
     }
     throw new Error(detail);
   }

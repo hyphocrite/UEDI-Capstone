@@ -6,7 +6,7 @@ import { centavos, date, LOAN_TYPE_LABEL, pesos } from '../format'
 import { CONSENT } from '../privacy'
 import { PrivacyLink } from './PrivacyNotice'
 import { colors } from '../theme'
-import { Badge, Button, Card, Empty, ErrorText, Header, Row, s, Check, ShowMore, useShowMore } from '../ui'
+import { Badge, Button, Card, Empty, ErrorText, Header, HowItWorks, Row, s, Check, ShowMore, useShowMore } from '../ui'
 
 const STANDING: Record<VouchedLoan['standing'], { text: string; tone: 'green' | 'red' | 'gray' }> = {
   on_track: { text: 'Up to date', tone: 'green' },
@@ -32,10 +32,17 @@ function StatementLink({ request: r, memberId }: { request: CoMakerRequest; memb
       <Text style={{ color: r.statementUploaded ? colors.accent : colors.muted, fontSize: 12, marginTop: 4 }}>
         {r.statementUploaded
           ? `Signed copy uploaded${r.statementUploadedAt ? ` ${date(r.statementUploadedAt)}` : ''}.`
-          : r.statementRequired
-            ? "The borrower isn't a UDEI member yet: print it, sign it and upload the signed copy from the web Co-maker page before the final signature."
-            : 'Print it and sign it; you can upload the signed copy from the web Co-maker page.'}
+          : 'Print, have it signed, upload the signed copy.'}
       </Text>
+      {!r.statementUploaded ? (
+        <HowItWorks>
+          <Text style={{ color: colors.muted, fontSize: 12 }}>
+            {r.statementRequired
+              ? "Upload the signed copy from the web Co-maker page. The borrower isn't a UDEI member yet, so the final signature waits for it."
+              : 'Upload the signed copy from the web Co-maker page. For UDEI members it is optional.'}
+          </Text>
+        </HowItWorks>
+      ) : null}
       <ErrorText text={error} />
     </View>
   )

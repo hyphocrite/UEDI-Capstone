@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { AlertTriangle, Database, Gauge, ShieldCheck, Target, BrainCircuit } from 'lucide-react'
+import HowItWorks from '../components/HowItWorks'
 import PageHeader from '../components/PageHeader'
 import StatCard from '../components/StatCard'
 import TableShell from '../components/TableShell'
@@ -50,14 +51,19 @@ export default function CreditModelPage() {
     <>
       <PageHeader icon={BrainCircuit}
         title="Credit Model"
-        subtitle="How the credit-score model behind Pending Applications was built and how it compares with the 8 regression algorithms."
+        subtitle="How the credit score model was built and tested."
       />
 
       {model?.sampleData && (
-        <p className="mb-4 flex items-start gap-2 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-          The model is trained on sample mutual assistance (loan) records shaped like UDEI's form, rates and terms. UDEI's records so far (45 borrowers) are too few to train on; retrain once there are about 200 loans.
-        </p>
+        <div className="mb-4 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <p className="flex items-start gap-2"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /> Trained on sample data, not UDEI's own records yet.</p>
+          <HowItWorks className="mt-1 pl-6">
+            <p>
+              The model is trained on sample mutual assistance records shaped like UDEI's form, rates and terms. UDEI's records so far
+              (45 borrowers) are too few to train on; retrain once there are about 200.
+            </p>
+          </HowItWorks>
+        </div>
       )}
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

@@ -3,7 +3,7 @@ import type { Application, Loan, MyScore } from '../api'
 import { useAuth } from '../auth'
 import { centavos, date, daysUntil, LOAN_TYPE_LABEL, pesos } from '../format'
 import { colors } from '../theme'
-import { Badge, Button, Card, Empty, Header, Row, s } from '../ui'
+import { Badge, Button, Card, Header, Row, s } from '../ui'
 import { KuwiCard, ScoreCard } from '../score'
 import { applicationBadge } from './status'
 
@@ -39,13 +39,14 @@ export default function HomeScreen({ loans, applications, score, loading, onRefr
         <ScoreCard data={score} />
         <KuwiCard data={score} />
 
-        <Card style={{ backgroundColor: colors.primary, borderColor: colors.primary }}>
-          <Text style={{ color: '#A7D7BF', fontSize: 13 }}>Total mutual assistance balance</Text>
-          <Text style={{ color: '#fff', fontSize: 30, fontWeight: '800', marginTop: 4 }}>{centavos(balance)}</Text>
-          <Text style={{ color: '#A7D7BF', marginTop: 4 }}>
-            {active.length === 0 ? 'No active mutual assistance' : `${active.length} active mutual assistance`}
-          </Text>
-        </Card>
+        {/* No active mutual assistance: no balance card. */}
+        {active.length > 0 ? (
+          <Card style={{ backgroundColor: colors.primary, borderColor: colors.primary }}>
+            <Text style={{ color: '#A7D7BF', fontSize: 13 }}>Total mutual assistance balance</Text>
+            <Text style={{ color: '#fff', fontSize: 30, fontWeight: '800', marginTop: 4 }}>{centavos(balance)}</Text>
+            <Text style={{ color: '#A7D7BF', marginTop: 4 }}>{active.length} active mutual assistance</Text>
+          </Card>
+        ) : null}
 
         {next?.nextDue ? (
           <Card style={next.pastDue ? { borderColor: colors.danger } : undefined}>
@@ -84,14 +85,13 @@ export default function HomeScreen({ loans, applications, score, loading, onRefr
           <Card>
             <Text style={s.sectionTitle}>Need financial assistance?</Text>
             <Text style={{ color: colors.muted, marginBottom: 12 }}>
-              Apply for a Long term or Emergency mutual assistance. The Bookkeeper, Credit Committee Chairman, President and Treasurer
+              Apply for Long term or Short term (Emergency) mutual assistance. The Bookkeeper, Credit Committee Chairman, President and Treasurer
               review every application.
             </Text>
             <Button title="Apply for mutual assistance" onPress={onApply} />
           </Card>
         )}
 
-        {!loading && loans.length === 0 && applications.length === 0 ? <Empty text="Your mutual assistance will show up here." /> : null}
       </ScrollView>
     </View>
   )

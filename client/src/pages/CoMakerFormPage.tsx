@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import HowItWorks from '../components/HowItWorks'
 import { ArrowLeft, FileSignature, Printer } from 'lucide-react'
 import CoMakerForm from '../components/loan-application/CoMakerForm'
 import type { CoMakerInfo } from '../components/loan-application/CoMakerForm'
@@ -60,15 +61,20 @@ export default function CoMakerFormPage() {
 
       {form && (
         <>
-          <p className="mb-4 rounded-lg bg-sky-50 px-4 py-3 text-sm text-sky-900 print:hidden">
-            Print this, have {form.coMaker.name ?? `member ${form.coMaker.memberId}`} sign it, and upload a photo or PDF of the signed copy from the
-            Co-maker page.{' '}
-            {form.statement
-              ? `A signed copy was uploaded ${formatDate(form.statement.uploadedAt)}.`
-              : form.statementRequired
-                ? 'The applicant isn’t a UDEI member, so the Treasurer’s final signature waits for it.'
-                : 'For UDEI members it is optional.'}
-          </p>
+          <div className="mb-4 rounded-lg bg-sky-50 px-4 py-3 text-sm text-sky-900 print:hidden">
+            <p>
+              {form.statement ? `A signed copy was uploaded ${formatDate(form.statement.uploadedAt)}.` : 'Print, have it signed, upload the signed copy.'}
+            </p>
+            <HowItWorks className="mt-1">
+              <p>
+                Print this, have {form.coMaker.name ?? `member ${form.coMaker.memberId}`} sign it, and upload a photo or PDF of the signed copy
+                from the Co-maker page.{' '}
+                {form.statementRequired
+                  ? 'The applicant isn’t a UDEI member, so the Treasurer’s final signature waits for it.'
+                  : 'For UDEI members it is optional.'}
+              </p>
+            </HowItWorks>
+          </div>
           <CoMakerForm
             standalone
             coMakers={[form.coMaker]}

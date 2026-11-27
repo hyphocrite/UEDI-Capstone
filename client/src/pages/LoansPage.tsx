@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import HowItWorks from '../components/HowItWorks'
 import { AlertTriangle, FilePlus2, HandCoins, Search, Wallet, TrendingUp } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import StatCard from '../components/StatCard'
@@ -184,11 +185,13 @@ export default function LoansPage() {
         <div className="card mt-6 min-w-0">
           <div className="border-b border-brand-100 p-4">
             <h2 className="font-semibold text-ink">Carried over from the spreadsheet ledger</h2>
-            <p className="text-sm text-brand-600">
-              Yearly totals from UDEI's mutual assistance ledger as of {formatDay(carried[0].asOf)}. The ledger has no rates or schedules,
-              so these are balances only. Once the Bookkeeper sets a member's payroll deduction on the Members page, the
-              balance moves to the list above and payroll deduction runs include it.
-            </p>
+            <p className="text-sm text-brand-600">Yearly totals from UDEI's ledger as of {formatDay(carried[0].asOf)}.</p>
+            <HowItWorks className="mt-1">
+              <p>
+                The ledger has no rates or schedules, so these are balances only. Once the Bookkeeper sets a member's payroll
+                deduction on the Members page, the balance moves to the list above and payroll deduction runs include it.
+              </p>
+            </HowItWorks>
           </div>
           <TableShell caption="Carried over from the spreadsheet ledger" anchor={carriedPaged.anchor}
             footer={<Pagination page={carriedPaged.page} pageSize={carriedPaged.perPage} total={carriedPaged.total} onPage={carriedPaged.setPage} />}>

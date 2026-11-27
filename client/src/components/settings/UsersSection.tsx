@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { UserCog } from 'lucide-react'
+import HowItWorks from '../HowItWorks'
 import Pagination from '../Pagination'
 import { useAuth } from '../../context/AuthContext'
 import { usePaged } from '../../lib/usePaged'
@@ -59,10 +60,13 @@ export default function UsersSection() {
         <h2 id="users-heading" className="flex items-center gap-2 font-semibold text-brand-800">
           <UserCog className="h-5 w-5 text-accent" /> Users
         </h2>
-        <p className="mt-1 text-sm text-brand-600">
-          Office Staff take in applications; they don't sign. The Bookkeeper, Credit Committee Chairman, President and Treasurer sign them, in
-          that order; the Treasurer's signature is the final approval, and they then release the money. Administrators manage users and don't sign.
-        </p>
+        <p className="mt-1 text-sm text-brand-600">Give each account its role.</p>
+        <HowItWorks className="mt-1">
+          <p>
+            Office Staff take in applications; they don't sign. The Bookkeeper, Credit Committee Chairman, President and Treasurer sign them, in
+            that order; the Treasurer's signature is the final approval, and they then release the money. Administrators manage users and don't sign.
+          </p>
+        </HowItWorks>
       </div>
 
       {message && (

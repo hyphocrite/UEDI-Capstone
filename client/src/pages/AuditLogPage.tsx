@@ -115,7 +115,7 @@ export default function AuditLogPage() {
     <>
       <PageHeader icon={History}
         title="Audit Log"
-        subtitle="Every change made in the system, by anyone, on the web or the mobile app, including failed attempts. Entries can't be edited or deleted."
+        subtitle="Every change, by anyone, on web or mobile. Entries can't be edited."
       />
 
       <div className="card min-w-0">

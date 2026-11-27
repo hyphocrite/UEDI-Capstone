@@ -102,13 +102,14 @@ function Card({ title, icon: Icon, link, children }: { title: string; icon: Luci
 const loadingLine = <p className="py-4 text-sm text-brand-500">Loading…</p>
 
 function LoansCard({ state }: { state: Load<{ loans: Loan[] }> }) {
+  // Nothing active: no card (the Latest application card offers to apply).
+  if (state.status === 'ok' && !state.data.loans.some((l) => l.status === 'active')) return null
   return (
     <Card title="Your mutual assistance" icon={HandCoins} link={{ to: '/loans', label: 'See mutual assistance' }}>
       {state.status === 'loading' && loadingLine}
       {state.status === 'error' && <EmptyState icon={HandCoins} title="Your mutual assistance could not be loaded." hint={state.message} className="py-4" />}
       {state.status === 'ok' && (() => {
         const active = state.data.loans.filter((l) => l.status === 'active')
-        if (!active.length) return <EmptyState icon={HandCoins} title="No active mutual assistance." hint="Mutual assistance shows here once released." className="py-4" />
         const balance = active.reduce((s, l) => s + l.balance, 0)
         const next = active.filter((l) => l.nextDue).sort((a, b) => a.nextDue!.dueDate.localeCompare(b.nextDue!.dueDate))[0]?.nextDue
         const pastDue = active.filter((l) => l.pastDue)
@@ -165,6 +166,8 @@ function ApplicationCard({ state }: { state: Load<{ applications: LoanApplicatio
 }
 
 function CoMakerCard({ state }: { state: Load<CoMakerPortal> }) {
+  // No requests waiting and no alerts: no card.
+  if (state.status === 'ok' && !state.data.alerts.length && !state.data.requests.some((r) => r.status === 'pending' && r.myStatus === 'pending')) return null
   return (
     <Card title="Co-maker" icon={Handshake} link={{ to: '/co-maker', label: 'Open' }}>
       {state.status === 'loading' && loadingLine}

@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import HowItWorks from '../HowItWorks'
 import { CheckCircle2, Printer, Upload } from 'lucide-react'
 import { ApiError } from '../../lib/api'
 import { coMakerFormPath } from '../../lib/applications'
@@ -61,10 +62,18 @@ export default function StatementActions({ applicationId, memberId, uploadedAt, 
         )}
       </div>
       <p className={`mt-1 ${uploadedAt ? 'flex items-center gap-1 text-emerald-700' : 'text-brand-500'}`}>
-        {uploadedAt ? <><CheckCircle2 className="h-3.5 w-3.5" /> Signed copy uploaded {formatDate(uploadedAt)}.</> : required
-          ? 'The borrower isn’t a UDEI member yet, so the mutual assistance can’t be given its final signature until you upload your signed statement.'
-          : 'Print it, sign it, and upload a photo or PDF of the signed copy.'}
+        {uploadedAt ? <><CheckCircle2 className="h-3.5 w-3.5" /> Signed copy uploaded {formatDate(uploadedAt)}.</> : 'Print, have it signed, upload the signed copy.'}
       </p>
+      {!uploadedAt && (
+        <HowItWorks className="mt-1">
+          <p>
+            Upload a photo or PDF of the signed statement.{' '}
+            {required
+              ? 'The borrower isn’t a UDEI member yet, so the mutual assistance can’t get its final signature until you upload it.'
+              : 'For UDEI members it is optional.'}
+          </p>
+        </HowItWorks>
+      )}
       {error && <p className="mt-1 text-red-700" role="alert">{error}</p>}
     </div>
   )

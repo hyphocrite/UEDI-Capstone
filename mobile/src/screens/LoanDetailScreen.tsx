@@ -3,7 +3,7 @@ import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-nati
 import { api, type Loan, type Payment, type PaymentSubmission } from '../api'
 import { centavos, date, LOAN_TYPE_LABEL } from '../format'
 import { colors } from '../theme'
-import { Badge, Card, Empty, ErrorText, Header, Row, s, ShowMore, useShowMore } from '../ui'
+import { Badge, Card, Empty, ErrorText, Header, HowItWorks, Row, s, ShowMore, useShowMore } from '../ui'
 import { modeLabel, PAYMENT_METHOD_LABEL, frequencyLabel } from '../paymentModes'
 import { loanBadge } from './status'
 import SendPayment, { SubmissionRow } from './SendPayment'
@@ -49,17 +49,13 @@ export default function LoanDetailScreen({ id, onBack }: { id: string; onBack: (
                 {loan.status === 'for_release' ? '—' : centavos(loan.balance)}
               </Text>
               {loan.totalPayable > 0 ? <Progress paid={loan.amountPaid} total={loan.totalPayable} /> : null}
-              <Row label="Principal" value={centavos(loan.principal)} />
-              <Row label="Rate" value={`${loan.monthlyRate}% per month`} />
-              <Row label="Term" value={loan.paymentMode === 'bonus' && loan.schedule.length === 1 ? `One payment on ${date(loan.schedule[0].dueDate)}` : `${loan.termMonths} months, ${frequencyLabel(loan.paymentFrequency)}`} />
+              {loan.nextDue ? <Row label="Next due" value={`${centavos(loan.nextDue.amount)} on ${date(loan.nextDue.dueDate)}`} strong /> : null}
               <Row label="Mode of payment" value={loan.paymentModeLabel ?? modeLabel(loan.paymentMode, loan.bonusType)} />
               {loan.convertedAt ? (
                 <Text style={{ color: colors.warn, marginTop: 6 }}>
                   {`Converted to long term on ${date(loan.convertedAt)}: the short term wasn't fully paid by the end of its term.`}
                 </Text>
               ) : null}
-              <Row label="Released" value={date(loan.releasedAt)} />
-              <Row label="Matures" value={date(loan.maturesOn)} />
               {loan.pastDue ? <Row label="Overdue" value={centavos(loan.pastDueAmount)} strong /> : null}
               {loan.paidAhead && loan.paidAhead.amount > 0 ? (
                 <Row label="Paid ahead" value={`${loan.paidAhead.count} installment${loan.paidAhead.count === 1 ? '' : 's'} (${centavos(loan.paidAhead.amount)})`} />
@@ -69,6 +65,13 @@ export default function LoanDetailScreen({ id, onBack }: { id: string; onBack: (
                   Your mutual assistance will finish around {date(loan.finishesAround)} at the current deduction.
                 </Text>
               ) : null}
+              <HowItWorks label="More details">
+                <Row label="Principal" value={centavos(loan.principal)} />
+                <Row label="Rate" value={`${loan.monthlyRate}% per month on the remaining balance`} />
+                <Row label="Term" value={loan.paymentMode === 'bonus' && loan.schedule.length === 1 ? `One payment on ${date(loan.schedule[0].dueDate)}` : `${loan.termMonths} months, ${frequencyLabel(loan.paymentFrequency)}`} />
+                <Row label="Released" value={date(loan.releasedAt)} />
+                <Row label="Matures" value={date(loan.maturesOn)} />
+              </HowItWorks>
             </Card>
 
             {loan.status === 'active' ? <SendPayment loan={loan} onSent={reload} /> : null}
@@ -107,9 +110,11 @@ export default function LoanDetailScreen({ id, onBack }: { id: string; onBack: (
               })}
             </Card>
 
+            {/* No payments yet: no empty section. */}
+            {data!.payments.length > 0 ? (
+            <>
             <Text style={s.sectionTitle}>Payments received</Text>
             <Card style={{ paddingVertical: 8 }}>
-              {data!.payments.length === 0 ? <Empty text="No payments yet." /> : null}
               {paidList.visible.map((p) => (
                 <View key={p.id} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8 }}>
                   <View>
@@ -121,6 +126,8 @@ export default function LoanDetailScreen({ id, onBack }: { id: string; onBack: (
               ))}
               <ShowMore list={paidList} />
             </Card>
+            </>
+            ) : null}
           </>
         ) : null}
       </ScrollView>

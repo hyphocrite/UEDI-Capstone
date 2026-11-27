@@ -233,14 +233,14 @@ function ModelBanner({ model }: { model: ModelInfo | null }) {
   if (!model) {
     return (
       <p className="mb-4 flex items-center gap-2 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800">
-        <AlertTriangle className="h-4 w-4 shrink-0" /> The ML service is not reachable, so new suggestions cannot be made. Start it with <code>npm run ml</code>.
+        <AlertTriangle className="h-4 w-4 shrink-0" /> The credit model can't be reached, so new suggestions can't be made. Ask the administrator to check it.
       </p>
     )
   }
   return (
     <p className="mb-4 flex flex-wrap items-center gap-2 rounded-lg bg-brand-50 px-4 py-3 text-sm text-brand-800">
       <Cpu className="h-4 w-4 shrink-0 text-accent" />
-      Models trained {formatDate(model.trainedAt)} on {formatCount(model.rows)} past mutual assistance records, checked with {model.validation}.
+      Credit model trained {formatDate(model.trainedAt)} on {formatCount(model.rows)} past mutual assistance records.
     </p>
   )
 }

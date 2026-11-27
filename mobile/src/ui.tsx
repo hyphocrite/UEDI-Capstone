@@ -205,6 +205,22 @@ export function ShowMore({ list }: { list: { visible: readonly unknown[]; total:
   )
 }
 
+/** Longer how-it-works text behind a row that opens it, closed by default (the web's HowItWorks). */
+export function HowItWorks({ children, label = 'How this works' }: { children: ReactNode; label?: string }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <View style={{ marginTop: 4 }}>
+      <Pressable accessibilityRole="button" accessibilityState={{ expanded: open }} onPress={() => setOpen((o) => !o)}
+        style={{ flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 32 }}>
+        <Ionicons name="information-circle-outline" size={15} color={colors.primary} />
+        <Text style={{ color: colors.primary, fontWeight: '600', fontSize: 12 }}>{label}</Text>
+        <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={14} color={colors.primary} />
+      </Pressable>
+      {open ? <View style={{ marginTop: 2 }}>{children}</View> : null}
+    </View>
+  )
+}
+
 export function Empty({ text }: { text: string }) {
   return <Text style={{ color: colors.muted, textAlign: 'center', marginVertical: 24 }}>{text}</Text>
 }

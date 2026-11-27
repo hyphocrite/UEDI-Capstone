@@ -24,7 +24,7 @@ export default function ProfileScreen({ reminders, score }: { reminders: number 
             {reminders == null
               ? 'Reminders are set after your mutual assistance loads.'
               : reminders > 0
-                ? `${reminders} reminder${reminders > 1 ? 's' : ''} set: 3 days before and on each due date, at 8:00 AM.`
+                ? 'Reminders: 3 days before and on each due date.'
                 : 'No reminders set. Allow notifications for this app to get due-date reminders.'}
           </Text>
         </Card>

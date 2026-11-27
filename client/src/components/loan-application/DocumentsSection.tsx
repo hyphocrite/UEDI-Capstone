@@ -31,7 +31,7 @@ export default function DocumentsSection({ loanType, documents: d }: Props) {
   return (
     <FormSection
       title="Supporting documents"
-      subtitle="Take a photo of each document or choose a file (JPEG, PNG, WebP or PDF, up to 10 MB). Each one is read on this device and checked against the form above."
+      subtitle="A photo or file (JPEG, PNG, WebP or PDF, up to 10 MB), checked against the form above."
     >
       <div className="mb-4 rounded-lg bg-brand-50 p-3">
         <p className="mb-2 text-sm font-semibold text-brand-800">Required for {loanTypeLabel[loanType]}: the application can't be sent until each one is uploaded.</p>

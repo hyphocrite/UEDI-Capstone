@@ -95,7 +95,7 @@ export default function PaymentsPage() {
 
   return (
     <>
-      <PageHeader icon={Wallet} title="Payments" subtitle="Cash, e-wallet and bank deposits / transfers: the Treasurer issues the OR, then the Bookkeeper confirms and posts it to the ledger." />
+      <PageHeader icon={Wallet} title="Payments" subtitle="Cash, e-wallet and bank payments: Treasurer issues the OR, Bookkeeper posts it." />
 
       <div className="mb-4 flex gap-1 overflow-x-auto rounded-lg bg-brand-50 p-1" role="tablist" aria-label="Payment status">
         {TABS.map((t) => (

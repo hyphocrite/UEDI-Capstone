@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
+import HowItWorks from '../components/HowItWorks'
 import { Link, useNavigate } from 'react-router-dom'
 import { Plus, ReceiptText } from 'lucide-react'
 import Modal from '../components/Modal'
@@ -89,7 +90,7 @@ export default function DeductionsPage() {
     <>
       <PageHeader icon={ReceiptText}
         title="Payroll Deductions"
-        subtitle="Each cutoff, send DNSC's Payroll Officer the list of installments to deduct, then record what payroll remitted."
+        subtitle="Send each cutoff's list to DNSC Payroll, then record what was remitted."
         actions={canCreate && (
           <>
             <button className="btn-ghost" onClick={() => openNew('bonus')}>
@@ -156,9 +157,17 @@ export default function DeductionsPage() {
           <input id="cutoff" type="date" className="input" value={cutoff} onChange={(e) => setCutoff(e.target.value)} />
           <p className="mt-1 text-xs text-brand-500">
             {kind === 'bonus'
-              ? 'The date in Settings for this bonus, or the day it was actually released. Lists mutual assistance charged to this bonus that is due by then.'
+              ? 'The day this bonus is released.'
               : <>The 15th or the last day of a month. Suggested: {suggested ? formatCutoff(suggested) : '—'}, the next cutoff without a run.</>}
           </p>
+          {kind === 'bonus' && (
+            <HowItWorks className="mt-2">
+              <p>
+                Use the date in Settings for this bonus, or the day it was actually released. The run lists the mutual assistance
+                charged to this bonus that is due by then, and goes through the same send, remittance and posting as a payroll run.
+              </p>
+            </HowItWorks>
+          )}
           {formError && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{formError}</p>}
           <div className="mt-5 flex flex-wrap justify-end gap-2">
             <button type="button" className="btn-ghost" onClick={() => setCreating(false)}>Cancel</button>

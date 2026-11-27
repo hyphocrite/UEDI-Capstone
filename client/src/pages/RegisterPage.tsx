@@ -57,7 +57,7 @@ export default function RegisterPage() {
   return (
     <AuthShell
       title="Create Your Account"
-      subtitle="For UDEI members: follow your mutual assistance and apply online. Office roles are given by the administrator."
+      subtitle="For UDEI members: follow your mutual assistance and apply online."
       footer={
         <>
           Already registered?{' '}

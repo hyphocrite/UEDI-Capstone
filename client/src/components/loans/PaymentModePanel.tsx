@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { ArrowRightLeft } from 'lucide-react'
+import HowItWorks from '../HowItWorks'
 import Modal from '../Modal'
 import PaymentModeChoice from '../loan-application/PaymentModeChoice'
 import { api } from '../../lib/api'
@@ -79,10 +80,13 @@ export default function PaymentModePanel({ loan, canChange, onChanged }: { loan:
       )}
 
       <Modal title="Change mode of payment" open={open} onClose={() => setOpen(false)}>
-        <p className="mb-3 rounded-lg bg-sky-50 px-3 py-2 text-sm text-sky-900">
-          Changes made on or before day {cutoff} of the month start that month; later ones start next month, because the Bookkeeper bills HR for
-          payroll deductions in the first week. Paying cash ahead while staying on payroll is an advance payment, not a change.
-        </p>
+        <p className="mb-1 rounded-lg bg-sky-50 px-3 py-2 text-sm text-sky-900">Changes after day {cutoff} start next month.</p>
+        <HowItWorks className="mb-3">
+          <p>
+            Changes made on or before day {cutoff} of the month start that month; later ones start next month, because the Bookkeeper bills HR
+            for payroll deductions in the first week. Paying cash ahead while staying on payroll is an advance payment, not a change.
+          </p>
+        </HowItWorks>
         <PaymentModeChoice name="changeMode" mode={mode} bonusType={bonusType} modes={ALL_MODES} onChange={(m, b) => { setMode(m); setBonusType(b); setError('') }} />
         {(mode === 'bonus') !== (loan.paymentMode === 'bonus') && (
           <p className="mt-3 text-xs text-amber-700">Moving to or from a bonus lays out the unpaid balance again from the month it starts. Payments already made stay.</p>
