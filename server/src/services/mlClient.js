@@ -26,6 +26,8 @@ function toFeatures(app) {
     priorLatePayments: a.priorLatePayments || 0,
     employmentStatus: a.employmentStatus || "permanent",
     documentsFlagged: (app.documents || []).filter((d) => d.verdict && d.verdict !== "verified").length,
+    // How the member will pay; models trained without it ignore it (ml-service/uedi_ml/features.py).
+    paymentMode: app.loan.paymentMode || "payroll",
   };
   // The model only knows working ages; a mistyped birth date (e.g. this year) is left out instead of failing.
   if (a.dateOfBirth) {

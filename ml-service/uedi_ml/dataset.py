@@ -11,10 +11,13 @@ from pathlib import Path
 
 import pandas as pd
 
-from .features import EMPLOYMENT_STATUSES, LOAN_TYPES, OPTIONAL_FIELDS, REQUIRED_FIELDS, features_for_columns
+from .features import EMPLOYMENT_STATUSES, LOAN_TYPES, OPTIONAL_FIELDS, PAYMENT_MODES, REQUIRED_FIELDS, features_for_columns
 
 # The regression target: the Repayment Performance Score, 0 to 100 (decimals allowed). The
-# share of a loan's scheduled amortization amount that was paid in full by each due date.
+# share of a loan's scheduled amortization amount that was paid in full by each due date:
+# amortization paid in full by each due date / amortization scheduled so far. A loan charged to a
+# bonus has one due date (the bonus release), so it counts as 0 scheduled until that date and is
+# judged only once the date has passed.
 TARGET = "repaymentScore"
 # Optional, kept for reference and for prepare_data.py's prior-history counts. Not trained on.
 LABEL = "defaulted"
@@ -93,6 +96,11 @@ def check_training_data(df: pd.DataFrame) -> CheckedData:
             f"employmentStatus must be one of {', '.join(EMPLOYMENT_STATUSES)}",
         )
         df.loc[df["employmentStatus"].isin(["nan", ""]), "employmentStatus"] = None
+    # Optional: how the loan was paid. Blank counts as payroll; it is ignored when the column is missing.
+    if "paymentMode" in df.columns:
+        df["paymentMode"] = df["paymentMode"].astype(str).str.strip().str.lower()
+        drop(~df["paymentMode"].isin(PAYMENT_MODES + ["nan", ""]), f"paymentMode must be one of {', '.join(PAYMENT_MODES)}")
+        df.loc[df["paymentMode"].isin(["nan", ""]), "paymentMode"] = None
 
     dropped = [f"{_row(i)}: {r}" for i, r in sorted(reasons.items())]
     df = df.drop(index=list(reasons)).reset_index(drop=True)

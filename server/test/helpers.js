@@ -81,7 +81,7 @@ async function setup() {
 
   /** Registers an account, enters the emailed code and returns { cookie, id }. The first account becomes admin. */
   async function register(fullName, email) {
-    await call("/auth/register", { method: "POST", body: { fullName, email, password: "secret123" } });
+    await call("/auth/register", { method: "POST", body: { fullName, email, password: "secret123", privacyConsent: true } });
     const r = await call("/auth/verify-email", { method: "POST", body: { email, code: lastCode(email) } });
     return { cookie: r.setCookie.split(";")[0], id: r.json.session.id };
   }
@@ -128,6 +128,7 @@ const application = (late = 0, overrides = {}) => ({
   loan: { loanType: "long_term", amount: 60000, termMonths: 24, monthlyRate: 1, paymentFrequency: "quincenal", purpose: "House repair", ...overrides.loan },
   bookkeeper: overrides.bookkeeper ?? { longTermBalance: 12000, shortTermBalance: 0 },
   agreement: { payrollDeduction: true, autoRestructure: true, applicationDate: "2026-10-19" },
+  consent: true,
   documents: requiredDocuments(),
 });
 

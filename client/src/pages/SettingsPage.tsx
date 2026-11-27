@@ -149,7 +149,7 @@ export default function SettingsPage() {
         <table className="w-full text-sm">
           <thead className="table-head">
             <tr>
-              <th className="px-4 py-3">Loan type</th>
+              <th className="px-4 py-3">Type</th>
               <th className="px-4 py-3">Interest (% per month){canSetRates ? '' : <span className="block font-normal normal-case">Administrator only</span>}</th>
               <th className="px-4 py-3">Longest term (months)</th>
               <th className="px-4 py-3 text-right">Monthly installment on {formatPeso(sample)}, longest term</th>

@@ -19,7 +19,12 @@ const canWrite = requireRole("bookkeeper", "treasurer");
 const calendarDate = (what) => z.string().regex(/^\d{4}-\d{2}-\d{2}$/, `Enter the ${what}.`);
 const centavos = z.coerce.number().int().min(0).max(100_000_000_00);
 
-const createSchema = z.object({ cutoffDate: calendarDate("cutoff date") });
+const createSchema = z.object({
+  cutoffDate: calendarDate("cutoff date"),
+  // "bonus": a run for one bonus release (Mid-year, Year-end, CNA or SRI) on cutoffDate.
+  kind: z.enum(["payroll", "bonus"]).default("payroll"),
+  bonusType: z.enum(["mid_year", "year_end", "cna", "sri"]).optional(),
+});
 const lineEditSchema = z.object({
   expected: centavos.optional(),
   remove: z.boolean().optional(),
@@ -89,7 +94,7 @@ router.get(
       const { lines, ...rest } = runs.present(r);
       return { ...rest, lineCount: lines.length };
     });
-    const suggestedCutoff = d.dayKey(d.suggestCutoff(ledger.todayInManila(), all.map((r) => r.cutoffDate)));
+    const suggestedCutoff = d.dayKey(d.suggestCutoff(ledger.todayInManila(), all.filter((r) => r.kind !== "bonus").map((r) => r.cutoffDate)));
     res.json({ runs: list, suggestedCutoff });
   }),
 );
@@ -100,7 +105,7 @@ router.post(
   handle(async (req, res) => {
     const body = parse(createSchema, req, res);
     if (!body) return;
-    const run = await runs.createRun(body.cutoffDate, req.user);
+    const run = await runs.createRun(body.cutoffDate, req.user, { kind: body.kind, bonusType: body.bonusType });
     res.status(201).json({ run: runs.present(run) });
   }),
 );

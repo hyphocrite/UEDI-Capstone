@@ -14,6 +14,8 @@ const { explain } = require("../services/explain");
 const documentFiles = require("../services/documentFiles");
 const coMakers = require("../services/coMakers");
 const settings = require("../services/settings");
+const paymentModes = require("../services/paymentModes");
+const { PRIVACY_NOTICE_VERSION } = require("../config/privacy");
 const { idCheckStatus, idCheckState, ID_MISMATCH } = require("../services/idCheck");
 
 const router = express.Router();
@@ -126,6 +128,9 @@ const createSchema = z
       termMonths: z.coerce.number().int().min(1).max(120),
       monthlyRate: z.coerce.number().min(0).max(10),
       paymentFrequency: z.enum(PAYMENT_FREQUENCIES).default("monthly"),
+      // How the member will pay (services/paymentModes.js); a bonus needs its type.
+      paymentMode: z.enum(paymentModes.PAYMENT_MODES, { message: "Choose how the member will pay." }).default("payroll"),
+      bonusType: z.enum(paymentModes.BONUS_TYPES, { message: "Choose which bonus it is charged to." }).optional(),
       // Required: the signers read it next to the ML suggestion.
       purpose: z.string({ message: "Give the reason for the mutual assistance." }).trim().min(3, "Give the reason for the mutual assistance.").max(300),
     }),
@@ -135,9 +140,15 @@ const createSchema = z
       autoRestructure: z.literal(true, { message: "The applicant must agree to automatic restructuring." }),
       applicationDate: z.coerce.date(),
     }),
+    // RA 10173: agreement to use the application, documents and payment history to evaluate it,
+    // including an automated credit score reviewed by officers. Stored as { version, at, ip }.
+    consent: z.literal(true, { message: "Tick the box to agree that UDEI may use the application, documents and payment history to evaluate it." }),
     // Member numbers of 1 or 2 co-makers (how many is a Loan Setting). Checked in createApplication.
     coMakers: z.array(z.string().trim().max(32)).max(2).default([]),
     documents: z.array(documentCheckSchema).max(MAX_DOCUMENTS).default([]),
+  })
+  .refine((v) => v.loan.paymentMode !== "bonus" || !!v.loan.bonusType, {
+    message: "Choose which bonus it is charged to: Mid-year, Year-end, CNA or SRI.",
   })
   .refine((v) => v.applicant.priorLatePayments <= v.applicant.priorLoans, {
     message: "Late payments cannot be more than past mutual assistance.",
@@ -219,7 +230,7 @@ async function resolveCoMakers(rules, data) {
 }
 
 /** Saves a new application from a parsed createSchema body and scores it. Also used by the member app. */
-async function createApplication(data, user) {
+async function createApplication(data, user, req) {
   const rules = await settings.get();
   data.coMakers = await resolveCoMakers(rules, data);
   const bookkeeper = await bookkeeperFor(data.applicant.memberId, data.bookkeeper);
@@ -232,6 +243,7 @@ async function createApplication(data, user) {
         bookkeeper,
         idCheck: { status: idCheckStatus(data.documents) },
         applicationNo: await nextApplicationNo(),
+        consent: { version: PRIVACY_NOTICE_VERSION, at: new Date(), ip: req?.ip },
         currentStep: STEPS[0],
         approvals: [],
         submittedBy: user._id,
@@ -250,6 +262,16 @@ function applyRules(rules, data) {
   // The rate is always the one in Loan Settings, whatever the form sent.
   const product = rules.products[data.loan.loanType];
   if (product) data.loan.monthlyRate = product.monthlyRate;
+  if (data.loan.paymentMode === "bonus") {
+    // One installment on the bonus date: the term is the months up to it, from the application date.
+    try {
+      data.loan.termMonths = paymentModes.bonusTerm(rules, data.loan.loanType, data.loan.bonusType, data.agreement.applicationDate).termMonths;
+    } catch (err) {
+      return err.message;
+    }
+  } else {
+    data.loan.bonusType = undefined;
+  }
   return settings.checkApplication(rules, {
     monthlySalary: data.applicant.monthlySalary,
     loanType: data.loan.loanType,
@@ -276,7 +298,7 @@ router.post("/", async (req, res, next) => {
       parsed.data.applicant.memberId = await memberIds.ensureFor(req.user);
       parsed.data.bookkeeper = { longTermBalance: 0, shortTermBalance: 0, monthlyPayment: 0 };
     }
-    const app = await createApplication(parsed.data, req.user);
+    const app = await createApplication(parsed.data, req.user, req);
     auditNote(res, { target: `${app.applicationNo} · ${app.applicant.fullName} · ₱${app.loan.amount.toLocaleString("en-PH")}` });
     res.status(201).json({ application: forViewer(req.user, app) });
   } catch (err) {
@@ -737,3 +759,4 @@ module.exports.createSchema = createSchema;
 module.exports.createApplication = createApplication;
 module.exports.missingDocuments = missingDocuments;
 module.exports.REQUIRED_DOCUMENTS = REQUIRED_DOCUMENTS;
+module.exports.applyRules = applyRules;

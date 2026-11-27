@@ -86,6 +86,8 @@ class Applicant(BaseModel):
     age: int | None = Field(default=None, ge=18, le=100)
     employmentStatus: Literal["permanent", "temporary", "contractual", "job_order"] = "permanent"
     documentsFlagged: int = Field(ge=0, default=0)
+    # How the member will pay. Used only by models trained on data that has it.
+    paymentMode: Literal["payroll", "bonus", "cash", "e_money", "bank_transfer"] = "payroll"
 
 
 @app.get("/health")

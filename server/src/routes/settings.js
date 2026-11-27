@@ -24,11 +24,18 @@ const product = (label) =>
   });
 
 const saveSchema = z.object({
-  products: z.object({ long_term: product("Long term"), emergency: product("Emergency") }),
+  products: z.object({ long_term: product("Long term"), emergency: product("Short term (Emergency)") }),
   minMonthlySalary: z.coerce.number({ message: "Enter the minimum monthly salary." }).min(0).max(10_000_000),
   coMakersRequired: z.coerce.number().int().min(0).max(2).optional(),
   coMakersFromAmount: z.coerce.number({ message: "Enter the amount from which to suggest a co-maker." }).min(0).max(10_000_000).optional(),
   nonMemberMaxAmount: z.coerce.number().min(0).max(10_000_000).optional(),
+  bonusCalendar: z
+    .object(Object.fromEntries(["mid_year", "year_end", "cna", "sri"].map((k) => [k, z.object({ month: z.coerce.number().int().min(1).max(12), day: z.coerce.number().int().min(1).max(31) })])))
+    .optional(),
+  modeChangeCutoffDay: z.coerce.number().int().min(1, "The cutoff day is 1 to 28.").max(28, "The cutoff day is 1 to 28.").optional(),
+  shortTermGraceDays: z.coerce.number().int().min(0).max(365).optional(),
+  conversionTermMonths: z.coerce.number().int().min(1).max(120).optional(),
+  serviceFee: z.object({ rate: z.coerce.number().min(0).max(10), appliesTo: z.array(z.enum(["payroll", "cash", "e_money", "bank_transfer"])).max(4) }).optional(),
   branches: z
     .array(z.string().trim().min(1).max(120))
     .min(1, "Keep at least one branch or office.")

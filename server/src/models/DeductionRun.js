@@ -27,7 +27,11 @@ const lineSchema = new mongoose.Schema({
 
 const runSchema = new mongoose.Schema(
   {
-    cutoffDate: { type: Date, required: true, unique: true },
+    // A payroll run is for a cutoff (15th or month-end); a bonus run for a bonus release date.
+    cutoffDate: { type: Date, required: true },
+    kind: { type: String, enum: ["payroll", "bonus"], default: "payroll" },
+    // Bonus runs: which bonus (services/paymentModes.js BONUS_TYPES).
+    bonusType: { type: String, enum: ["mid_year", "year_end", "cna", "sri"] },
     status: { type: String, enum: RUN_STATUSES, default: "draft", index: true },
     lines: [lineSchema],
     remittance: {
@@ -54,6 +58,9 @@ const runSchema = new mongoose.Schema(
   },
   { timestamps: true },
 );
+
+// One payroll run per cutoff, and one run per bonus and date. (db.js drops the old cutoffDate_1.)
+runSchema.index({ cutoffDate: 1, kind: 1, bonusType: 1 }, { unique: true, name: "cutoff_kind_bonus" });
 
 module.exports = mongoose.model("DeductionRun", runSchema);
 module.exports.RUN_STATUSES = RUN_STATUSES;

@@ -11,6 +11,7 @@ import DocumentViewer from './DocumentViewer'
 import { api } from '../../lib/api'
 import { KuwiReasons, KuwiTips, MascotSays } from '../mascot/Mascot'
 import { useConfirm } from '../../context/ConfirmContext'
+import { modeLabel } from '../../lib/paymentModes'
 import { creditScore, employmentStatusLabel, loanTypeLabel, monthlyInstallment, scoreLine } from '../../lib/applications'
 import type { LoanApplication, Suggestion } from '../../lib/applications'
 import { formatDate, formatPeso } from '../../lib/format'
@@ -159,7 +160,11 @@ export default function ApplicationDetail({ app, onChange }: { app: LoanApplicat
             <p className="text-sm text-brand-700">
               {loanTypeLabel[app.loan.loanType]} · {app.loan.termMonths} months · {app.loan.monthlyRate}%/month
             </p>
-            <p className="text-xs text-brand-500">{app.loan.paymentFrequency === 'quincenal' ? 'Deducted every payday' : 'Deducted monthly'}</p>
+            <p className="text-xs text-brand-500">
+              {app.loan.paymentMode && app.loan.paymentMode !== 'payroll'
+                ? modeLabel(app.loan.paymentMode, app.loan.bonusType)
+                : app.loan.paymentFrequency === 'quincenal' ? 'Payroll deduction every payday' : 'Payroll deduction monthly'}
+            </p>
           </div>
           <div className={`min-w-0 rounded-xl border-2 px-4 py-3 ${app.loan.purpose ? 'border-brand-200 bg-white' : 'border-dashed border-amber-300 bg-amber-50/60'}`}>
             <p className="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-brand-600 uppercase">

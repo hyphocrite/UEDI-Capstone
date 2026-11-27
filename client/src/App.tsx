@@ -27,6 +27,7 @@ import CoMakerPage from './pages/CoMakerPage'
 import CoMakerFormPage from './pages/CoMakerFormPage'
 import EarlyWarningPage from './pages/EarlyWarningPage'
 import PaymentsPage from './pages/PaymentsPage'
+import PrivacyPage from './pages/PrivacyPage'
 import AttendancePage from './pages/AttendancePage'
 import ProfilePage from './pages/ProfilePage'
 import NotFoundPage from './pages/NotFoundPage'
@@ -44,6 +45,7 @@ export default function App() {
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/verify-email" element={<VerifyEmailPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/privacy" element={<PrivacyPage />} />
 
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>

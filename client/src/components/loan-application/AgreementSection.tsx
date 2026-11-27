@@ -1,12 +1,13 @@
 import { AlertTriangle } from 'lucide-react'
 import Field, { FormSection } from './Field'
 import { useSettings } from '../../lib/settings'
-import { AUTO_RESTRUCTURE_TEXT, PAYROLL_DEDUCTION_TEXT, affordabilityNote, installmentOf, loanAmountsFor, termMonthsOf } from './applicationForm'
+import { AUTO_RESTRUCTURE_TEXT, PAYROLL_DEDUCTION_TEXT, affordabilityNote, bonusOf, installmentOf, loanAmountsFor, termMonthsOf } from './applicationForm'
+import PaymentModeChoice from './PaymentModeChoice'
 import type { Form, PaymentFrequency, PeriodUnit } from './applicationForm'
 import { loanTypeLabel } from '../../lib/applications'
 import type { LoanType } from '../../lib/applications'
 import { formatPeso } from '../../lib/format'
-import { formatCentavos, toCentavos } from '../../lib/loans'
+import { formatCentavos, formatDay, toCentavos } from '../../lib/loans'
 
 type Props = {
   form: Form
@@ -53,6 +54,7 @@ export default function AgreementSection({ form, update, onLoanTypeChange, linke
   const term = termMonthsOf(form)
   const inst = installmentOf(form)
   const note = affordabilityNote(form)
+  const bonus = bonusOf(form, settings)
 
   return (
     <FormSection title="Application Agreement">
@@ -62,7 +64,7 @@ export default function AgreementSection({ form, update, onLoanTypeChange, linke
             <input id="applicationDate" type="date" className="input" value={form.applicationDate} onChange={(e) => update({ applicationDate: e.target.value })} />
           </Field>
           <div className="min-w-0">
-            <span className="label">Loan type</span>
+            <span className="label">Type of mutual assistance</span>
             <Choice
               name="loanType"
               value={form.loanType}
@@ -90,7 +92,19 @@ export default function AgreementSection({ form, update, onLoanTypeChange, linke
           </Field>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <PaymentModeChoice mode={form.paymentMode} bonusType={form.bonusType} onChange={(paymentMode, bonusType) => update({ paymentMode, bonusType })} />
+
+        {bonus ? (
+          <p className="rounded-lg bg-brand-50 px-3 py-2 text-sm text-brand-800">
+            One payment of <strong className="text-ink">{bonus.total ? formatPeso(Math.round(bonus.total)) : '—'}</strong> charged to the{' '}
+            <strong className="text-ink">{bonus.label}</strong> expected on <strong className="text-ink">{formatDay(bonus.dueDate)}</strong>: the amount plus{' '}
+            {form.monthlyRate}% a month for {bonus.months} month{bonus.months === 1 ? '' : 's'}. Payroll doesn't deduct every cutoff.
+          </p>
+        ) : form.paymentMode === 'bonus' ? (
+          <p className="text-sm text-brand-600">Choose the bonus to see when it is due.</p>
+        ) : null}
+
+        <div className={`grid grid-cols-1 gap-4 sm:grid-cols-3 ${form.paymentMode === 'bonus' ? 'hidden' : ''}`}>
           <Field
             id="period"
             label="Period"
@@ -124,7 +138,7 @@ export default function AgreementSection({ form, update, onLoanTypeChange, linke
           </div>
         </div>
 
-        <dl className={`grid gap-2 rounded-lg bg-brand-50 p-3 text-center ${form.paymentFrequency === 'quincenal' ? 'grid-cols-2' : 'grid-cols-1'}`}>
+        <dl className={`grid gap-2 rounded-lg bg-brand-50 p-3 text-center ${form.paymentFrequency === 'quincenal' ? 'grid-cols-2' : 'grid-cols-1'} ${form.paymentMode === 'bonus' ? 'hidden' : ''}`}>
           <div className="min-w-0">
             <dt className="text-xs text-brand-600">Installment per month</dt>
             <dd className="font-bold text-brand-800">{inst ? formatPeso(Math.round(inst.monthly)) : '—'}</dd>

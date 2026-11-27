@@ -10,7 +10,13 @@ const PAYMENT_METHODS = ["payroll", "cash", "e_money", "bank_transfer", "other",
 const paymentSchema = new mongoose.Schema(
   {
     loan: { type: mongoose.Schema.Types.ObjectId, ref: "Loan", required: true, index: true },
+    // What reduces the balance: the gross received less the service fee.
     amount: { type: Number, required: true, min: 1, validate: Number.isInteger },
+    // The service fee taken from this payment (Settings.serviceFee; 1% of payroll postings by
+    // default) and the gross received. Payments from before the fee have serviceFee 0 and no
+    // grossAmount (the gross is then the amount).
+    serviceFee: { type: Number, default: 0, min: 0, validate: Number.isInteger },
+    grossAmount: { type: Number, min: 0, validate: Number.isInteger },
     paidAt: { type: Date, required: true },
     method: { type: String, enum: PAYMENT_METHODS, required: true },
     reference: { type: String, trim: true, maxlength: 60 },

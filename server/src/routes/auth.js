@@ -2,6 +2,7 @@ const express = require("express");
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 const { z } = require("zod");
+const env = require("../config/env");
 const User = require("../models/User");
 const { ROLES } = require("../models/User");
 const {
@@ -18,6 +19,7 @@ const { rateLimit } = require("../middleware/rateLimit");
 const verification = require("../services/emailVerification");
 const { auditNote } = require("../middleware/audit");
 const memberIds = require("../services/memberIds");
+const { consentRecord } = require("../config/privacy");
 
 const router = express.Router();
 
@@ -40,6 +42,8 @@ const registerSchema = z.object({
     .regex(/[A-Za-z]/, "Password must include a letter.")
     .regex(/[0-9]/, "Password must include a number."),
   branch: z.string().trim().max(120).optional(),
+  // RA 10173: the Privacy Notice must be agreed to before an account is made.
+  privacyConsent: z.literal(true, { message: "Tick the box to agree to the Privacy Notice." }),
 });
 
 const loginSchema = z.object({
@@ -81,10 +85,13 @@ router.post("/register", registerLimit, async (req, res, next) => {
       return res.status(409).json({ error: "An account with this email already exists." });
     }
 
-    // The very first account becomes the administrator.
-    const role = (await User.estimatedDocumentCount()) === 0 ? "admin" : "staff";
+    // Every sign-up is a member account (staff) that sees only its own records. Office roles are
+    // given by an administrator (Settings > Users). Only with ALLOW_FIRST_ADMIN (on in development)
+    // does the very first account become the administrator; in production use
+    // scripts/create-dev-admin or set ALLOW_FIRST_ADMIN=true once.
+    const role = env.allowFirstAdmin && (await User.estimatedDocumentCount()) === 0 ? "admin" : "staff";
     const passwordHash = await bcrypt.hash(password, 12);
-    const user = await User.create({ fullName, email, passwordHash, role, branch, emailVerified: false });
+    const user = await User.create({ fullName, email, passwordHash, role, branch, emailVerified: false, privacyConsent: consentRecord(req) });
     // Every account after the administrator is a member with its own new member ID until the
     // office links it to their UDEI number.
     if (role !== "admin") await memberIds.ensureFor(user);
@@ -188,10 +195,7 @@ router.post("/login", loginLimit, async (req, res, next) => {
     const user = await User.findOne({ email }).select("+passwordHash");
     const ok = await bcrypt.compare(password, user?.passwordHash ?? DUMMY_HASH);
     if (!user || !ok) return res.status(401).json({ error: "Invalid email or password." });
-    // Checked after the password so they reveal nothing about accounts the caller can't sign in to.
-    if (user.role === "member") {
-      return res.status(403).json({ error: "Member accounts sign in on the UDEI mobile app." });
-    }
+    // Checked after the password so it reveals nothing about accounts the caller can't sign in to.
     if (user.emailVerified === false) {
       return res.status(403).json({ error: "Verify your email before signing in.", code: "EMAIL_NOT_VERIFIED" });
     }

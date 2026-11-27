@@ -79,6 +79,7 @@ export default function PaymentHistory({ loan, payments, canVoid, onChange }: Pr
                   receiptOf(p)
                 )}
                 {p.reference && !p.reference.startsWith('Payroll run') && ` · ref. ${p.reference}`}
+                {p.serviceFee ? ` · ${formatCentavos(p.grossAmount ?? p.amount + p.serviceFee)} less ${formatCentavos(p.serviceFee)} service fee` : ''}
                 {p.recordedByName && ` · recorded by ${p.recordedByName}`}
               </p>
               {p.voided && (

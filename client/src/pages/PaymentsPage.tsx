@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { CheckCircle2, CircleSlash, Paperclip, ReceiptText, Search, Wallet } from 'lucide-react'
+import { CheckCircle2, CircleSlash, FileSpreadsheet, Paperclip, ReceiptText, Search, Wallet } from 'lucide-react'
 import EmptyState from '../components/EmptyState'
 import Modal from '../components/Modal'
 import PageHeader from '../components/PageHeader'
 import Pagination from '../components/Pagination'
 import { SubmissionStatusChip } from '../components/payments/SubmissionList'
 import { useAuth } from '../context/AuthContext'
-import { api, openFile } from '../lib/api'
+import { api, downloadFile, openFile } from '../lib/api'
 import { formatCentavos, formatDay, todayInput } from '../lib/loans'
 import type { PaymentSubmission, SubmissionStatus } from '../lib/payments'
 
@@ -62,6 +62,12 @@ export default function PaymentsPage() {
   }, [month, setParams])
   useEffect(load, [load])
 
+  // The month picked, or this month: posted payments and that month's payroll deductions.
+  const exportMonth = () => {
+    const m = month || new Date().toLocaleDateString('en-CA').slice(0, 7)
+    downloadFile(`/api/payments/export.xlsx?month=${m}`, `UDEI-Payments-${m}.xlsx`).catch((e: unknown) => setError(e instanceof Error ? e.message : 'Could not export.'))
+  }
+
   const counts = useMemo(() => {
     const c: Record<SubmissionStatus, number> = { submitted: 0, received: 0, posted: 0, rejected: 0 }
     for (const s of list ?? []) c[s.status] += 1
@@ -112,6 +118,9 @@ export default function PaymentsPage() {
           <label className="label" htmlFor="pay-month">Month paid</label>
           <input id="pay-month" type="month" className="input" value={month} onChange={(e) => { setMonth(e.target.value); setPage(1) }} />
         </div>
+        <button type="button" className="btn-ghost" onClick={exportMonth} title="The month's posted cash, e-money and bank payments, and its payroll deductions">
+          <FileSpreadsheet className="h-4 w-4" /> Export to Excel
+        </button>
       </div>
 
       {error && <p className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{error}</p>}

@@ -6,6 +6,9 @@ const { idCheckStatus } = require("../services/idCheck");
 const LOAN_TYPES = ["long_term", "emergency"];
 const EMPLOYMENT_STATUSES = ["permanent", "temporary", "contractual", "job_order"];
 const PAYMENT_FREQUENCIES = ["quincenal", "monthly"];
+// How the member will pay (services/paymentModes.js). Bonus: charged to one bonus release.
+const PAYMENT_MODES = ["payroll", "bonus", "cash", "e_money", "bank_transfer"];
+const BONUS_TYPES = ["mid_year", "year_end", "cna", "sri"];
 const STATUSES = ["pending", "approved", "denied"];
 const SUGGESTIONS = ["approve", "review", "deny"];
 
@@ -37,6 +40,8 @@ const coMakerSchema = new mongoose.Schema(
     status: { type: String, enum: ["pending", "accepted", "declined"], default: "pending" },
     respondedAt: Date,
     note: { type: String, maxlength: 300 },
+    // The co-maker's agreement that UDEI may use their data as co-maker, given when accepting.
+    consent: { type: new mongoose.Schema({ version: String, at: Date, ip: String }, { _id: false }), default: undefined },
     // The co-maker's statement, signed on paper and uploaded by the co-maker (services/documentFiles.js).
     statement: {
       type: new mongoose.Schema(
@@ -173,6 +178,9 @@ const applicationSchema = new mongoose.Schema(
       // Percent per month, as written on the form.
       monthlyRate: { type: Number, required: true, min: 0 },
       paymentFrequency: { type: String, enum: PAYMENT_FREQUENCIES, default: "monthly" },
+      paymentMode: { type: String, enum: PAYMENT_MODES, default: "payroll" },
+      // Which bonus it is charged to; only when paymentMode is "bonus".
+      bonusType: { type: String, enum: BONUS_TYPES },
       purpose: { type: String, maxlength: 300 },
     },
     // The "To be filled up by the Bookkeeper" part of the form.
@@ -194,6 +202,9 @@ const applicationSchema = new mongoose.Schema(
         ),
       ],
     },
+    // The applicant's agreement that UDEI may use the application, documents and payment history to
+    // evaluate it, including an automated credit score reviewed by officers (config/privacy.js).
+    consent: { type: new mongoose.Schema({ version: String, at: Date, ip: String }, { _id: false }), default: undefined },
     agreement: {
       payrollDeduction: { type: Boolean, required: true },
       autoRestructure: { type: Boolean, required: true },
@@ -251,3 +262,5 @@ module.exports = mongoose.model("Application", applicationSchema);
 module.exports.LOAN_TYPES = LOAN_TYPES;
 module.exports.EMPLOYMENT_STATUSES = EMPLOYMENT_STATUSES;
 module.exports.PAYMENT_FREQUENCIES = PAYMENT_FREQUENCIES;
+module.exports.PAYMENT_MODES = PAYMENT_MODES;
+module.exports.BONUS_TYPES = BONUS_TYPES;

@@ -13,12 +13,14 @@ const paymentSubmissions = require("../services/paymentSubmissions");
 const { memberSubmit } = require("./payments");
 const loans = require("../services/loans");
 const { STEP_LABELS, currentStepOf } = require("../services/approvals");
-const { createSchema, createApplication, missingDocuments, setCoMakers } = require("./applications");
+const { createSchema, createApplication, missingDocuments, setCoMakers, applyRules } = require("./applications");
 const { signSession, requireAuth } = require("../middleware/auth");
 const { rateLimit } = require("../middleware/rateLimit");
 const verification = require("../services/emailVerification");
 const { auditNote } = require("../middleware/audit");
 const memberIds = require("../services/memberIds");
+const { consentRecord } = require("../config/privacy");
+const { isMemberAccount } = require("../config/access");
 const { explain } = require("../services/explain");
 const settings = require("../services/settings");
 const documentFiles = require("../services/documentFiles");
@@ -38,6 +40,8 @@ const registerSchema = z.object({
   memberNo: z.string().trim().min(1, "Enter your UDEI member number.").max(32),
   phone: z.string().trim().max(20).optional(),
   password,
+  // RA 10173: the Privacy Notice must be agreed to before an account is made.
+  privacyConsent: z.literal(true, { message: "Tick the box to agree to the Privacy Notice." }),
 });
 
 const loginSchema = z.object({
@@ -58,6 +62,8 @@ const applySchema = z.object({
   amount: z.coerce.number().positive("Enter the amount."),
   termMonths: z.coerce.number().int().min(1, "Enter the term in months."),
   paymentFrequency: z.enum(["quincenal", "monthly"]).default("monthly"),
+  paymentMode: z.enum(["payroll", "bonus", "cash", "e_money", "bank_transfer"]).default("payroll"),
+  bonusType: z.enum(["mid_year", "year_end", "cna", "sri"]).optional(),
   purpose: z.string({ message: "Give the reason for the mutual assistance." }).trim().min(3, "Give the reason for the mutual assistance.").max(300),
   payrollDeduction: z.literal(true, { message: "You must authorize payroll deduction." }),
   autoRestructure: z.literal(true, { message: "You must agree to automatic restructuring." }),
@@ -66,6 +72,8 @@ const applySchema = z.object({
   // The types of the supporting documents the app sends right after filing (one per request).
   // Every required type must be among them.
   documentTypes: z.array(z.string().trim().max(64)).max(30).default([]),
+  // Agreement that UDEI may use the application, documents and payment history to evaluate it.
+  consent: z.literal(true, { message: "Tick the box to agree that UDEI may use the application, documents and payment history to evaluate it." }),
 });
 
 const codeSchema = z.object({
@@ -87,7 +95,7 @@ const firstIssue = (result) => result.error.issues[0]?.message || "Invalid input
 
 function requireMember(req, res, next) {
   if (!req.user) return res.status(401).json({ error: "Please sign in." });
-  if (req.user.role !== "member") return res.status(403).json({ error: "This app is for UDEI members." });
+  if (!isMemberAccount(req.user)) return res.status(403).json({ error: "This app is for UDEI members. Office accounts sign in on the web." });
   next();
 }
 
@@ -106,7 +114,8 @@ router.post("/register", registerLimit, async (req, res, next) => {
       return res.status(409).json({ error: "An account with this email already exists." });
     }
     const passwordHash = await bcrypt.hash(pw, 12);
-    const user = await User.create({ fullName, email, memberNo, phone, passwordHash, role: "member", emailVerified: false });
+    // The same kind of account as a web sign-up (role staff, shown as Member).
+    const user = await User.create({ fullName, email, memberNo, phone, passwordHash, role: "staff", emailVerified: false, privacyConsent: consentRecord(req) });
     // Their own new member ID. The number they typed (memberNo) is only a claim until the office
     // links the account to it, which merges the two.
     await memberIds.ensureFor(user);
@@ -134,7 +143,7 @@ router.post("/verify-email", verifyLimit, async (req, res, next) => {
       return res.status(400).json({ error: "This code has expired or was tried too many times. Request a new code." });
     }
     // Verified either way; staff then sign in on the web app.
-    if (user.role !== "member") return res.status(403).json({ error: "Staff accounts sign in on the UDEI office web app." });
+    if (!isMemberAccount(user)) return res.status(403).json({ error: "Office accounts sign in on the UDEI web app." });
     res.json(reply(user, res));
   } catch (err) {
     next(err);
@@ -161,8 +170,8 @@ router.post("/login", loginLimit, async (req, res, next) => {
     const user = await User.findOne({ email: parsed.data.email }).select("+passwordHash");
     const ok = await bcrypt.compare(parsed.data.password, user?.passwordHash ?? DUMMY_HASH);
     if (!user || !ok) return res.status(401).json({ error: "Invalid email or password." });
-    if (user.role !== "member") {
-      return res.status(403).json({ error: "Staff accounts sign in on the UDEI office web app." });
+    if (!isMemberAccount(user)) {
+      return res.status(403).json({ error: "Office accounts sign in on the UDEI web app." });
     }
     if (user.emailVerified === false) {
       return res.status(403).json({ error: "Verify your email before signing in.", code: "EMAIL_NOT_VERIFIED" });
@@ -248,13 +257,18 @@ router.post("/applications", async (req, res, next) => {
         termMonths: f.termMonths,
         monthlyRate: rules.products[f.loanType].monthlyRate,
         paymentFrequency: f.paymentFrequency,
+        paymentMode: f.paymentMode,
+        bonusType: f.bonusType,
         purpose: f.purpose,
       },
       agreement: { payrollDeduction: true, autoRestructure: true, applicationDate: new Date() },
+      consent: true,
       coMakers: f.coMakers,
     });
     if (!full.success) return res.status(400).json({ error: firstIssue(full) });
-    const app = await createApplication(full.data, req.user);
+    const bonusError = applyRules(rules, full.data);
+    if (bonusError) return res.status(400).json({ error: bonusError });
+    const app = await createApplication(full.data, req.user, req);
     res.status(201).json({ application: memberView(app) });
   } catch (err) {
     if (err?.name === "CoMakerError" || err?.constructor?.name === "CoMakerError") return res.status(400).json({ error: err.message });
@@ -346,6 +360,13 @@ const loanView = (loan) => {
     // Advances show as installments paid before their due date; payroll keeps deducting the same
     // amount, so the loan finishes around finishesAround.
     paidAhead: l.paidAhead,
+    paymentMode: l.paymentMode,
+    bonusType: l.bonusType || null,
+    paymentModeNow: l.paymentModeNow,
+    paymentModeLabel: l.paymentModeLabel,
+    // Short term that became long term when unpaid at the end of its term.
+    convertedAt: l.conversions?.length ? l.conversions[l.conversions.length - 1].at : null,
+    paymentModeHistory: (l.paymentModeHistory || []).map(({ mode, bonusType, effectiveFrom, requestedAt, note }) => ({ mode, bonusType: bonusType || null, effectiveFrom, requestedAt, note: note || null })),
     finishesAround: l.finishesAround,
     schedule: (l.schedule || []).map(({ no, dueDate, totalDue, paid }) => ({ no, dueDate, totalDue, paid })),
   };
@@ -384,5 +405,7 @@ router.get("/loans/:id", async (req, res, next) => {
 // The member reports a payment made outside payroll (cash, e-money, bank transfer). The proof photo
 // follows with PUT /api/payments/:id/proof. The Treasurer receives it, then the Bookkeeper posts it.
 router.post("/loans/:id/payments", memberSubmit((req) => req.params.id));
+// How the loan is paid from a coming month (cash, bank, bonus or payroll).
+router.post("/loans/:id/payment-mode", require("./loans").paymentModeHandler((req) => req.params.id));
 
 module.exports = router;

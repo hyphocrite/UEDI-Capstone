@@ -7,6 +7,7 @@ const Member = require("../models/Member");
 const User = require("../models/User");
 const loans = require("../services/loans");
 const { STEP_LABELS, currentStepOf } = require("../services/approvals");
+const { consentRecord } = require("../config/privacy");
 const { auditNote } = require("../middleware/audit");
 const { requireAuth } = require("../middleware/auth");
 const { atLeast, seesAllLoans } = require("../config/access");
@@ -19,10 +20,16 @@ const router = express.Router();
 router.use(requireAuth);
 
 const myMemberId = (user) => user.memberId || user.memberNo || null;
-const respondSchema = z.object({
-  decision: z.enum(["accepted", "declined"], { message: "Choose accept or decline." }),
-  note: z.string().trim().max(300).optional(),
-});
+const respondSchema = z
+  .object({
+    decision: z.enum(["accepted", "declined"], { message: "Choose accept or decline." }),
+    note: z.string().trim().max(300).optional(),
+    // RA 10173: accepting means UDEI keeps and uses the co-maker's data for this loan.
+    consent: z.boolean().optional(),
+  })
+  .refine((v) => v.decision !== "accepted" || v.consent === true, {
+    message: "Tick the box to agree that UDEI may use your details as co-maker for this mutual assistance.",
+  });
 
 // Who a member number belongs to, for the application form. Only members with an account, by name.
 // Staff also get the details printed on the co-maker form; members don't see other members' details.
@@ -125,7 +132,14 @@ router.post("/requests/:id", async (req, res, next) => {
     if (me.status !== "pending") return res.status(409).json({ error: `You already ${me.status} this request.` });
     const updated = await Application.findOneAndUpdate(
       { _id: app._id, coMakers: { $elemMatch: { memberId, status: "pending" } } },
-      { $set: { "coMakers.$.status": parsed.data.decision, "coMakers.$.respondedAt": new Date(), "coMakers.$.note": parsed.data.note } },
+      {
+        $set: {
+          "coMakers.$.status": parsed.data.decision,
+          "coMakers.$.respondedAt": new Date(),
+          "coMakers.$.note": parsed.data.note,
+          ...(parsed.data.decision === "accepted" ? { "coMakers.$.consent": consentRecord(req) } : {}),
+        },
+      },
       { returnDocument: "after" },
     );
     if (!updated) return res.status(409).json({ error: "You already answered this request." });

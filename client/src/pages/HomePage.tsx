@@ -296,6 +296,7 @@ export default function HomePage() {
           <div>
             <BrandLogo light />
             <p className="mt-3 text-sm">United DNSC Employees, Inc. Mutual assistance and retirement plans for UDEI members.</p>
+            <p className="mt-2 text-sm"><Link to="/privacy" className="underline transition hover:text-white">Privacy Notice</Link></p>
           </div>
           <nav aria-label="Footer">
             <p className="text-xs font-semibold tracking-wider text-white uppercase">On this page</p>

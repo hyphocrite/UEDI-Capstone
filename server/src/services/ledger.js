@@ -99,6 +99,40 @@ function buildSchedule({ principal, monthlyRate, termMonths, paymentFrequency, r
   }));
 }
 
+/**
+ * A loan charged to a bonus: one installment on the bonus release date, with interest at the
+ * monthly rate on the whole balance for `months` (the months from release to that date).
+ */
+function buildBonusSchedule({ principal, monthlyRate, dueDate, months }) {
+  const interestDue = Math.round((principal * monthlyRate * months) / 100);
+  return [{ no: 1, dueDate: calendarDay(dueDate), principalDue: principal, interestDue, totalDue: principal + interestDue, paid: 0, interestPaid: 0, principalPaid: 0 }];
+}
+
+/**
+ * The unpaid part of a schedule rebuilt from `from` (a change of payment mode to or from bonus).
+ * Installments due before `from` stay as they are (paid or not); the principal still scheduled
+ * after them is laid out again: on one bonus date (plan.bonus: { dueDate, months }), or in equal
+ * installments (plan.installments: { termMonths, paymentFrequency }) on the cutoffs from `from`.
+ * Payments are allocated again afterwards (loans.recompute), so nothing already paid is lost.
+ */
+function rebuildFrom(schedule, from, { monthlyRate, bonus, installments }) {
+  const start = calendarDay(from).getTime();
+  const kept = schedule.filter((x) => new Date(x.dueDate).getTime() < start);
+  const principal = schedule.reduce((s, x) => s + x.principalDue, 0) - kept.reduce((s, x) => s + x.principalDue, 0);
+  let rest = [];
+  if (principal > 0 && bonus) {
+    rest = buildBonusSchedule({ principal, monthlyRate, dueDate: bonus.dueDate, months: bonus.months });
+  } else if (principal > 0) {
+    const n = installmentCount(Math.max(1, installments.termMonths), installments.paymentFrequency);
+    // dueDates() starts at least 10 days after its date, so start 10 days before `from`.
+    const dates = dueDates(new Date(start - FIRST_DUE_MIN_DAYS * DAY_MS), installments.paymentFrequency, n);
+    rest = amortize(principal, monthlyRate, n, installments.paymentFrequency).map(({ principalDue, interestDue }, k) => ({
+      dueDate: dates[k], principalDue, interestDue, totalDue: principalDue + interestDue,
+    }));
+  }
+  return [...kept, ...rest].map((x, k) => ({ ...x, no: k + 1, paid: 0, interestPaid: 0, principalPaid: 0 }));
+}
+
 const totalPayable = (schedule) => schedule.reduce((s, x) => s + x.totalDue, 0);
 
 /**
@@ -179,6 +213,8 @@ module.exports = {
   dueDates,
   installmentCount,
   buildSchedule,
+  buildBonusSchedule,
+  rebuildFrom,
   totalPayable,
   allocate,
   summarize,

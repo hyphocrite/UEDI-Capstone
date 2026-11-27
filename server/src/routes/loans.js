@@ -7,7 +7,8 @@ const DeductionRun = require("../models/DeductionRun");
 const Member = require("../models/Member");
 const loans = require("../services/loans");
 const { requireStaff, requireRole } = require("../middleware/auth");
-const { seesAllLoans } = require("../config/access");
+const { seesAllLoans, atLeast } = require("../config/access");
+const ledger = require("../services/ledger");
 const { auditNote } = require("../middleware/audit");
 
 // Every amount in this API is an integer number of centavos (₱1 = 100).
@@ -36,6 +37,27 @@ const paymentSchema = z.object({
 const voidSchema = z.object({
   reason: z.string().trim().min(3, "Give a reason for voiding this payment.").max(300),
 });
+
+const paymentModeSchema = z.object({
+  mode: z.enum(["payroll", "bonus", "cash", "e_money", "bank_transfer"], { message: "Choose how it will be paid." }),
+  bonusType: z.enum(["mid_year", "year_end", "cna", "sri"]).optional(),
+  note: z.string().trim().max(300).optional(),
+});
+
+/** POST .../payment-mode for the borrower or the Bookkeeper. Shared with routes/member.js. */
+function paymentModeHandler(loanIdOf) {
+  return handle(async (req, res) => {
+    const parsed = paymentModeSchema.safeParse(req.body || {});
+    if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0].message });
+    const loan = await findLoan(loanIdOf(req));
+    const allowed = loan && (req.user.role === "bookkeeper" || (await require("../services/paymentSubmissions").ownsLoan(req.user, loan)));
+    if (!allowed) return res.status(404).json({ error: "Mutual assistance not found." });
+    auditNote(res, { target: `${loan.loanNo} · ${loan.borrowerName}`, before: { paymentMode: loan.paymentMode, bonusType: loan.bonusType } });
+    const result = await loans.changePaymentMode(loan, parsed.data, req.user);
+    auditNote(res, { details: { ...parsed.data, effectiveFrom: result.effectiveFrom } });
+    res.json({ loan: loans.present(result.loan), effectiveFrom: result.effectiveFrom, message: result.message });
+  });
+}
 
 const FILTERS = ["for_release", "active", "paid", "past_due", "missed_deduction"];
 const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -114,6 +136,22 @@ router.get(
   }),
 );
 
+// UDEI's "INDIV. LEDGER" sheet for a year (services/ledgerExport.js), for every member or one.
+router.get(
+  "/ledger.xlsx",
+  handle(async (req, res) => {
+    if (!(req.user.role === "bookkeeper" || atLeast(req.user.role, "treasurer"))) return res.status(403).json({ error: "You do not have access to this action." });
+    const year = Number(req.query.year) || ledger.todayInManila().getUTCFullYear();
+    if (year < 2000 || year > 2100) return res.status(400).json({ error: "Choose a year." });
+    const memberId = typeof req.query.memberId === "string" ? req.query.memberId.trim().slice(0, 32) : "";
+    const wb = await require("../services/ledgerExport").individualLedger(year, { memberId: memberId || undefined });
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename="UDEI-Individual-Ledger-${year}${memberId ? `-${memberId.replace(/[^A-Za-z0-9-]/g, "")}` : ""}.xlsx"`);
+    await wb.xlsx.write(res);
+    res.end();
+  }),
+);
+
 router.get(
   "/:id",
   handle(async (req, res) => {
@@ -143,6 +181,10 @@ router.post(
     res.json({ loan: loans.present(released) });
   }),
 );
+
+// How the loan is paid, from a coming month: the borrower (web; the mobile app uses
+// /api/member/loans/:id/payment-mode) or the Bookkeeper.
+router.post("/:id/payment-mode", paymentModeHandler((req) => req.params.id));
 
 router.post(
   "/:id/payments",
@@ -174,3 +216,4 @@ router.post(
 );
 
 module.exports = router;
+module.exports.paymentModeHandler = paymentModeHandler;

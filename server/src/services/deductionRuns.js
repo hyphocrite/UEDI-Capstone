@@ -5,6 +5,7 @@ const Loan = require("../models/Loan");
 const Payment = require("../models/Payment");
 const ledger = require("./ledger");
 const d = require("./deductions");
+const paymentModes = require("./paymentModes");
 const { LoanError: RunError, recompute } = require("./loans");
 
 /** The run as the API returns it, with totals and each line's result. */
@@ -15,15 +16,26 @@ function present(run) {
   return json;
 }
 
-async function createRun(cutoffDate, user) {
-  if (!d.isCutoff(cutoffDate)) throw new RunError(400, "A cutoff is the 15th or the last day of a month.");
+/**
+ * A payroll run for a cutoff, or (kind "bonus") a run for one bonus release: the loans charged to
+ * that bonus with an installment due by its date.
+ */
+async function createRun(cutoffDate, user, { kind = "payroll", bonusType } = {}) {
   const cutoff = ledger.calendarDay(cutoffDate);
-  if (await DeductionRun.exists({ cutoffDate: cutoff })) throw new RunError(409, `There is already a run for ${d.dayKey(cutoff)}.`);
-  const loans = await Loan.find({ status: "active", "schedule.dueDate": cutoff });
+  const bonus = kind === "bonus";
+  if (bonus && !paymentModes.BONUS_TYPES.includes(bonusType)) throw new RunError(400, "Choose the bonus: Mid-year, Year-end, CNA or SRI.");
+  if (!bonus && !d.isCutoff(cutoffDate)) throw new RunError(400, "A cutoff is the 15th or the last day of a month.");
+  const what = bonus ? `${paymentModes.BONUS_LABELS[bonusType]} run on ${d.dayKey(cutoff)}` : `run for ${d.dayKey(cutoff)}`;
+  const same = bonus ? { cutoffDate: cutoff, kind: "bonus", bonusType } : { cutoffDate: cutoff, kind: { $in: ["payroll", null] } };
+  if (await DeductionRun.exists(same)) throw new RunError(409, `There is already a ${what}.`);
+  // Short term overdue by this cutoff becomes long term first, so the run uses the new installment.
+  await require("./conversions").convertOverdueShortTerm();
+  const loans = bonus ? await Loan.find({ status: "active", paymentModeHistory: { $elemMatch: { mode: "bonus", bonusType } } }) : await Loan.find({ status: "active", "schedule.dueDate": cutoff });
+  const lines = bonus ? d.buildBonusLines(loans, cutoff, bonusType) : d.buildLines(loans, cutoff);
   try {
-    return await DeductionRun.create({ cutoffDate: cutoff, lines: d.buildLines(loans, cutoff), createdBy: user._id, createdByName: user.fullName });
+    return await DeductionRun.create({ cutoffDate: cutoff, kind, bonusType: bonus ? bonusType : undefined, lines, createdBy: user._id, createdByName: user.fullName });
   } catch (err) {
-    if (err?.code === 11000) throw new RunError(409, `There is already a run for ${d.dayKey(cutoff)}.`);
+    if (err?.code === 11000) throw new RunError(409, `There is already a ${what}.`);
     throw err;
   }
 }
@@ -127,11 +139,16 @@ async function post(run, user) {
     }
     if (problems.length) throw Object.assign(new RunError(400, problems[0]), { problems });
 
+    const rules = await require("./settings").get();
     const write = async (session) => {
       const created = [];
       for (const l of lines.filter((x) => x.remitted > 0)) {
+        // The service fee comes off what payroll remitted; the rest reduces the balance. The run's
+        // remitted totals stay gross.
+        const serviceFee = require("./settings").serviceFeeFor(rules, l.remitted, "payroll");
+        if (l.remitted - serviceFee < 1) continue;
         const [p] = await Payment.create(
-          [{ loan: l.loan, amount: l.remitted, paidAt: locked.cutoffDate, method: "payroll", reference: `Payroll run ${d.dayKey(locked.cutoffDate)}`, deductionRun: locked._id, recordedBy: user._id, recordedByName: user.fullName }],
+          [{ loan: l.loan, amount: l.remitted - serviceFee, grossAmount: l.remitted, serviceFee, paidAt: locked.cutoffDate, method: "payroll", reference: locked.kind === "bonus" ? `${paymentModes.BONUS_LABELS[locked.bonusType]} run ${d.dayKey(locked.cutoffDate)}` : `Payroll run ${d.dayKey(locked.cutoffDate)}`, deductionRun: locked._id, recordedBy: user._id, recordedByName: user.fullName }],
           { session },
         );
         created.push(p._id);

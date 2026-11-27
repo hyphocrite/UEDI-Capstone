@@ -73,8 +73,13 @@ the roles below it see, except Payroll Deductions, which only the Bookkeeper, Tr
 | CreCom Chairman, President | Settings (terms, minimum salary, branches) |
 | Administrator | Interest rates, Credit Model, user roles, Audit Log, Payroll Deductions |
 
-The first account created becomes the administrator. Every account after that starts as a Member, and
-an administrator gives staff their role. A member sees loans only after a Loan Officer links their
+Signing up, on the web or in the app, always makes the same kind of account: a Member, who sees only
+their own records. Office roles are given only by an administrator (Settings > Users). In production
+the open sign-up never makes an administrator: create the first one with
+`npm --prefix server run dev:admin` (development) or set `ALLOW_FIRST_ADMIN=true` once on the host,
+sign up, then remove it. In development and tests the very first sign-up still becomes the
+administrator. Accounts made by the old mobile sign-up (role `member`) are treated as Members; list
+them with `node server/scripts/migrate-signup-roles.js` and change them with `--apply`. A member sees loans only after a Loan Officer links their
 account to their UDEI member number on the Members page. Members never see model scores or other
 members' records.
 
@@ -144,7 +149,7 @@ ml-service/  Loan risk models (Python, FastAPI)
    ```
 4. For the loan models, install [Python 3.11+](https://www.python.org). Then, in a second terminal:
    ```
-   pip install -r ml-service/requirements.txt
+   pip install -r ml-service/requirements.txt -r ml-service/requirements-dev.txt   # Python 3.13
    npm run ml:train
    npm run ml
    ```
@@ -211,7 +216,8 @@ out of git; only the sample CSVs the ML service needs are tracked.
 
 | Part | Where | Settings |
 | --- | --- | --- |
-| API (`server/`) | Render | `MONGODB_URI`, `JWT_SECRET` (32+ characters), `CLIENT_ORIGIN`, `ML_SERVICE_URL`, `BREVO_API_KEY`, `MAIL_FROM`, `NODE_ENV=production` |
+| API (`server/`) | Render | `MONGODB_URI`, `JWT_SECRET` (32+ characters), `CLIENT_ORIGIN`, `ML_SERVICE_URL`, `BREVO_API_KEY`, `MAIL_FROM`, `NODE_ENV=production`, `OFFICE_EMAIL` (shown on the Privacy Notice). Optional: `TRUST_PROXY` (default 1 in production: Render's proxy, so rate limits use each client's own IP; set 2 if Vercel's `/api` rewrite also sits in front), `ALLOW_FIRST_ADMIN=true` only once, to make the first administrator |
+| ML service (`ml-service/`) | Render | Python 3.13 from `ml-service/.python-version` (or `PYTHON_VERSION=3.13`); `pip install -r requirements.txt` with pinned versions. Current XGBoost and NumPy need Python 3.12+, so not Render's older 3.11 |
 | Web app (`client/`) | Vercel | `client/vercel.json` forwards `/api` to the Render API |
 | Mobile app (`mobile/`) | EAS Build | `mobile/eas.json` sets `EXPO_PUBLIC_API_URL` for the preview APK. Build it with `eas build --profile preview --platform android` |
 | Database | MongoDB Atlas | |

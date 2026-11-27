@@ -11,7 +11,7 @@ The Express server calls it, and loan officers see the result on the **Pending L
 cd ml-service
 python -m venv .venv
 .venv\Scripts\activate          # Windows (macOS/Linux: source .venv/bin/activate)
-pip install -r requirements.txt
+pip install -r requirements.txt -r requirements-dev.txt   # the -dev file adds pytest and httpx for the tests
 python train.py                 # sample data; writes models/model.joblib and models/metrics.json
 python -m uvicorn app:app --port 8000
 ```

@@ -12,6 +12,7 @@ import type { LineEdit } from '../components/deductions/RunLinesTable'
 import { useAuth } from '../context/AuthContext'
 import { useConfirm } from '../context/ConfirmContext'
 import { api } from '../lib/api'
+import { BONUS_TYPES } from '../lib/paymentModes'
 import { formatCutoff, lineResult, runStatusLabel } from '../lib/deductions'
 import type { DeductionRun, ImportResult, RunLine } from '../lib/deductions'
 import { formatCentavos, formatDay, toCentavos } from '../lib/loans'
@@ -185,7 +186,7 @@ export default function DeductionRunPage() {
     <>
       <div className="print:hidden">
         <PageHeader icon={ReceiptText}
-          title={`Payroll deductions, ${formatCutoff(run.cutoff)}`}
+          title={run.kind === 'bonus' ? `${BONUS_TYPES.find((b) => b.value === run.bonusType)?.label ?? 'Bonus'} run, ${formatCutoff(run.cutoff)}` : `Payroll deductions, ${formatCutoff(run.cutoff)}`}
           subtitle={`${runStatusLabel[run.status]}${run.sentByName ? ` · sent by ${run.sentByName}` : ''}${run.postedByName ? ` · posted by ${run.postedByName}` : ''}`}
           actions={
             <>

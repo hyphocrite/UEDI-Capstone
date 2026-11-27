@@ -1,5 +1,6 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import ConsentGate from './ConsentGate'
 
 export default function ProtectedRoute() {
   const { session, loading } = useAuth()
@@ -13,5 +14,9 @@ export default function ProtectedRoute() {
     )
   }
   if (!session) return <Navigate to="/login" replace state={{ from: location.pathname }} />
-  return <Outlet />
+  return (
+    <ConsentGate>
+      <Outlet />
+    </ConsentGate>
+  )
 }

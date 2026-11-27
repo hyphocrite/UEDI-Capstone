@@ -10,6 +10,7 @@ const Loan = require("../models/Loan");
 const PaymentSubmission = require("../models/PaymentSubmission");
 const User = require("../models/User");
 const ledger = require("./ledger");
+const { seesAllLoans } = require("../config/access");
 const loans = require("./loans");
 const mailer = require("./mailer");
 
@@ -27,11 +28,14 @@ const METHOD_LABELS = {
 
 const peso = (c) => `PHP ${(c / 100).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-/** Whether the user is the borrower: their linked member ID, or the account that filed the application. */
+/**
+ * Whether the user is the borrower: their linked member ID, or a member's own account that filed
+ * the application. Office staff who typed in someone's application are not the borrower.
+ */
 async function ownsLoan(user, loan) {
   const memberId = user.memberId || null;
   if (memberId && loan.memberId === memberId) return true;
-  if (!loan.application) return false;
+  if (!loan.application || seesAllLoans(user)) return false;
   return !!(await Application.exists({ _id: loan.application, submittedBy: user._id }));
 }
 
@@ -124,12 +128,16 @@ async function confirm(sub, user) {
     if (locked.amount > balance) {
       throw new LoanError(409, `${peso(locked.amount)} is more than the remaining balance of ${peso(balance)}. Reject it and refund the difference, or ask the Treasurer to correct it.`);
     }
+    // The service fee applies to cash, e-money and bank only when Settings.serviceFee says so.
+    const serviceFee = require("./settings").serviceFeeFor(await require("./settings").get(), locked.amount, locked.method);
     let result;
     try {
       result = await loans.recordPayment(
         loan,
         {
-          amount: locked.amount,
+          amount: locked.amount - serviceFee,
+          serviceFee,
+          grossAmount: locked.amount,
           paidAt: locked.paidAt.toISOString().slice(0, 10),
           method: locked.method,
           reference: locked.reference,

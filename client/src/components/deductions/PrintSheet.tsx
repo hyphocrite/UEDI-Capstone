@@ -20,7 +20,7 @@ export default function PrintSheet({ run }: { run: DeductionRun }) {
             <th className="py-1 pr-2">Member ID</th>
             <th className="py-1 pr-2">Employee name</th>
             <th className="py-1 pr-2">MA no.</th>
-            <th className="py-1 pr-2">Loan type</th>
+            <th className="py-1 pr-2">Type</th>
             <th className="py-1 text-right">Amount to deduct</th>
           </tr>
         </thead>

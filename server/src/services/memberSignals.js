@@ -10,7 +10,7 @@ const Meeting = require("../models/Meeting");
 const BillRecord = require("../models/BillRecord");
 const Application = require("../models/Application");
 const Loan = require("../models/Loan");
-const loans = require("./loans");
+const lateness = require("./lateness");
 const ledger = require("./ledger");
 
 const monthKey = (d) => `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
@@ -96,8 +96,8 @@ async function signalsFor(memberIds, asOf = ledger.todayInManila()) {
     for (const a of vouched) {
       const loan = vouchedLoans.get(String(a.loanId));
       if (!loan || loan.status === "for_release") continue;
-      const s = loans.present(loan, asOf);
-      const troubled = s.pastDue || ["missed", "partial"].includes(loan.lastDeduction?.result);
+      // Judged by due dates: a bonus loan waiting for its bonus is on track (services/lateness.js).
+      const troubled = lateness.isLate(loan, asOf);
       if (troubled) vouchedBad++;
       else vouchedGood++;
     }

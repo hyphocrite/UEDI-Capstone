@@ -2,12 +2,15 @@ import { useState } from 'react'
 import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native'
 import { api, ApiError } from '../api'
 import { useAuth } from '../auth'
+import { CONSENT } from '../privacy'
+import { PrivacyLink } from './PrivacyNotice'
 import { colors } from '../theme'
-import { Button, Card, ErrorText, Field, PasswordField } from '../ui'
+import { Button, Card, ErrorText, Field, PasswordField, Check } from '../ui'
 
 export default function AuthScreen() {
   const { signIn, register, verifyEmail } = useAuth()
   const [mode, setMode] = useState<'login' | 'register' | 'verify'>('login')
+  const [agreed, setAgreed] = useState(false)
   const [form, setForm] = useState({ fullName: '', email: '', memberNo: '', phone: '', password: '', confirm: '', code: '' })
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
@@ -36,6 +39,7 @@ export default function AuthScreen() {
   const submit = async () => {
     setError(null)
     if (mode === 'register' && form.password !== form.confirm) return setError('The passwords do not match.')
+    if (mode === 'register' && !agreed) return setError('Tick the box to agree to the Privacy Notice.')
     setBusy(true)
     try {
       if (mode === 'login') await signIn(form.email, form.password)
@@ -47,6 +51,7 @@ export default function AuthScreen() {
           memberNo: form.memberNo,
           phone: form.phone || undefined,
           password: form.password,
+          privacyConsent: agreed,
         })
         toVerify(
           r.email,
@@ -162,7 +167,11 @@ export default function AuthScreen() {
                   hint={mode === 'register' ? 'At least 8 characters, with a letter and a number.' : undefined}
                 />
                 {mode === 'register' ? (
-                  <PasswordField label="Confirm password" value={form.confirm} onChangeText={set('confirm')} autoComplete="new-password" />
+                  <>
+                    <PasswordField label="Confirm password" value={form.confirm} onChangeText={set('confirm')} autoComplete="new-password" />
+                    <PrivacyLink />
+                    <Check label={CONSENT.account} value={agreed} onChange={setAgreed} />
+                  </>
                 ) : null}
                 <Button title={mode === 'login' ? 'Sign in' : 'Create account'} onPress={submit} loading={busy} />
                 <View style={{ height: 8 }} />

@@ -1,13 +1,13 @@
-fastapi>=0.110
-uvicorn[standard]>=0.29
-numpy>=1.26
-pandas>=2.1
-scikit-learn>=1.4
-xgboost>=2.0
-imbalanced-learn>=0.12
-matplotlib>=3.8
-shap>=0.45
-joblib>=1.3
-pytest>=8.0
-httpx>=0.27
-openpyxl>=3.1
+# Pinned: the versions a clean `pip install` resolved to on Python 3.13 (see .python-version), with
+# every test in tests/ passing. XGBoost 3.3+, NumPy 2.5 and the saved models need Python 3.12 or
+# newer, so the service runs on 3.13, not 3.11. Test tools are in requirements-dev.txt.
+fastapi==0.165.0
+uvicorn[standard]==0.54.0
+numpy==2.5.5
+pandas==3.1.1
+scikit-learn==1.9.1
+xgboost==3.4.1
+matplotlib==3.11.2
+shap==0.54.1
+joblib==1.6.0
+openpyxl==3.1.5

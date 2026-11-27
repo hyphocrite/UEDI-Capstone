@@ -30,7 +30,7 @@ async function as(token, path, { method = "GET", body } = {}) {
 async function member(email, memberNo = "M-0042") {
   const r = await t.call("/member/register", {
     method: "POST",
-    body: { fullName: "Maria C. Santos", email, memberNo, password: "secret123" },
+    body: { fullName: "Maria C. Santos", email, memberNo, password: "secret123", privacyConsent: true },
   });
   assert.equal(r.status, 201, r.json.error);
   const v = await t.call("/member/verify-email", { method: "POST", body: { email, code: lastCode(email) } });
@@ -43,14 +43,14 @@ const apply = (overrides = {}) => ({
   employer: "Davao del Norte State College", monthlySalary: 38000, netTakeHomePay: 24000,
   loanType: "long_term", amount: 30000, termMonths: 12, paymentFrequency: "monthly", purpose: "School fees",
   payrollDeduction: true, autoRestructure: true,
-  documentTypes: ["valid_id", "payslip", "proof_of_address", "application_form"], ...overrides,
+  documentTypes: ["valid_id", "payslip", "proof_of_address", "application_form"], consent: true, ...overrides,
 });
 
 test("a member registers, applies and follows the application to a loan", { skip }, async () => {
   const token = await member("maria@uedi.test");
 
   const me = await as(token, "/member/me");
-  assert.equal(me.json.session.role, "member");
+  assert.equal(me.json.session.role, "staff", "the same member account as a web sign-up");
   assert.equal(me.json.session.memberNo, "M-0042");
 
   const tooLong = await as(token, "/member/applications", { method: "POST", body: apply({ loanType: "emergency", termMonths: 13 }) });
@@ -121,12 +121,16 @@ test("members only see their own records and cannot use staff routes", { skip },
   assert.equal(created.status, 201, created.json.error);
 
   assert.equal((await as(other, "/member/applications")).json.applications.length, 0);
-  assert.equal((await as(other, "/applications")).status, 403);
-  assert.equal((await as(other, "/loans")).status, 403);
+  // The web routes answer, with only their own records (none for Ben); office routes stay closed.
+  const theirs = await as(other, "/applications");
+  assert.equal(theirs.status, 200);
+  assert.deepEqual(theirs.json.applications, [], "not Ana's application");
+  assert.deepEqual((await as(other, "/loans")).json.loans, []);
   assert.equal((await as(other, "/auth/users")).status, 403);
+  assert.equal((await as(other, "/payments")).status, 403);
 
   const web = await t.call("/auth/login", { method: "POST", body: { email: "ana@uedi.test", password: "secret123" } });
-  assert.equal(web.status, 403, "member accounts don't sign in on the office web app");
+  assert.equal(web.status, 200, "phone sign-ups can use the web too: one kind of member account");
 
   const staffOnPhone = await t.call("/member/login", { method: "POST", body: { email: "admin@uedi.test", password: "secret123" } });
   assert.equal(staffOnPhone.status, 403);
@@ -135,7 +139,7 @@ test("members only see their own records and cannot use staff routes", { skip },
 
 test("a member must verify their email before the app gets a token", { skip }, async () => {
   const email = "pedro@uedi.test";
-  const body = { fullName: "Pedro Reyes", email, memberNo: "M-0077", password: "secret123" };
+  const body = { fullName: "Pedro Reyes", email, memberNo: "M-0077", password: "secret123", privacyConsent: true };
   const reg = await t.call("/member/register", { method: "POST", body });
   assert.equal(reg.status, 201, reg.json.error);
   assert.equal(reg.json.verificationRequired, true);
@@ -157,7 +161,7 @@ test("a member must verify their email before the app gets a token", { skip }, a
   const ok = await t.call("/member/verify-email", { method: "POST", body: { email, code } });
   assert.equal(ok.status, 200, ok.json.error);
   assert.ok(ok.json.token);
-  assert.equal(ok.json.session.role, "member");
+  assert.equal(ok.json.session.role, "staff");
   assert.equal((await as(ok.json.token, "/member/me")).status, 200);
 
   const reuse = await t.call("/member/verify-email", { method: "POST", body: { email, code } });

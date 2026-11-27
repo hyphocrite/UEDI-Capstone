@@ -67,10 +67,10 @@ function requireAuth(req, res, next) {
   next();
 }
 
-// Office staff only. Members use /api/member and must not reach staff routes.
+// The web app's routes: any signed-in account. Members (staff and older "member" accounts) see only
+// their own records; each route checks roles and ownership itself (config/access.js).
 function requireStaff(req, res, next) {
   if (!req.user) return res.status(401).json({ error: "Please sign in." });
-  if (req.user.role === "member") return res.status(403).json({ error: "You do not have access to this action." });
   next();
 }
 

@@ -12,10 +12,17 @@ const ledger = require("./ledger");
 const loans = require("./loans");
 const ml = require("./mlClient");
 const { signalsFor } = require("./memberSignals");
+const lateness = require("./lateness");
+const paymentModes = require("./paymentModes");
 
 const DAY = 86_400_000;
 const perMonthOf = (loan) => {
   const first = loan.schedule[0]?.totalDue ?? 0;
+  // A bonus loan pays once: spread it over the months to the bonus date for the ratio to net pay.
+  if (loan.paymentMode === "bonus" && loan.schedule.length === 1) {
+    const from = loan.release?.releasedAt ?? loan.createdAt;
+    return first / paymentModes.monthsBetween(from, loan.schedule[0].dueDate);
+  }
   return loan.paymentFrequency === "quincenal" ? 2 * first : first;
 };
 
@@ -28,7 +35,7 @@ async function snapshotsFor(loanList, asOf = ledger.todayInManila()) {
   const [payments, apps, runs, members, otherLoans, signals] = await Promise.all([
     Payment.find({ loan: { $in: ids }, voided: false, paidAt: { $lte: asOf } }).lean(),
     Application.find({ _id: { $in: loanList.map((l) => l.application).filter(Boolean) } }).select("coMakers applicant.netTakeHomePay").lean(),
-    DeductionRun.find({ status: "posted", cutoffDate: { $gte: sixMonthsAgo, $lte: asOf }, "lines.loan": { $in: ids } }).select("lines.loan lines.result").lean(),
+    DeductionRun.find({ status: "posted", cutoffDate: { $gte: sixMonthsAgo, $lte: asOf }, "lines.loan": { $in: ids } }).select("cutoffDate lines.loan lines.result lines.reason").lean(),
     Member.find({ memberId: { $in: memberIds } }).select("memberId openingLoan remarks").lean(),
     Loan.find({ memberId: { $in: memberIds }, _id: { $nin: ids }, "release.releasedAt": { $lte: asOf } }),
     signalsFor(memberIds, asOf),
@@ -46,12 +53,13 @@ async function snapshotsFor(loanList, asOf = ledger.todayInManila()) {
     const total = ledger.totalPayable(loan.schedule);
     const lastPaid = mine.reduce((a, p) => (p.paidAt > a ? p.paidAt : a), null);
     const app = apps.find((a) => loan.application && String(a._id) === String(loan.application));
-    const missedRuns = runs.reduce((n, r) => n + r.lines.filter((l) => String(l.loan) === id && ["missed", "partial"].includes(l.result)).length, 0);
+    // Only deductions missed while the loan was on payroll (not a bonus, cash or bank month).
+    const missedRuns = runs.reduce((n, r) => n + r.lines.filter((l) => String(l.loan) === id && lateness.missedDeduction(loan, l, r.cutoffDate)).length, 0);
 
     // Past loans: the member's other loans in the system and the spreadsheet ledger.
     const member = members.find((m) => m.memberId === loan.memberId);
     const others = otherLoans.filter((l) => l.memberId === loan.memberId && l.release?.releasedAt < released);
-    const lateOthers = others.filter((l) => loans.present(l, asOf).pastDue || ["missed", "partial"].includes(l.lastDeduction?.result)).length;
+    const lateOthers = others.filter((l) => lateness.isLate(l, asOf)).length;
     const sheet = (member?.openingLoan?.balanceStartOfYear > 0 ? 1 : 0) + (member?.openingLoan?.loansThisYear || 0);
     const amnesty = /amnesty/i.test(member?.remarks || "");
     const prior = others.length + sheet;
@@ -64,7 +72,8 @@ async function snapshotsFor(loanList, asOf = ledger.todayInManila()) {
       contribution_rate_12m: sig?.savings.rate12m ?? null,
       has_plan: sig ? Number(sig.savings.hasPlan) : null,
       payment_ratio_90d: dueIn90 > 0 ? Math.min(2, paidIn90 / dueIn90) : 1,
-      days_since_last_payment: Math.round((asOf - (lastPaid ?? released)) / DAY),
+      // A bonus, cash or bank loan with nothing due yet is waiting for its due date: on track.
+      days_since_last_payment: lateness.waitingForDueDate(loan, asOf) ? 0 : Math.round((asOf - (lastPaid ?? released)) / DAY),
       missed_deductions_6m: missedRuns,
       installment_to_net_pay: app?.applicant?.netTakeHomePay ? Math.min(5, perMonthOf(loan) / 100 / app.applicant.netTakeHomePay) : null,
       balance_ratio: total ? Math.max(0, Math.min(1, (total - paidToDate) / total)) : null,

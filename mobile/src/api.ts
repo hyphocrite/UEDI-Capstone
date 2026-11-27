@@ -1,3 +1,4 @@
+import type { BonusCalendar, BonusType, PaymentMode } from './paymentModes'
 // Talks to the UDEI Express API (/api/member/*). Set EXPO_PUBLIC_API_URL in mobile/.env,
 // e.g. http://192.168.1.10:5000/api when the phone and the laptop share the same Wi-Fi.
 export const API_URL = (process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000/api').replace(/\/$/, '')
@@ -17,6 +18,8 @@ export type Session = {
   memberNo: string | null
   /** The member number the account is linked to, or its own provisional N-… ID until the office links it. */
   memberId?: string | null
+  /** True until the account agrees to the current Privacy Notice (asked once after sign-in). */
+  needsConsent?: boolean
 }
 
 export type Application = {
@@ -68,6 +71,14 @@ export type Loan = {
   paidAhead?: { count: number; amount: number }
   /** When payroll, deducting the same amount every cutoff, pays off the rest. */
   finishesAround?: string | null
+  paymentMode?: PaymentMode
+  bonusType?: BonusType | null
+  /** How it is paid this month. */
+  paymentModeNow?: PaymentMode
+  paymentModeLabel?: string
+  /** When a short term that wasn't paid in time became long term. */
+  convertedAt?: string | null
+  paymentModeHistory?: { mode: PaymentMode; bonusType: BonusType | null; effectiveFrom: string; requestedAt?: string; note: string | null }[]
   schedule: Installment[]
 }
 
@@ -80,6 +91,9 @@ export type LoanSettings = {
   coMakersFromAmount?: number
   /** Applicants not linked to a UDEI member number borrow at most this, with a member as co-maker. 0: no limit. */
   nonMemberMaxAmount?: number
+  /** Expected bonus release dates. Older servers leave it out. */
+  bonusCalendar?: BonusCalendar
+  modeChangeCutoffDay?: number
 }
 
 export type Payment = { id: string; amount: number; paidAt: string; method: string; orNumber?: string | null }
@@ -189,7 +203,7 @@ async function request<T>(path: string, options: { method?: string; body?: unkno
 export const api = {
   login: (email: string, password: string) =>
     request<{ token: string; session: Session }>('/member/login', { method: 'POST', body: { email, password } }),
-  register: (body: { fullName: string; email: string; memberNo: string; phone?: string; password: string }) =>
+  register: (body: { fullName: string; email: string; memberNo: string; phone?: string; password: string; privacyConsent: boolean }) =>
     request<{ verificationRequired: true; email: string; emailSent: boolean }>('/member/register', { method: 'POST', body }),
   verifyEmail: (email: string, code: string) =>
     request<{ token: string; session: Session }>('/member/verify-email', { method: 'POST', body: { email, code } }),
@@ -218,6 +232,9 @@ export const api = {
   // UDEI's loan rules from the office's Settings page: rate per month, longest term, minimum salary.
   settings: () => request<{ settings: LoanSettings }>('/settings'),
   loan: (id: string) => request<{ loan: Loan; payments: Payment[]; submissions?: PaymentSubmission[] }>(`/member/loans/${id}`),
+  /** Changes how the loan is paid from a coming month. `message` says when it starts. */
+  changePaymentMode: (loanId: string, body: { mode: PaymentMode; bonusType?: BonusType; note?: string }) =>
+    request<{ message: string; effectiveFrom: string }>(`/member/loans/${loanId}/payment-mode`, { method: 'POST', body }),
   /** Reports a payment made outside payroll (cash, e-money, bank transfer). Amount in centavos. */
   sendPayment: (loanId: string, body: { amount: number; method: string; paidAt: string; reference?: string; note?: string }) =>
     request<{ submission: PaymentSubmission }>(`/member/loans/${loanId}/payments`, { method: 'POST', body }),
@@ -241,5 +258,9 @@ export const api = {
     request<{ application: Application }>(`/member/applications/${applicationId}/co-makers`, { method: 'PUT', body: { coMakers } }),
   coMaker: () => request<CoMakerPortal>('/comaker'),
   respondCoMaker: (applicationId: string, decision: 'accepted' | 'declined', note?: string) =>
-    request<{ request: CoMakerRequest }>(`/comaker/requests/${applicationId}`, { method: 'POST', body: { decision, ...(note ? { note } : {}) } }),
+    request<{ request: CoMakerRequest }>(`/comaker/requests/${applicationId}`, { method: 'POST', body: { decision, ...(note ? { note } : {}), ...(decision === 'accepted' ? { consent: true } : {}) } }),
+  /** The Privacy Notice's version and the office contact. */
+  privacy: () => request<{ version: string; contactEmail: string | null }>('/privacy'),
+  /** Agrees to the current Privacy Notice (accounts made before consent was asked). */
+  consent: () => request<{ session: Session }>('/me/consent', { method: 'POST', body: { privacyConsent: true } }),
 }

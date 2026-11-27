@@ -3,8 +3,10 @@ import { Linking, RefreshControl, ScrollView, Text, TextInput, View } from 'reac
 import { api, coMakerFormUrl, type CoMakerPortal, type CoMakerRequest, type VouchedLoan } from '../api'
 import { confirmAction } from '../confirm'
 import { centavos, date, LOAN_TYPE_LABEL, pesos } from '../format'
+import { CONSENT } from '../privacy'
+import { PrivacyLink } from './PrivacyNotice'
 import { colors } from '../theme'
-import { Badge, Button, Card, Empty, ErrorText, Header, Row, s } from '../ui'
+import { Badge, Button, Card, Empty, ErrorText, Header, Row, s, Check } from '../ui'
 
 const STANDING: Record<VouchedLoan['standing'], { text: string; tone: 'green' | 'red' | 'gray' }> = {
   on_track: { text: 'On track', tone: 'green' },
@@ -119,10 +121,12 @@ export default function CoMakerScreen({ onChanged, memberId }: { onChanged: () =
 
 function RequestCard({ request: r, memberId, onAnswered }: { request: CoMakerRequest; memberId?: string | null; onAnswered: () => void }) {
   const [note, setNote] = useState('')
+  const [agreed, setAgreed] = useState(false)
   const [busy, setBusy] = useState<'accepted' | 'declined' | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const answer = async (decision: 'accepted' | 'declined') => {
+    if (decision === 'accepted' && !agreed) return setError('Tick the box to agree that UDEI may use your details as co-maker.')
     const ok = await confirmAction(
       decision === 'accepted' ? 'Vouch for this mutual assistance?' : 'Decline this request?',
       decision === 'accepted'
@@ -158,6 +162,10 @@ function RequestCard({ request: r, memberId, onAnswered }: { request: CoMakerReq
         maxLength={300}
         style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 10, marginTop: 10, color: colors.text, backgroundColor: '#fff' }}
       />
+      <View style={{ marginTop: 10 }}>
+        <Check label={CONSENT.coMaker} value={agreed} onChange={setAgreed} />
+        <PrivacyLink label="Privacy Notice" />
+      </View>
       <ErrorText text={error} />
       <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
         <View style={{ flex: 1 }}><Button variant="outline" title="Decline" loading={busy === 'declined'} disabled={busy !== null} onPress={() => answer('declined')} /></View>

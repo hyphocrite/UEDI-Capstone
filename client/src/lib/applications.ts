@@ -1,4 +1,5 @@
 // Types for loan applications as the API returns them.
+import type { BonusType, PaymentMode } from './paymentModes'
 import type { ApprovalStep } from './roles'
 
 export type Suggestion = 'approve' | 'review' | 'deny'
@@ -83,6 +84,9 @@ export type LoanApplication = {
     /** Percent per month, as on UEDI's form. */
     monthlyRate: number
     paymentFrequency: 'quincenal' | 'monthly'
+    /** How the member will pay; older applications leave it out (payroll). */
+    paymentMode?: PaymentMode
+    bonusType?: BonusType
     purpose?: string
   }
   /** Amounts in pesos. source: filled from the ledger, or typed for loans that predate the system. */
@@ -234,7 +238,7 @@ export type Benchmark = {
 export type LoanType = 'long_term' | 'emergency'
 export type EmploymentStatus = 'permanent' | 'temporary' | 'contractual' | 'job_order'
 
-export const loanTypeLabel: Record<LoanType, string> = { long_term: 'Long term', emergency: 'Emergency' }
+export const loanTypeLabel: Record<LoanType, string> = { long_term: 'Long term', emergency: 'Short term (Emergency)' }
 
 export const employmentStatusLabel: Record<EmploymentStatus, string> = {
   permanent: 'Permanent',

@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { AlertTriangle, CheckCircle2, Handshake, XCircle } from 'lucide-react'
+import { CONSENT } from '../lib/privacy'
+import { Link } from 'react-router-dom'
 import PageHeader from '../components/PageHeader'
 import ProgressBar from '../components/ProgressBar'
 import StatementActions from '../components/comaker/StatementActions'
@@ -68,6 +70,8 @@ export default function CoMakerPage() {
     void load()
   }, [])
 
+  // Requests the co-maker ticked the consent box for: Vouch stays off until then.
+  const [agreed, setAgreed] = useState<Set<string>>(new Set())
   const respond = async (r: Request, decision: 'accepted' | 'declined') => {
     const ok = await confirm({
       title: decision === 'accepted' ? 'Vouch for this mutual assistance?' : 'Decline this request?',
@@ -85,7 +89,7 @@ export default function CoMakerPage() {
     if (!ok) return
     setBusy(r.applicationId)
     try {
-      await api(`/api/comaker/requests/${r.applicationId}`, { method: 'POST', body: JSON.stringify({ decision }) })
+      await api(`/api/comaker/requests/${r.applicationId}`, { method: 'POST', body: JSON.stringify({ decision, consent: decision === 'accepted' ? true : undefined }) })
       await load()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save your answer.')
@@ -130,9 +134,16 @@ export default function CoMakerPage() {
                           required={!!r.statementRequired} canUpload onUploaded={() => void load()} />
                       )}
                     </div>
-                    <div className="flex shrink-0 gap-2">
-                      <button className="btn-ghost" disabled={busy !== null} onClick={() => void respond(r, 'declined')}><XCircle className="h-4 w-4" /> Decline</button>
-                      <button className="btn-primary" disabled={busy !== null} onClick={() => void respond(r, 'accepted')}><CheckCircle2 className="h-4 w-4" /> Vouch</button>
+                    <div className="flex shrink-0 flex-col gap-2 sm:max-w-xs">
+                      <label className="flex items-start gap-2 text-xs text-brand-800">
+                        <input type="checkbox" className="mt-0.5 shrink-0" checked={agreed.has(r.applicationId)}
+                          onChange={(e) => setAgreed((s) => { const n = new Set(s); if (e.target.checked) n.add(r.applicationId); else n.delete(r.applicationId); return n })} />
+                        <span>{CONSENT.coMaker} <Link to="/privacy" target="_blank" className="underline">Privacy Notice</Link></span>
+                      </label>
+                      <div className="flex gap-2">
+                        <button className="btn-ghost" disabled={busy !== null} onClick={() => void respond(r, 'declined')}><XCircle className="h-4 w-4" /> Decline</button>
+                        <button className="btn-primary" disabled={busy !== null || !agreed.has(r.applicationId)} onClick={() => void respond(r, 'accepted')}><CheckCircle2 className="h-4 w-4" /> Vouch</button>
+                      </div>
                     </div>
                   </li>
                 ))}

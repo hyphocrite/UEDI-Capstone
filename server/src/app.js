@@ -27,6 +27,8 @@ function createApp() {
   const app = express();
 
   app.disable("x-powered-by");
+  // Behind Render and Vercel: take the client IP from X-Forwarded-For (env.TRUST_PROXY).
+  app.set("trust proxy", env.trustProxy);
   // API responses hold member and loan data: never sniffed, framed or cached.
   app.use((_req, res, next) => {
     res.setHeader("X-Content-Type-Options", "nosniff");
@@ -40,6 +42,12 @@ function createApp() {
   app.use(cookieParser());
   app.use(loadUser);
   app.use(audit);
+
+  // The Privacy Notice's version and the office contact, for the /privacy page and the app.
+  app.get("/api/privacy", (_req, res) => {
+    const privacy = require("./config/privacy");
+    res.json({ version: privacy.PRIVACY_NOTICE_VERSION, contactEmail: privacy.contactEmail() });
+  });
 
   app.get("/api/health", (_req, res) => {
     res.json({ ok: true, db: mongoose.connection.readyState === 1 ? "connected" : "disconnected" });
