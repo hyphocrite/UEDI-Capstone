@@ -91,7 +91,7 @@ export default function ShapWaterfall({ data }: { data: Waterfall }) {
         {points ? (
           <>
             From the average applicant's score ({data.baseValue.toFixed(2)}), each factor adds points (green) or takes them away (red), largest first.
-            It ends at this application: credit score {score.toFixed(2)} / 100. SHAP values of the stacked ensemble, in credit score points.
+            It ends at this application: credit score {score.toFixed(2)} / 100. SHAP values of the credit model, in credit score points.
           </>
         ) : (
           <>

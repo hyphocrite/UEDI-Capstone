@@ -116,7 +116,7 @@ export default function PendingLoansPage() {
     <>
       <PageHeader icon={ClipboardCheck}
         title="Pending Applications"
-        subtitle="Applications waiting for the Bookkeeper, Credit Committee Chairman, President and Treasurer to sign, with suggestions from three machine learning models."
+        subtitle="Applications waiting for the Bookkeeper, Credit Committee Chairman, President and Treasurer to sign, with the credit model's suggestion."
         actions={<Link to="/loans/apply" className="btn-primary"><FilePlus2 className="h-4 w-4" /> New application</Link>}
       />
 
