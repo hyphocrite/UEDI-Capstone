@@ -3,7 +3,7 @@ import type { Application, Loan } from '../api'
 import { centavos, date, LOAN_TYPE_LABEL, pesos } from '../format'
 import { ApplicationDocuments } from '../documents'
 import { colors } from '../theme'
-import { Badge, Card, Empty, Header, KuwiBox, MascotSays, Row, s } from '../ui'
+import { Badge, Card, Empty, Header, KuwiBox, MascotSays, Row, s, ShowMore, useShowMore } from '../ui'
 import { applicationBadge, loanBadge, SIGNERS } from './status'
 import CoMakerAsked from './CoMakerAsked'
 
@@ -18,6 +18,8 @@ type Props = {
 export default function LoansScreen({ loans, applications, loading, onRefresh, onOpenLoan }: Props) {
   // Approved applications already appear as loans.
   const openApps = applications.filter((a) => !a.loanId)
+  const loanList = useShowMore(loans)
+  const appList = useShowMore(openApps)
   return (
     <View style={{ flex: 1 }}>
       <Header title="Mutual Assistance" subtitle="Balances, due dates and applications" />
@@ -27,7 +29,7 @@ export default function LoansScreen({ loans, applications, loading, onRefresh, o
       >
         <Text style={s.sectionTitle}>Mutual Assistance</Text>
         {loans.length === 0 ? <Empty text="No mutual assistance yet." /> : null}
-        {loans.map((l) => {
+        {loanList.visible.map((l) => {
           const b = loanBadge(l)
           return (
             <Pressable key={l.id} onPress={() => onOpenLoan(l.id)} accessibilityRole="button">
@@ -49,9 +51,11 @@ export default function LoansScreen({ loans, applications, loading, onRefresh, o
           )
         })}
 
+        <ShowMore list={loanList} />
+
         <Text style={[s.sectionTitle, { marginTop: 12 }]}>Applications</Text>
         {openApps.length === 0 ? <Empty text="No applications in review." /> : null}
-        {openApps.map((a) => (
+        {appList.visible.map((a) => (
           <Card key={a.id}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
               <Text style={{ fontWeight: '700', color: colors.text, fontSize: 16 }}>{a.applicationNo}</Text>
@@ -77,6 +81,7 @@ export default function LoansScreen({ loans, applications, loading, onRefresh, o
             ) : null}
           </Card>
         ))}
+        <ShowMore list={appList} />
       </ScrollView>
     </View>
   )

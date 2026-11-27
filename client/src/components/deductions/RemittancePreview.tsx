@@ -1,10 +1,23 @@
 import { useMemo, useState } from 'react'
 import { AlertTriangle, CheckCircle2, FileSpreadsheet, HelpCircle, SearchX } from 'lucide-react'
+import Pagination from '../Pagination'
+import TableShell from '../TableShell'
 import { api } from '../../lib/api'
+import { usePaged } from '../../lib/usePaged'
 import type { RemittancePreview as Preview, RunLine } from '../../lib/deductions'
 import { formatCentavos } from '../../lib/loans'
 
 const BY: Record<string, string> = { loan_no: 'MA no.', member_no: 'UDEI no.', employee_no: 'employee no.', name: 'name' }
+
+type Row = Preview['rows'][number]
+/** Rows that need a choice come first: ambiguous, then not found, then matched (each in file order). */
+const ORDER: Record<Row['status'], number> = { ambiguous: 0, not_found: 1, bad_amount: 1, matched: 2 }
+const STATUS: Record<Row['status'], { label: string; tone: string; Icon: typeof CheckCircle2 }> = {
+  ambiguous: { label: 'Pick one', tone: 'bg-amber-50 text-amber-800 ring-amber-200', Icon: HelpCircle },
+  not_found: { label: 'Not found', tone: 'bg-red-50 text-red-700 ring-red-200', Icon: SearchX },
+  bad_amount: { label: 'Not found', tone: 'bg-red-50 text-red-700 ring-red-200', Icon: SearchX },
+  matched: { label: 'Matched', tone: 'bg-emerald-50 text-emerald-800 ring-emerald-200', Icon: CheckCircle2 },
+}
 
 /**
  * The review of Accounting's remittance list before anything is filled in: matched rows, ambiguous
@@ -25,6 +38,15 @@ export default function RemittancePreview({ preview, lines, busy, onReread, onAp
     Object.fromEntries(preview.rows.map((r) => [r.row, r.status === 'matched' ? r.lineId ?? '' : ''])),
   )
   const [error, setError] = useState('')
+  const [needsOnly, setNeedsOnly] = useState(false)
+  const [allNotRemitted, setAllNotRemitted] = useState(false)
+  const ordered = useMemo(
+    () => [...preview.rows].filter((r) => !needsOnly || r.status !== 'matched').sort((a, b) => ORDER[a.status] - ORDER[b.status] || a.row - b.row),
+    [preview.rows, needsOnly],
+  )
+  const paged = usePaged(ordered, { resetKey: needsOnly })
+  const count = (s: Row['status'][]) => preview.rows.filter((r) => s.includes(r.status)).length
+  const needCount = count(['ambiguous', 'not_found', 'bad_amount'])
 
   const chosen = new Map<string, number[]>()
   for (const r of preview.rows) {
@@ -50,7 +72,7 @@ export default function RemittancePreview({ preview, lines, busy, onReread, onAp
     onApply(updates)
   }
 
-  const lineSelect = (r: Preview['rows'][number]) => {
+  const lineSelect = (r: Row) => {
     const firstIds = new Set(r.candidates.map((c) => c.lineId))
     return (
       <select className="input py-1 text-sm" aria-label={`Mutual assistance for row ${r.row}`} value={choice[r.row] ?? ''}
@@ -68,36 +90,54 @@ export default function RemittancePreview({ preview, lines, busy, onReread, onAp
     )
   }
 
-  const group = (title: string, Icon: typeof CheckCircle2, tone: string, rows: Preview['rows'], hint?: string) =>
-    rows.length > 0 && (
+  const rowsTable = (
       <div className="mt-4">
-        <h3 className={`flex items-center gap-2 text-sm font-semibold ${tone}`}>
-          <Icon className="h-4 w-4" /> {title} ({rows.length})
-        </h3>
-        {hint && <p className="text-xs text-brand-500">{hint}</p>}
-        <div className="mt-2 overflow-x-auto rounded-lg border border-brand-100">
-          <table className="w-full text-sm">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <p className="flex flex-wrap gap-2 text-xs font-semibold">
+            <span className="text-amber-800">{count(['ambiguous'])} to pick</span>
+            <span className="text-red-700">{count(['not_found', 'bad_amount'])} not found</span>
+            <span className="text-emerald-800">{count(['matched'])} matched</span>
+          </p>
+          {needCount > 0 && (
+            <label className="flex items-center gap-2 text-sm text-brand-700 sm:ml-auto">
+              <input type="checkbox" checked={needsOnly} onChange={(e) => setNeedsOnly(e.target.checked)} /> Needs a match only
+            </label>
+          )}
+        </div>
+        <p className="text-xs text-brand-500">Rows that need a choice are listed first. Pick a line for an ambiguous or not-found row if you know it, or leave it skipped.</p>
+        <div className="mt-2 overflow-hidden rounded-lg border border-brand-100">
+          <TableShell caption="Rows in the remittance list" anchor={paged.anchor}
+            footer={<Pagination page={paged.page} pageSize={paged.perPage} total={paged.total} onPage={paged.setPage} />}>
             <thead className="table-head">
-              <tr><th className="px-3 py-2">Row</th><th className="px-3 py-2">In the file</th><th className="px-3 py-2 text-right">Amount</th><th className="px-3 py-2">Mutual assistance</th></tr>
+              <tr><th>Row</th><th>In the file</th><th className="text-right">Amount</th><th className="w-32">Status</th><th>Mutual assistance</th></tr>
             </thead>
             <tbody className="divide-y divide-brand-50">
-              {rows.map((r) => (
-                <tr key={r.row} className="align-top">
-                  <td className="px-3 py-2 text-brand-500 tabular-nums">{r.row}</td>
-                  <td className="px-3 py-2">
-                    <span className="font-semibold text-ink">{r.label}</span>
+              {paged.pageRows.map((r) => {
+                const st = STATUS[r.status]
+                return (
+                <tr key={r.row}>
+                  <td className="cell text-brand-500 tabular-nums">{r.row}</td>
+                  <td className="cell">
+                    <span className="line-clamp-2 font-semibold text-ink">{r.label}</span>
                     {r.employeeNo && r.label !== r.employeeNo && <span className="block text-xs text-brand-500">Employee no. {r.employeeNo}</span>}
                     {r.by && r.status === 'matched' && <span className="block text-xs text-emerald-700">Matched by {BY[r.by]}</span>}
                     {r.note && <span className="block text-xs text-amber-700">{r.note}</span>}
                   </td>
-                  <td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">
+                  <td className="cell-num">
                     {r.amount === null ? <span className="text-red-700">“{r.amountText}” is not an amount</span> : formatCentavos(r.amount)}
                   </td>
-                  <td className="min-w-56 px-3 py-2">{lineSelect(r)}</td>
+                  <td className="cell">
+                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap ring-1 ring-inset ${st.tone}`}>
+                      <st.Icon className="h-3 w-3" /> {st.label}
+                    </span>
+                  </td>
+                  <td className="cell min-w-56">{lineSelect(r)}</td>
                 </tr>
-              ))}
+                )
+              })}
+              {paged.total === 0 && <tr><td colSpan={5} className="px-4 py-10 text-center text-brand-500">Every row is matched.</td></tr>}
             </tbody>
-          </table>
+          </TableShell>
         </div>
       </div>
     )
@@ -130,17 +170,20 @@ export default function RemittancePreview({ preview, lines, busy, onReread, onAp
         )}
       </div>
 
-      {group('Ambiguous: pick one', HelpCircle, 'text-amber-800', preview.rows.filter((r) => r.status === 'ambiguous'), 'More than one line on this run could be this row.')}
-      {group('Not found', SearchX, 'text-red-700', preview.rows.filter((r) => r.status === 'not_found' || r.status === 'bad_amount'), 'No line on this run matches. Pick one if you know it, or leave it skipped.')}
-      {group('Matched', CheckCircle2, 'text-emerald-800', preview.rows.filter((r) => r.status === 'matched'))}
+      {preview.rows.length > 0 && rowsTable}
 
       <div className="mt-4">
         <h3 className="flex items-center gap-2 text-sm font-semibold text-brand-800"><AlertTriangle className="h-4 w-4" /> Not remitted ({notRemitted.length})</h3>
         <p className="text-xs text-brand-500">Lines on this run with no row in the file. Applying sets them to ₱0.00; give each a reason before saving.</p>
         {notRemitted.length > 0 && (
           <ul className="mt-1 list-disc pl-5 text-sm text-brand-800">
-            {notRemitted.map((l) => <li key={l._id}>{l.borrowerName} · {l.loanNo} · expected {formatCentavos(l.expected)}</li>)}
+            {(allNotRemitted ? notRemitted : notRemitted.slice(0, 10)).map((l) => <li key={l._id}>{l.borrowerName} · {l.loanNo} · expected {formatCentavos(l.expected)}</li>)}
           </ul>
+        )}
+        {notRemitted.length > 10 && (
+          <button type="button" className="mt-1 text-xs font-semibold text-accent-dark hover:underline" onClick={() => setAllNotRemitted((v) => !v)}>
+            {allNotRemitted ? 'Show the first 10' : `Show all ${notRemitted.length}`}
+          </button>
         )}
       </div>
 

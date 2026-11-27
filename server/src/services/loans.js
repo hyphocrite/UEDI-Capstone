@@ -118,7 +118,7 @@ function present(loan, today = ledger.todayInManila()) {
   return {
     ...loan.toJSON(),
     ...ledger.summarize(loan.schedule, today),
-    // How it is paid this month, and the label shown everywhere ("Bonus: Year-end bonus").
+    // How it is paid this month, and the label shown everywhere ("Charge to Year-End Bonus").
     paymentModeNow: now.mode,
     bonusTypeNow: now.bonusType ?? null,
     paymentModeLabel: paymentModes.modeLabel(now.mode, now.bonusType),

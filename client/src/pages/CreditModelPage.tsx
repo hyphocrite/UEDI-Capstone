@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { AlertTriangle, Database, Gauge, ShieldCheck, Target, BrainCircuit } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import StatCard from '../components/StatCard'
+import TableShell from '../components/TableShell'
 import { api } from '../lib/api'
 import { scoreLine } from '../lib/applications'
 import type { Benchmark, BenchmarkDataset, BenchmarkRow, ConfusionMatrix, ModelInfo } from '../lib/applications'
@@ -117,14 +118,15 @@ export default function CreditModelPage() {
         )}
 
         {rows.length > 0 && (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] text-sm">
-              <thead>
-                <tr className="border-b border-brand-100 text-left text-xs font-semibold tracking-wide text-brand-600 uppercase">
-                  <th className="py-2 pr-3">Model</th>
-                  <th className="py-2 pr-3">R²</th>
-                  <th className="py-2 pr-3 text-right">MAE (points)</th>
-                  <th className="py-2 text-right">RMSE (points)</th>
+          <div className="min-w-0">
+            <div className="overflow-hidden rounded-lg border border-brand-100">
+            <TableShell caption="Credit model benchmark" maxHeight="none" tableClassName="w-full min-w-[640px] text-sm">
+              <thead className="table-head">
+                <tr>
+                  <th>Model</th>
+                  <th>R²</th>
+                  <th className="text-right">MAE (points)</th>
+                  <th className="text-right">RMSE (points)</th>
                 </tr>
               </thead>
               <tbody>
@@ -133,10 +135,10 @@ export default function CreditModelPage() {
                   return (
                     <tr key={r.model} onClick={() => setSelected(matrixKey(r))}
                       className={`cursor-pointer border-b border-brand-50 last:border-0 row-hover ${selected === matrixKey(r) ? 'bg-brand-50' : ''}`}>
-                      <td className={`py-2.5 pr-3 whitespace-nowrap ${isApp ? 'font-semibold text-brand-800' : 'text-ink'}`}>
+                      <td className={`cell whitespace-nowrap ${isApp ? 'font-semibold text-brand-800' : 'text-ink'}`}>
                         {rowName(r)}{isApp && <span className="ml-2 rounded bg-accent/15 px-1.5 py-0.5 text-[10px] font-semibold text-brand-800 uppercase">app</span>}
                       </td>
-                      <td className="py-2.5 pr-3">
+                      <td className="cell">
                         <div className="flex items-center gap-3">
                           <div className="h-2 w-40 rounded-full bg-brand-50" title={`${r.r2.toFixed(3)} ± ${r.r2Sd.toFixed(3)}`}>
                             <div className={`animate-grow-right h-2 rounded-full ${isApp ? 'bg-accent bg-grad-bar-x' : 'bg-brand-300'}`} style={{ width: barWidth(r.r2, maxR2), animationDelay: `${i * 80}ms` }} />
@@ -144,13 +146,14 @@ export default function CreditModelPage() {
                           <span className="tabular-nums">{r.r2.toFixed(3)} <span className="text-xs text-brand-500">± {r.r2Sd.toFixed(3)}</span></span>
                         </div>
                       </td>
-                      <td className="py-2.5 pr-3 text-right tabular-nums">{r.mae.toFixed(2)} <span className="text-xs text-brand-500">± {r.maeSd.toFixed(2)}</span></td>
-                      <td className="py-2.5 text-right tabular-nums">{r.rmse.toFixed(2)} <span className="text-xs text-brand-500">± {r.rmseSd.toFixed(2)}</span></td>
+                      <td className="cell-num">{r.mae.toFixed(2)} <span className="text-xs text-brand-500">± {r.maeSd.toFixed(2)}</span></td>
+                      <td className="cell-num">{r.rmse.toFixed(2)} <span className="text-xs text-brand-500">± {r.rmseSd.toFixed(2)}</span></td>
                     </tr>
                   )
                 })}
               </tbody>
-            </table>
+            </TableShell>
+            </div>
             <p className="mt-3 text-xs text-brand-500">
               Bars run from 0 (no better than guessing the average score) to {maxR2.toFixed(1)}. {errors && 'Select a row to see its Type I and Type II errors.'}
             </p>

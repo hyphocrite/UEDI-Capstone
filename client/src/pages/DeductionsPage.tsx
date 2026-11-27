@@ -1,9 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Plus, ReceiptText } from 'lucide-react'
 import Modal from '../components/Modal'
 import PageHeader from '../components/PageHeader'
+import Pagination from '../components/Pagination'
+import TableShell from '../components/TableShell'
 import StatusBadge from '../components/StatusBadge'
 import { useAuth } from '../context/AuthContext'
 import { useConfirm } from '../context/ConfirmContext'
@@ -14,6 +16,7 @@ import { formatCentavos } from '../lib/loans'
 import { BONUS_TYPES, FALLBACK_BONUS_CALENDAR, nextBonusDate } from '../lib/paymentModes'
 import type { BonusType } from '../lib/paymentModes'
 import { useSettings } from '../lib/settings'
+import { usePaged } from '../lib/usePaged'
 
 /** "Year-end bonus run" or the cutoff, for a run's name. */
 const runName = (r: { kind?: string; bonusType?: BonusType; cutoff: string }) =>
@@ -36,6 +39,9 @@ export default function DeductionsPage() {
   const [bonusType, setBonusType] = useState<BonusType>('year_end')
   const { settings } = useSettings()
   const [today] = useState(() => new Date().toLocaleDateString('en-CA'))
+  // Newest cutoff first, 10 at a time.
+  const sorted = useMemo(() => [...(runs ?? [])].sort((a, b) => b.cutoff.localeCompare(a.cutoff)), [runs])
+  const paged = usePaged(sorted, { urlParam: 'page' })
   const bonusDateFor = (b: BonusType) => nextBonusDate(settings.bonusCalendar ?? FALLBACK_BONUS_CALENDAR, b, today, -31)
 
   useEffect(() => {
@@ -98,29 +104,30 @@ export default function DeductionsPage() {
 
       {error && <p className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{error}</p>}
 
-      <div className="card min-w-0 overflow-x-auto">
-        <table className="w-full text-sm">
+      <div className="card min-w-0">
+        <TableShell caption="Payroll deduction runs" anchor={paged.anchor}
+          footer={<Pagination page={paged.page} pageSize={paged.perPage} total={paged.total} onPage={paged.setPage} />}>
           <thead className="table-head">
             <tr>
-              <th className="px-4 py-3">Cutoff</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3 text-right">Mutual Assistance</th>
-              <th className="px-4 py-3 text-right">Expected</th>
-              <th className="px-4 py-3 text-right">Remitted</th>
-              <th className="px-4 py-3 text-right">Missed or partial</th>
+              <th>Cutoff</th>
+              <th className="w-32">Status</th>
+              <th className="text-right">Mutual Assistance</th>
+              <th className="text-right">Expected</th>
+              <th className="text-right">Remitted</th>
+              <th className="text-right">Missed or partial</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-brand-50">
-            {runs?.map((r) => (
-              <tr key={r._id} className="cursor-pointer hover:bg-brand-50/50" onClick={() => navigate(`/deductions/${r._id}`)}>
-                <td className="px-4 py-3 font-semibold whitespace-nowrap text-ink">
+            {runs && paged.pageRows.map((r) => (
+              <tr key={r._id} className="row-hover cursor-pointer" onClick={() => navigate(`/deductions/${r._id}`)}>
+                <td className="cell font-semibold whitespace-nowrap text-ink">
                   <Link to={`/deductions/${r._id}`} onClick={(e) => e.stopPropagation()} className="hover:text-accent-dark">{runName(r)}</Link>
                 </td>
-                <td className="px-4 py-3"><StatusBadge status={runStatusLabel[r.status]} /></td>
-                <td className="px-4 py-3 text-right">{r.totals.lines}</td>
-                <td className="px-4 py-3 text-right whitespace-nowrap">{formatCentavos(r.totals.expected)}</td>
-                <td className="px-4 py-3 text-right whitespace-nowrap">{r.status === 'draft' ? '—' : formatCentavos(r.totals.remitted)}</td>
-                <td className={`px-4 py-3 text-right ${r.totals.missed + r.totals.partial > 0 && r.status !== 'draft' ? 'font-semibold text-red-700' : ''}`}>
+                <td className="cell whitespace-nowrap"><StatusBadge status={runStatusLabel[r.status]} /></td>
+                <td className="cell-num">{r.totals.lines}</td>
+                <td className="cell-num">{formatCentavos(r.totals.expected)}</td>
+                <td className="cell-num">{r.status === 'draft' ? '—' : formatCentavos(r.totals.remitted)}</td>
+                <td className={`cell-num ${r.totals.missed + r.totals.partial > 0 && r.status !== 'draft' ? 'font-semibold text-red-700' : ''}`}>
                   {r.status === 'draft' ? '—' : r.totals.missed + r.totals.partial}
                 </td>
               </tr>
@@ -132,7 +139,7 @@ export default function DeductionsPage() {
               <tr><td colSpan={6} className="px-4 py-10 text-center text-brand-500">Loading…</td></tr>
             )}
           </tbody>
-        </table>
+        </TableShell>
       </div>
 
       <Modal title={kind === 'bonus' ? 'New bonus run' : 'New deduction run'} open={creating} onClose={() => setCreating(false)}>

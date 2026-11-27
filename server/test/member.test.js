@@ -110,7 +110,7 @@ test("a member registers, applies and follows the application to a loan", { skip
   const sent = await as(token, `/member/loans/${list[0].id}/payments`, { method: "POST", body: { amount: 50_000, method: "e_money", reference: "MAYA-1", paidAt: today } });
   assert.equal(sent.status, 201, sent.json.error);
   const after = (await as(token, `/member/loans/${list[0].id}`)).json;
-  assert.deepEqual(after.submissions.map((s) => [s.status, s.methodLabel]), [["submitted", "E-money"]]);
+  assert.deepEqual(after.submissions.map((s) => [s.status, s.methodLabel]), [["submitted", "E-wallet (GCash / Maya)"]]);
   assert.equal(after.payments.length, 0, "nothing posted before the Bookkeeper confirms");
 });
 

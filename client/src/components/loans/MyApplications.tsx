@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { CheckCircle2, Hourglass, Paperclip, Pencil, Printer, XCircle } from 'lucide-react'
 import CoMakerRequestNotice from './CoMakerRequestNotice'
+import Pagination from '../Pagination'
+import { usePaged } from '../../lib/usePaged'
 import { useAuth } from '../../context/AuthContext'
 import { api } from '../../lib/api'
 import { KuwiReasons, KuwiTips, MascotSays } from '../mascot/Mascot'
@@ -25,6 +27,8 @@ export default function MyApplications() {
       .then((d) => setApps(d.applications))
       .catch(() => setApps([]))
   }, [])
+  // Tall cards: 5 at a time.
+  const { anchor: pagedAnchor, ...paged } = usePaged(apps ?? [], { perPage: 5 })
 
   if (!apps?.length) return null
   const replace = (updated: LoanApplication) => setApps((list) => list?.map((a) => (a._id === updated._id ? updated : a)) ?? null)
@@ -36,10 +40,10 @@ export default function MyApplications() {
         <CheckCircle2 className="h-4 w-4 shrink-0" /> {notice}
       </p>
     )}
-    <section className="card mb-6 min-w-0" aria-labelledby="my-apps">
+    <section ref={pagedAnchor} className="card mb-6 min-w-0 scroll-mt-4" aria-labelledby="my-apps">
       <h2 id="my-apps" className="border-b border-brand-100 px-4 py-3 font-semibold text-brand-800">My applications</h2>
       <ul className="divide-y divide-brand-50">
-        {apps.map((a) => {
+        {paged.pageRows.map((a) => {
           const denial = a.approvals.find((s) => s.decision === 'denied')
           return (
             <li key={a._id} className="px-4 py-4">
@@ -111,6 +115,7 @@ export default function MyApplications() {
           )
         })}
       </ul>
+      <Pagination page={paged.page} pageSize={paged.perPage} total={paged.total} onPage={paged.setPage} />
     </section>
     </>
   )

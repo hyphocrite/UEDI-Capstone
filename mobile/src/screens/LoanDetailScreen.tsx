@@ -3,12 +3,12 @@ import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-nati
 import { api, type Loan, type Payment, type PaymentSubmission } from '../api'
 import { centavos, date, LOAN_TYPE_LABEL } from '../format'
 import { colors } from '../theme'
-import { Badge, Card, Empty, ErrorText, Header, Row, s } from '../ui'
+import { Badge, Card, Empty, ErrorText, Header, Row, s, ShowMore, useShowMore } from '../ui'
+import { modeLabel, PAYMENT_METHOD_LABEL } from '../paymentModes'
 import { loanBadge } from './status'
 import SendPayment, { SubmissionRow } from './SendPayment'
 import PaymentModeCard from './PaymentModeCard'
 
-const METHOD: Record<string, string> = { payroll: 'Payroll', cash: 'Cash', e_money: 'E-money', bank_transfer: 'Bank transfer', other: 'Other', offset: 'Offset' }
 
 export default function LoanDetailScreen({ id, onBack }: { id: string; onBack: () => void }) {
   const [data, setData] = useState<{ loan: Loan; payments: Payment[]; submissions?: PaymentSubmission[] } | null>(null)
@@ -22,6 +22,8 @@ export default function LoanDetailScreen({ id, onBack }: { id: string; onBack: (
 
   const loan = data?.loan
   const today = new Date()
+  const sentList = useShowMore(data?.submissions ?? [])
+  const paidList = useShowMore(data?.payments ?? [])
   return (
     <View style={{ flex: 1 }}>
       <Header
@@ -50,7 +52,7 @@ export default function LoanDetailScreen({ id, onBack }: { id: string; onBack: (
               <Row label="Principal" value={centavos(loan.principal)} />
               <Row label="Rate" value={`${loan.monthlyRate}% per month`} />
               <Row label="Term" value={loan.paymentMode === 'bonus' && loan.schedule.length === 1 ? `One payment on ${date(loan.schedule[0].dueDate)}` : `${loan.termMonths} months, ${loan.paymentFrequency}`} />
-              <Row label="Mode of payment" value={loan.paymentModeLabel ?? 'Payroll deduction'} />
+              <Row label="Mode of payment" value={loan.paymentModeLabel ?? modeLabel(loan.paymentMode, loan.bonusType)} />
               {loan.convertedAt ? (
                 <Text style={{ color: colors.warn, marginTop: 6 }}>
                   {`Converted to long term on ${date(loan.convertedAt)}: the short term wasn't fully paid by the end of its term.`}
@@ -76,7 +78,8 @@ export default function LoanDetailScreen({ id, onBack }: { id: string; onBack: (
               <>
                 <Text style={s.sectionTitle}>Payments you sent</Text>
                 <Card style={{ paddingVertical: 8 }}>
-                  {data!.submissions.map((x) => <SubmissionRow key={x._id} s={x} onChanged={reload} />)}
+                  {sentList.visible.map((x) => <SubmissionRow key={x._id} s={x} onChanged={reload} />)}
+                  <ShowMore list={sentList} />
                 </Card>
               </>
             ) : null}
@@ -107,15 +110,16 @@ export default function LoanDetailScreen({ id, onBack }: { id: string; onBack: (
             <Text style={s.sectionTitle}>Payments received</Text>
             <Card style={{ paddingVertical: 8 }}>
               {data!.payments.length === 0 ? <Empty text="No payments yet." /> : null}
-              {data!.payments.map((p) => (
+              {paidList.visible.map((p) => (
                 <View key={p.id} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8 }}>
                   <View>
                     <Text style={{ color: colors.text }}>{date(p.paidAt)}</Text>
-                    <Text style={{ color: colors.muted, fontSize: 12 }}>{METHOD[p.method] ?? p.method}{p.orNumber ? ` · OR ${p.orNumber}` : ''}</Text>
+                    <Text style={{ color: colors.muted, fontSize: 12 }}>{PAYMENT_METHOD_LABEL[p.method] ?? p.method}{p.orNumber ? ` · OR ${p.orNumber}` : ''}</Text>
                   </View>
                   <Text style={{ color: colors.text, fontWeight: '700' }}>{centavos(p.amount)}</Text>
                 </View>
               ))}
+              <ShowMore list={paidList} />
             </Card>
           </>
         ) : null}

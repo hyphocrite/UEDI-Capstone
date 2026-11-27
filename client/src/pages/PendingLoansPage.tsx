@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AlertTriangle, CheckCircle2, Clock, Cpu, FilePlus2, ClipboardCheck } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
+import Pagination from '../components/Pagination'
 import StatusBadge from '../components/StatusBadge'
 import ApplicationDetail from '../components/pending-loans/ApplicationDetail'
 import SuggestionBadge from '../components/pending-loans/SuggestionBadge'
@@ -13,6 +14,7 @@ import { awaitingUser, creditScore, loanTypeLabel, openCoMakerRequest } from '..
 import type { LoanApplication, ModelInfo } from '../lib/applications'
 import { formatDate, formatPeso } from '../lib/format'
 import { isSigner, stepShortLabel } from '../lib/roles'
+import { pageOf, usePaged } from '../lib/usePaged'
 
 type Tab = 'awaiting' | 'pending' | 'decided'
 
@@ -75,7 +77,17 @@ export default function PendingLoansPage() {
     // Waiting applications: longest wait first, so nothing sits forgotten. Decided: newest first, as listed.
     .sort((a, b) => (tab === 'decided' ? 0 : waitingSince(a) - waitingSince(b)))
   const overdue = tab === 'decided' ? [] : visible.filter((a) => hoursWaiting(a) >= OVERDUE_HOURS)
-  const selected = visible.find((a) => a._id === selectedId) ?? visible[0] ?? null
+  const { page, setPage, pageRows, perPage, anchor } = usePaged(visible, { resetKey: tab })
+  const selected = visible.find((a) => a._id === selectedId) ?? pageRows[0] ?? null
+  // When an application is picked from elsewhere (e.g. it moved to Pending after signing), show the page it is on.
+  const jumpedTo = useRef<string | null>(null)
+  useEffect(() => {
+    if (!selectedId || jumpedTo.current === selectedId) return
+    const i = visible.findIndex((a) => a._id === selectedId)
+    if (i < 0) return
+    jumpedTo.current = selectedId
+    setPage(pageOf(i, perPage))
+  }, [selectedId, visible, perPage, setPage])
   const pendingCount = apps.filter((a) => a.status === 'pending').length
   const awaitingCount = apps.filter(isAwaiting).length
   const tabs: { id: Tab; label: string }[] = [
@@ -94,6 +106,7 @@ export default function PendingLoansPage() {
       // Keep it on screen after it leaves "Awaiting me".
       if (tab === 'awaiting') {
         setTab('pending')
+        jumpedTo.current = null
         setSelectedId(updated._id)
       }
     }
@@ -152,13 +165,14 @@ export default function PendingLoansPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          <ul className="card h-fit min-w-0 divide-y divide-brand-50 overflow-hidden lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto" aria-label="Applications">
-            {visible.map((a) => {
+          <div ref={anchor} className="card h-fit min-w-0 scroll-mt-4 overflow-hidden lg:sticky lg:top-6">
+          <ul className="divide-y divide-brand-50 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto" aria-label="Applications">
+            {pageRows.map((a) => {
               const s = a.assessment?.ensemble
               const active = selected?._id === a._id
               return (
                 <li key={a._id}>
-                  <button onClick={() => setSelectedId(a._id)}
+                  <button onClick={() => { jumpedTo.current = a._id; setSelectedId(a._id) }}
                     className={`card-hover w-full border-l-[3px] px-4 py-3 text-left ${active ? 'border-l-accent bg-brand-50' : 'border-l-transparent hover:bg-brand-50/50'}`}
                     aria-current={active}>
                     <div className="flex items-center justify-between gap-2">
@@ -201,6 +215,8 @@ export default function PendingLoansPage() {
               )
             })}
           </ul>
+          <Pagination page={page} pageSize={perPage} total={visible.length} onPage={setPage} />
+          </div>
 
           {selected && (
             <div className="min-w-0 lg:col-span-2">

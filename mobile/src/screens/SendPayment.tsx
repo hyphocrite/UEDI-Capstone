@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Text, View } from 'react-native'
+import { SEND_OPTIONS } from '../paymentModes'
 import { api, type Loan, type PaymentSubmission, type PickedFile } from '../api'
 import { pick } from '../documents'
 import { centavos, date } from '../format'
@@ -7,11 +8,7 @@ import { colors } from '../theme'
 import { Badge, Button, Card, Choice, ErrorText, Field } from '../ui'
 
 type Method = 'e_money' | 'bank_transfer' | 'cash'
-const METHODS: { value: Method; label: string }[] = [
-  { value: 'e_money', label: 'E-money (GCash, Maya)' },
-  { value: 'bank_transfer', label: 'Bank transfer' },
-  { value: 'cash', label: 'Cash' },
-]
+const METHODS: { value: Method; label: string; hint: string }[] = SEND_OPTIONS
 
 const STATUS: Record<PaymentSubmission['status'], { text: string; tone: 'amber' | 'green' | 'red' | 'gray' }> = {
   submitted: { text: 'With the Treasurer', tone: 'amber' },
@@ -90,7 +87,7 @@ export default function SendPayment({ loan, onSent }: { loan: Loan; onSent: () =
       {done ? <Text style={{ color: colors.accent, marginTop: 8 }}>{done}</Text> : null}
       {open ? (
         <View style={{ marginTop: 12 }}>
-          <Choice label="How did you pay?" value={method} options={METHODS} onChange={setMethod} />
+          <Choice label="Mode of payment" value={method} options={METHODS} onChange={setMethod} wide />
           <Field label="Amount (₱)" value={amount} onChangeText={setAmount} keyboardType="decimal-pad" hint={`Balance ${centavos(loan.balance)}`} />
           <Field label="Date paid (YYYY-MM-DD)" value={paidAt} onChangeText={setPaidAt} maxLength={10} />
           <Field label={method === 'cash' ? 'Reference (optional)' : 'Reference number'} value={reference} onChangeText={setReference} maxLength={60} />

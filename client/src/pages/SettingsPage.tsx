@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Building2, Percent, Plus, RotateCcw, Save, Wallet, X, Settings } from 'lucide-react'
+import TableShell from '../components/TableShell'
 import PageHeader from '../components/PageHeader'
 import UsersSection from '../components/settings/UsersSection'
 import { useAuth } from '../context/AuthContext'
@@ -145,14 +146,14 @@ export default function SettingsPage() {
         </p>
       )}
 
-      <div className="card min-w-0 overflow-x-auto">
-        <table className="w-full text-sm">
+      <div className="card min-w-0">
+        <TableShell caption="Interest rates and terms" maxHeight="none">
           <thead className="table-head">
             <tr>
-              <th className="px-4 py-3">Type</th>
-              <th className="px-4 py-3">Interest (% per month){canSetRates ? '' : <span className="block font-normal normal-case">Administrator only</span>}</th>
-              <th className="px-4 py-3">Longest term (months)</th>
-              <th className="px-4 py-3 text-right">Monthly installment on {formatPeso(sample)}, longest term</th>
+              <th>Type</th>
+              <th>Interest (% per month){canSetRates ? '' : <span className="block font-normal normal-case">Administrator only</span>}</th>
+              <th>Longest term (months)</th>
+              <th className="text-right">Monthly installment on {formatPeso(sample)}, longest term</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-brand-50">
@@ -162,24 +163,24 @@ export default function SettingsPage() {
               const inst = monthlyInstallment({ amount: sample, termMonths: months, monthlyRate: Number(p.monthlyRate) || 0 })
               return (
                 <tr key={t}>
-                  <td className="px-4 py-3 font-semibold text-ink">
+                  <td className="cell font-semibold text-ink">
                     <span className="flex items-center gap-2"><Percent className="h-4 w-4 text-accent" />{p.label}</span>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="cell">
                     <input type="number" min={0} max={10} step={0.25} className={`input w-28 ${canSetRates ? '' : 'cursor-not-allowed bg-brand-50'}`} value={p.monthlyRate}
                       readOnly={!canSetRates} title={canSetRates ? undefined : 'Only the Administrator can change interest rates.'}
                       onChange={(e) => setProduct(t, 'monthlyRate', e.target.value)} aria-label={`${p.label} interest rate`} />
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="cell">
                     <input type="number" min={1} max={120} step={1} className="input w-28" value={p.maxTermMonths}
                       onChange={(e) => setProduct(t, 'maxTermMonths', e.target.value)} aria-label={`${p.label} longest term`} />
                   </td>
-                  <td className="px-4 py-3 text-right font-semibold">{formatPeso(Math.round(inst))}</td>
+                  <td className="cell-num font-semibold">{formatPeso(Math.round(inst))}</td>
                 </tr>
               )
             })}
           </tbody>
-        </table>
+        </TableShell>
         <div className="flex flex-col gap-3 border-t border-brand-100 p-4 sm:flex-row sm:items-center">
           <label htmlFor="sample" className="text-sm font-medium text-brand-800">Preview with an amount of</label>
           <input id="sample" type="number" min={0} step={1000} className="input sm:w-40" value={sample}

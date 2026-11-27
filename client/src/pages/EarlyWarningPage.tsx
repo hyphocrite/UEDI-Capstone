@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AlertTriangle, Eye, ShieldAlert, ShieldCheck, Siren } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
+import Pagination from '../components/Pagination'
+import { usePaged } from '../lib/usePaged'
 import StatCard from '../components/StatCard'
 import { api } from '../lib/api'
 import { MascotSays } from '../components/mascot/Mascot'
@@ -60,7 +62,8 @@ export default function EarlyWarningPage() {
   const all = useMemo(() => list ?? [], [list])
   const high = all.filter((l) => l.level === 'high')
   const watch = all.filter((l) => l.level === 'watch')
-  const shown = show === 'flagged' ? all.filter((l) => l.level === 'high' || l.level === 'watch') : all
+  const shown = useMemo(() => (show === 'flagged' ? all.filter((l) => l.level === 'high' || l.level === 'watch') : all), [all, show])
+  const { anchor: pagedAnchor, ...paged } = usePaged(shown, { urlParam: 'page', resetKey: show })
 
   return (
     <>
@@ -85,7 +88,7 @@ export default function EarlyWarningPage() {
         <StatCard icon={ShieldCheck} label="Active mutual assistance checked" value={String(all.length)} />
       </div>
 
-      <section className="card min-w-0">
+      <section ref={pagedAnchor} className="card min-w-0 scroll-mt-4">
         <div className="flex flex-wrap gap-2 border-b border-brand-100 p-4" role="tablist" aria-label="Show">
           {(['flagged', 'all'] as const).map((s) => (
             <button key={s} role="tab" aria-selected={show === s} onClick={() => setShow(s)}
@@ -95,7 +98,7 @@ export default function EarlyWarningPage() {
           ))}
         </div>
         <ul className="divide-y divide-brand-50">
-          {shown.map((l) => (
+          {paged.pageRows.map((l) => (
             <li key={l.loanId} className="grid gap-3 px-4 py-4 md:grid-cols-[14rem_1fr_9rem] md:items-start">
               <div className="min-w-0">
                 <Link to={`/loans/${l.loanId}`} className="font-semibold text-ink hover:text-accent-dark">{l.borrowerName}</Link>
@@ -129,6 +132,7 @@ export default function EarlyWarningPage() {
           )}
           {!list && <li className="px-4 py-10 text-center text-sm text-brand-500">Checking active mutual assistance…</li>}
         </ul>
+        <Pagination page={paged.page} pageSize={paged.perPage} total={paged.total} onPage={paged.setPage} />
       </section>
     </>
   )

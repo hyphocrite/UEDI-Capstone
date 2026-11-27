@@ -5,6 +5,9 @@ import PageHeader from '../components/PageHeader'
 import StatCard from '../components/StatCard'
 import StatusBadge from '../components/StatusBadge'
 import ProgressBar from '../components/ProgressBar'
+import Pagination from '../components/Pagination'
+import TableShell from '../components/TableShell'
+import { usePaged } from '../lib/usePaged'
 import MyApplications from '../components/loans/MyApplications'
 import { useAuth } from '../context/AuthContext'
 import { api } from '../lib/api'
@@ -73,6 +76,9 @@ export default function LoansPage() {
     )
   }, [all, status, query])
 
+  const paged = usePaged(filtered, { urlParam: 'page', resetKey: [status, query] })
+  const carriedPaged = usePaged(carriedShown, { urlParam: 'carriedPage', resetKey: query })
+
   const open = all.filter((l) => l.status === 'active')
   const outstanding = open.reduce((s, l) => s + l.balance, 0)
   // Ledger loans are old balances, not money released by this system.
@@ -127,40 +133,40 @@ export default function LoansPage() {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+        <TableShell caption="Mutual assistance" anchor={paged.anchor}
+          footer={<Pagination page={paged.page} pageSize={paged.perPage} total={paged.total} onPage={paged.setPage} />}>
             <thead className="table-head">
               <tr>
-                <th className="px-4 py-3">Mutual Assistance</th>
-                <th className="px-4 py-3">Borrower</th>
-                <th className="px-4 py-3 text-right">Principal</th>
-                <th className="px-4 py-3">Rate and term</th>
-                <th className="px-4 py-3">Released</th>
-                <th className="px-4 py-3 text-right">Balance</th>
-                <th className="w-44 px-4 py-3">Paid</th>
-                <th className="px-4 py-3">Status</th>
+                <th>Mutual Assistance</th>
+                <th>Borrower</th>
+                <th className="text-right">Principal</th>
+                <th>Rate and term</th>
+                <th>Released</th>
+                <th className="text-right">Balance</th>
+                <th className="w-44">Paid</th>
+                <th className="w-32">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-brand-50">
-              {filtered.map((l) => (
+              {paged.pageRows.map((l) => (
                 <tr key={l._id} className="row-hover cursor-pointer" onClick={() => navigate(`/loans/${l._id}`)}>
-                  <td className="px-4 py-3 whitespace-nowrap">
+                  <td className="cell whitespace-nowrap">
                     <Link to={`/loans/${l._id}`} className="font-semibold text-ink hover:text-accent-dark" onClick={(e) => e.stopPropagation()}>
                       {l.loanNo}
                     </Link>
                     <p className="text-xs text-brand-500">{l.source === 'ledger' ? 'Carried over from the ledger' : loanTypeLabel[l.loanType]}{l.paymentModeLabel ? ` · ${l.paymentModeLabel}` : ''}</p>
                   </td>
-                  <td className="px-4 py-3">
-                    {l.borrowerName}
+                  <td className="cell">
+                    <span className="line-clamp-2">{l.borrowerName}</span>
                     {missedDeductionText(l) && <p className="text-xs whitespace-nowrap text-red-700">{missedDeductionText(l)}</p>}
                     {l.collectFrom?.source === 'final_pay' && <p className="text-xs font-semibold text-red-700">Separated from DNSC</p>}
                   </td>
-                  <td className="px-4 py-3 text-right whitespace-nowrap">{formatCentavos(l.principal)}</td>
-                  <td className="px-4 py-3 whitespace-nowrap">{l.monthlyRate}%/mo · {l.termMonths} mo</td>
-                  <td className="px-4 py-3 whitespace-nowrap">{l.release?.releasedAt ? formatDay(l.release.releasedAt) : '—'}</td>
-                  <td className="px-4 py-3 text-right font-semibold whitespace-nowrap">{l.status === 'for_release' ? '—' : formatCentavos(l.balance)}</td>
-                  <td className="px-4 py-3"><ProgressBar value={percent(l.amountPaid, l.totalPayable)} label={`${l.loanNo} paid`} /></td>
-                  <td className="px-4 py-3"><StatusBadge status={displayStatus(l)} /></td>
+                  <td className="cell-num">{formatCentavos(l.principal)}</td>
+                  <td className="cell whitespace-nowrap">{l.monthlyRate}%/mo · {l.termMonths} mo</td>
+                  <td className="cell whitespace-nowrap">{l.release?.releasedAt ? formatDay(l.release.releasedAt) : '—'}</td>
+                  <td className="cell-num font-semibold">{l.status === 'for_release' ? '—' : formatCentavos(l.balance)}</td>
+                  <td className="cell"><ProgressBar value={percent(l.amountPaid, l.totalPayable)} label={`${l.loanNo} paid`} /></td>
+                  <td className="cell whitespace-nowrap"><StatusBadge status={displayStatus(l)} /></td>
                 </tr>
               ))}
               {filtered.length === 0 && (
@@ -171,8 +177,7 @@ export default function LoansPage() {
                 </tr>
               )}
             </tbody>
-          </table>
-        </div>
+        </TableShell>
       </div>
 
       {carried.length > 0 && (
@@ -185,43 +190,42 @@ export default function LoansPage() {
               balance moves to the list above and payroll deduction runs include it.
             </p>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+          <TableShell caption="Carried over from the spreadsheet ledger" anchor={carriedPaged.anchor}
+            footer={<Pagination page={carriedPaged.page} pageSize={carriedPaged.perPage} total={carriedPaged.total} onPage={carriedPaged.setPage} />}>
               <thead className="table-head">
                 <tr>
-                  <th className="px-4 py-3">Member</th>
-                  <th className="px-4 py-3 text-right">Start of year</th>
-                  <th className="px-4 py-3 text-right">Borrowed this year</th>
-                  <th className="px-4 py-3 text-right">Payments</th>
-                  <th className="px-4 py-3 text-right">Interest</th>
-                  <th className="px-4 py-3 text-right">Balance</th>
-                  <th className="px-4 py-3">Remarks</th>
+                  <th>Member</th>
+                  <th className="text-right">Start of year</th>
+                  <th className="text-right">Borrowed this year</th>
+                  <th className="text-right">Payments</th>
+                  <th className="text-right">Interest</th>
+                  <th className="text-right">Balance</th>
+                  <th>Remarks</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-brand-50">
-                {carriedShown.map((c) => (
+                {carriedPaged.pageRows.map((c) => (
                   <tr key={c.memberId} className="row-hover">
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <p className="font-semibold text-ink">{c.fullName}</p>
+                    <td className="cell">
+                      <p className="line-clamp-2 font-semibold text-ink">{c.fullName}</p>
                       {!c.fullName.startsWith('Member No.') && <p className="text-xs text-brand-500">{c.memberId}</p>}
                     </td>
-                    <td className="px-4 py-3 text-right whitespace-nowrap">{formatCentavos(c.balanceStartOfYear)}</td>
-                    <td className="px-4 py-3 text-right whitespace-nowrap">
+                    <td className="cell-num">{formatCentavos(c.balanceStartOfYear)}</td>
+                    <td className="cell-num">
                       {formatCentavos(c.appliedThisYear)}
                       {c.loansThisYear > 0 && <p className="text-xs text-brand-500">{c.loansThisYear} {c.loansThisYear === 1 ? 'loan' : 'loans'}</p>}
                     </td>
-                    <td className="px-4 py-3 text-right whitespace-nowrap">{formatCentavos(c.payments)}</td>
-                    <td className="px-4 py-3 text-right whitespace-nowrap">{formatCentavos(c.interest)}</td>
-                    <td className="px-4 py-3 text-right font-semibold whitespace-nowrap">{formatCentavos(c.balance)}</td>
-                    <td className="px-4 py-3 text-brand-600">{c.remarks || '—'}</td>
+                    <td className="cell-num">{formatCentavos(c.payments)}</td>
+                    <td className="cell-num">{formatCentavos(c.interest)}</td>
+                    <td className="cell-num font-semibold">{formatCentavos(c.balance)}</td>
+                    <td className="cell text-brand-600"><p className="max-w-[16rem] truncate" title={c.remarks || undefined}>{c.remarks || '—'}</p></td>
                   </tr>
                 ))}
                 {carriedShown.length === 0 && (
                   <tr><td colSpan={7} className="px-4 py-8 text-center text-brand-500">No carried-over balances match this search.</td></tr>
                 )}
               </tbody>
-            </table>
-          </div>
+          </TableShell>
         </div>
       )}
     </>

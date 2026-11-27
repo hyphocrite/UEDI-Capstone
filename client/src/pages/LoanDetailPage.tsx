@@ -18,6 +18,7 @@ import { atLeast } from '../lib/roles'
 import type { PaymentSubmission } from '../lib/payments'
 import { loanTypeLabel } from '../lib/applications'
 import { displayStatus, formatCentavos, formatDay, missedDeductionText } from '../lib/loans'
+import { modeLabel } from '../lib/paymentModes'
 import type { Loan, OtherActiveLoan, Payment } from '../lib/loans'
 
 export default function LoanDetailPage() {
@@ -120,7 +121,7 @@ export default function LoanDetailPage() {
           <Item label="Principal" value={formatCentavos(loan.principal)} />
           <Item label="Rate" value={`${loan.monthlyRate}% a month (add-on)`} />
           <Item label="Term" value={loan.paymentMode === 'bonus' && loan.schedule.length === 1 ? `One payment on ${formatDay(loan.schedule[0].dueDate)}` : `${loan.termMonths} months, ${loan.paymentFrequency === 'quincenal' ? 'quincenal' : 'monthly'}`} />
-          <Item label="Mode of payment" value={loan.paymentModeLabel ?? 'Payroll deduction'} />
+          <Item label="Mode of payment" value={loan.paymentModeLabel ?? modeLabel(loan.paymentMode, loan.bonusType)} />
           <Item label="Total payable" value={loan.status === 'for_release' ? 'Set on release' : formatCentavos(loan.totalPayable)} />
           <Item label="Paid" value={formatCentavos(loan.amountPaid)} />
           <Item label="Balance" value={loan.status === 'for_release' ? '—' : formatCentavos(loan.balance)} strong />
@@ -163,7 +164,7 @@ export default function LoanDetailPage() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="min-w-0">
                 <h2 className="font-semibold text-brand-800">Pay ahead</h2>
-                <p className="text-sm text-brand-600">Paid by GCash, Maya, bank transfer or cash? Send it here with the reference and a photo of the receipt.</p>
+                <p className="text-sm text-brand-600">Paid with GCash, Maya, a bank deposit or cash? Send it here with the reference and a photo of the receipt.</p>
               </div>
               <button type="button" className="btn-accent" onClick={() => { setSentNote(''); setSending(true) }}><Send className="h-4 w-4" /> Send a payment</button>
             </div>
@@ -176,7 +177,7 @@ export default function LoanDetailPage() {
             <section className="card min-w-0 p-4 sm:p-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <h2 className="font-semibold text-brand-800">Cash, e-money or bank transfer</h2>
+                  <h2 className="font-semibold text-brand-800">Cash, e-wallet or bank deposit / transfer</h2>
                   <p className="text-sm text-brand-600">Walk-in payments go to the Payments page: the Treasurer issues the OR, then the Bookkeeper confirms and posts it.</p>
                 </div>
                 <button type="button" className="btn-ghost" onClick={() => { setSentNote(''); setSending(true) }}><Banknote className="h-4 w-4" /> Record walk-in payment</button>

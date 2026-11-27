@@ -3,6 +3,7 @@ import type { Dispatch, SetStateAction } from 'react'
 import { Link2, Search, SearchX, UserCheck, UserX } from 'lucide-react'
 import EmptyState from '../EmptyState'
 import Pagination from '../Pagination'
+import { usePaged } from '../../lib/usePaged'
 import StatCard from '../StatCard'
 import { useConfirm } from '../../context/ConfirmContext'
 import { api } from '../../lib/api'
@@ -13,8 +14,6 @@ import { roleLabel } from '../../lib/roles'
 
 type Show = 'unlinked' | 'linked' | 'all'
 
-export const ACCOUNTS_PER_PAGE = 10
-
 /**
  * The "Sign-in accounts" tab on Members: Loan Officers and up link sign-in accounts to member
  * records. A member account sees the loans and applications filed under its member ID, and its
@@ -22,14 +21,12 @@ export const ACCOUNTS_PER_PAGE = 10
  * Linked accounts just show their number; accounts not linked yet get a box and a Link button.
  * The page loads the members and accounts (for the tab's count) and passes them in.
  */
-export default function MemberAccountsPanel({ members, accounts, setAccounts, loadError, page, onPage }: {
+export default function MemberAccountsPanel({ members, accounts, setAccounts, loadError }: {
   /** Sorted by member number. */
   members: Member[]
   accounts: Account[] | null
   setAccounts: Dispatch<SetStateAction<Account[] | null>>
   loadError: string
-  page: number
-  onPage: (page: number) => void
 }) {
   const confirm = useConfirm()
   const [drafts, setDrafts] = useState<Record<string, string>>({})
@@ -56,9 +53,8 @@ export default function MemberAccountsPanel({ members, accounts, setAccounts, lo
       (!q || a.fullName.toLowerCase().includes(q) || a.email.toLowerCase().includes(q) || (a.memberId ?? '').toLowerCase().includes(q)),
     )
   }, [accounts, query, show])
-  const pages = Math.max(1, Math.ceil(list.length / ACCOUNTS_PER_PAGE))
-  const current = Math.min(page, pages)
-  const visible = list.slice((current - 1) * ACCOUNTS_PER_PAGE, current * ACCOUNTS_PER_PAGE)
+  // The page is in the URL (?page=2) like the Members tab.
+  const { page, setPage, pageRows: visible, perPage, anchor } = usePaged(list, { urlParam: 'page', resetKey: [query, show] })
 
   const counts = {
     unlinked: (accounts ?? []).filter(waitingToLink).length,
@@ -130,11 +126,11 @@ export default function MemberAccountsPanel({ members, accounts, setAccounts, lo
         </p>
       )}
 
-      <section className="card min-w-0">
+      <div ref={anchor} className="card min-w-0 scroll-mt-4">
         <div className="flex flex-col gap-3 border-b border-brand-100 p-4 lg:flex-row lg:items-center">
           <div className="flex flex-wrap gap-2" role="tablist" aria-label="Show">
             {tabs.map((t) => (
-              <button key={t.key} role="tab" aria-selected={show === t.key} onClick={() => { setShow(t.key); onPage(1) }}
+              <button key={t.key} role="tab" aria-selected={show === t.key} onClick={() => setShow(t.key)}
                 className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${show === t.key ? 'bg-brand-800 bg-grad-brand text-white' : 'bg-brand-50 text-brand-700 hover:bg-brand-100'}`}>
                 {t.label}
               </button>
@@ -143,7 +139,7 @@ export default function MemberAccountsPanel({ members, accounts, setAccounts, lo
           <div className="relative lg:ml-auto lg:w-80">
             <Search className="pointer-events-none absolute top-2.5 left-3 h-4 w-4 text-brand-400" />
             <input className="input pl-9" placeholder="Search name, email or member no." value={query}
-              onChange={(e) => { setQuery(e.target.value); onPage(1) }} aria-label="Search accounts" />
+              onChange={(e) => setQuery(e.target.value)} aria-label="Search accounts" />
           </div>
         </div>
 
@@ -212,8 +208,8 @@ export default function MemberAccountsPanel({ members, accounts, setAccounts, lo
             )}
           </ul>
         )}
-        <Pagination page={current} pageSize={ACCOUNTS_PER_PAGE} total={list.length} onPage={onPage} />
-      </section>
+        <Pagination page={page} pageSize={perPage} total={list.length} onPage={setPage} />
+      </div>
     </>
   )
 }

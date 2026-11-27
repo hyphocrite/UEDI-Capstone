@@ -64,7 +64,7 @@ test("each mode files and is copied to the loan; bonus needs a bonus type and ha
     assert.equal(loan.schedule.length, 12, "6 months, quincenal");
   }
   const bonus = await released("PM-YE", { paymentMode: "bonus", bonusType: "year_end" });
-  assert.deepEqual([bonus.paymentMode, bonus.bonusType, bonus.paymentModeLabel], ["bonus", "year_end", "Bonus: Year-end bonus"]);
+  assert.deepEqual([bonus.paymentMode, bonus.bonusType, bonus.paymentModeLabel], ["bonus", "year_end", "Charge to Year-End Bonus"]);
   assert.equal(bonus.schedule.length, 1, "one installment");
   assert.equal(key(bonus.schedule[0].dueDate), "2026-11-15", "on the Year-end bonus date");
   assert.equal(bonus.schedule[0].interestDue, Math.round(2_000_000 * 0.01 * 4), "1% a month for Aug 1 to Nov 15");
@@ -76,7 +76,7 @@ test("a cash-mode loan is on the payroll run with expected 0; a bonus run lists 
   await released("PM-MY", { paymentMode: "bonus", bonusType: "mid_year" });
   const run = (await t.call("/deductions", { method: "POST", cookie: bk(), body: { cutoffDate: "2026-09-15" } })).json.run;
   const cash = run.lines.find((l) => l.memberId === "PM-cash");
-  assert.deepEqual([cash.expected, cash.reason, cash.reasonNote], [0, "not_on_payroll", "Cash"]);
+  assert.deepEqual([cash.expected, cash.reason, cash.reasonNote], [0, "not_on_payroll", "Cash (over the counter)"]);
   assert.ok(run.lines.find((l) => l.memberId === "PM-payroll").expected > 0);
   assert.equal(run.lines.some((l) => l.memberId === "PM-YE"), false, "nothing due on Sep 15 for the bonus loan");
   // Sending and posting: the cash line is "full", never "missed".

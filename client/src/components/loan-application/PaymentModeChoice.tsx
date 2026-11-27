@@ -7,8 +7,8 @@ const card = (on: boolean) =>
   }`
 
 /**
- * Mode of payment as radio cards: payroll deduction, bonus, cash or bank transfer. The four bonuses
- * appear only when Bonus is picked. Used on the application form and the change-of-mode dialog.
+ * Mode of payment as radio cards: Salary deduction, Charge to bonus, Cash or Bank deposit / transfer
+ * (plus E-wallet when changing a loan's mode). The four bonuses appear only when Charge to bonus is picked. Used on the application form and the change-of-mode dialog.
  */
 export default function PaymentModeChoice({ mode, bonusType, onChange, modes = PAYMENT_MODES, name = 'paymentMode' }: {
   mode: PaymentMode
@@ -35,7 +35,7 @@ export default function PaymentModeChoice({ mode, bonusType, onChange, modes = P
       </fieldset>
       {mode === 'bonus' && (
         <fieldset className="min-w-0">
-          <legend className="label">Charge to</legend>
+          <legend className="label">Which bonus?</legend>
           <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
             {BONUS_TYPES.map((b) => (
               <label key={b.value} className={card(bonusType === b.value)}>
@@ -43,7 +43,7 @@ export default function PaymentModeChoice({ mode, bonusType, onChange, modes = P
                   <input type="radio" name={`${name}-bonus`} value={b.value} checked={bonusType === b.value} onChange={() => onChange('bonus', b.value)} />
                   {b.short}
                 </span>
-                <span className="mt-0.5 text-xs text-brand-600">{b.label}</span>
+                <span className="mt-0.5 text-xs text-brand-600">{b.long}</span>
               </label>
             ))}
           </div>

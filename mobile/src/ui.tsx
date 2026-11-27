@@ -95,11 +95,14 @@ export function Choice<T extends string>({
   value,
   options,
   onChange,
+  wide,
 }: {
   label: string
   value: T
-  options: { value: T; label: string }[]
+  options: { value: T; label: string; hint?: string }[]
   onChange: (v: T) => void
+  /** Two choices per row (for longer labels and hints). */
+  wide?: boolean
 }) {
   return (
     <View style={{ marginBottom: 14 }}>
@@ -113,9 +116,10 @@ export function Choice<T extends string>({
               accessibilityRole="radio"
               accessibilityState={{ selected: on }}
               onPress={() => onChange(o.value)}
-              style={[s.chip, on && s.chipOn]}
+              style={[s.chip, wide && { flexBasis: '45%', paddingHorizontal: 10 }, on && s.chipOn]}
             >
-              <Text style={[s.chipText, on && { color: '#fff' }]}>{o.label}</Text>
+              <Text style={[s.chipText, wide && { textAlign: 'center' }, on && { color: '#fff' }]}>{o.label}</Text>
+              {o.hint ? <Text style={{ fontSize: 11, marginTop: 2, textAlign: 'center', color: on ? '#DDF3E7' : colors.muted }}>{o.hint}</Text> : null}
             </Pressable>
           )
         })}
@@ -170,6 +174,34 @@ export function Row({ label, value, strong }: { label: string; value: string; st
       <Text style={{ color: colors.muted }}>{label}</Text>
       <Text style={{ color: colors.text, fontWeight: strong ? '700' : '500' }}>{value}</Text>
     </View>
+  )
+}
+
+/**
+ * Long lists on a phone: the first `step` rows, then a "Show 10 more" button (no page numbers).
+ * Starts again from the first `step` when the list's length changes (e.g. after a refresh).
+ */
+export function useShowMore<T>(rows: readonly T[], step = 10) {
+  const [shown, setShown] = useState({ count: step, forLength: rows.length })
+  const count = shown.forLength === rows.length ? shown.count : step
+  return {
+    visible: rows.slice(0, count),
+    total: rows.length,
+    step,
+    more: () => setShown({ count: count + step, forLength: rows.length }),
+  }
+}
+
+/** The button under a useShowMore list: "Show 10 more (24 of 57)". Hidden once everything shows. */
+export function ShowMore({ list }: { list: { visible: readonly unknown[]; total: number; step: number; more: () => void } }) {
+  if (list.visible.length >= list.total) return null
+  const next = Math.min(list.step, list.total - list.visible.length)
+  return (
+    <Pressable accessibilityRole="button" onPress={list.more} style={({ pressed }) => [s.showMore, pressed && { opacity: 0.7 }]}>
+      <Text style={{ color: colors.primary, fontWeight: '700' }}>
+        Show {next} more ({list.visible.length} of {list.total})
+      </Text>
+    </Pressable>
   )
 }
 
@@ -239,6 +271,7 @@ export const s = StyleSheet.create({
   error: { backgroundColor: colors.dangerSoft, borderRadius: 10, padding: 12, marginBottom: 14 },
   row: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 },
   sectionTitle: { color: colors.text, fontSize: 16, fontWeight: '700', marginBottom: 10, marginTop: 6 },
+  showMore: { alignItems: 'center', justifyContent: 'center', minHeight: 44, paddingVertical: 10, marginBottom: 12 },
 })
 
 const kuwi = {

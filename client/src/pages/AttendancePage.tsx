@@ -3,11 +3,13 @@ import type { FormEvent } from 'react'
 import { CalendarCheck, Plus, Search } from 'lucide-react'
 import Modal from '../components/Modal'
 import PageHeader from '../components/PageHeader'
+import Pagination from '../components/Pagination'
 import { useConfirm } from '../context/ConfirmContext'
 import { api } from '../lib/api'
 import { formatDate } from '../lib/format'
 import { byMemberId } from '../lib/members'
 import type { Member } from '../lib/members'
+import { usePaged } from '../lib/usePaged'
 
 type Kind = 'general_assembly' | 'pmes' | 'other'
 type Meeting = { _id: string; title: string; kind: Kind; date: string; attendees: string[]; attendeeCount: number; recordedByName?: string }
@@ -49,6 +51,11 @@ export default function AttendancePage() {
     const q = query.trim().toLowerCase()
     return members.filter((m) => !q || m.fullName.toLowerCase().includes(q) || m.memberId.toLowerCase().includes(q))
   }, [members, query])
+  // Meetings newest first; members 10 at a time. Ticks are kept by member number across pages.
+  const newestFirst = useMemo(() => [...(meetings ?? [])].sort((a, b) => b.date.localeCompare(a.date)), [meetings])
+  const { anchor: meetingPagesAnchor, ...meetingPages } = usePaged(newestFirst)
+  const { anchor: memberPagesAnchor, ...memberPages } = usePaged(filtered, { resetKey: [query, selectedId] })
+  const presentOfActive = members.filter((m) => ticked.has(m.memberId)).length
   const changed = selected ? ticked.size !== selected.attendees.length || selected.attendees.some((a) => !ticked.has(a)) : false
 
   const save = async () => {
@@ -83,8 +90,9 @@ export default function AttendancePage() {
       )}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[20rem_1fr]">
-        <ul className="card h-fit min-w-0 divide-y divide-brand-50" aria-label="Meetings">
-          {meetings?.map((m) => (
+        <div ref={meetingPagesAnchor} className="card h-fit min-w-0 scroll-mt-4">
+        <ul className="divide-y divide-brand-50" aria-label="Meetings">
+          {meetingPages.pageRows.map((m) => (
             <li key={m._id}>
               <button onClick={() => open(m)} className={`w-full px-4 py-3 text-left transition ${selectedId === m._id ? 'bg-brand-50' : 'hover:bg-brand-50/50'}`}>
                 <p className="font-semibold text-ink">{m.title}</p>
@@ -94,6 +102,8 @@ export default function AttendancePage() {
           ))}
           {meetings && meetings.length === 0 && <li className="px-4 py-8 text-center text-sm text-brand-500">No meetings recorded yet.</li>}
         </ul>
+        <Pagination page={meetingPages.page} pageSize={meetingPages.perPage} total={meetingPages.total} onPage={meetingPages.setPage} />
+        </div>
 
         <section className="card min-w-0">
           {!selected ? (
@@ -111,8 +121,15 @@ export default function AttendancePage() {
                 </div>
                 <button className="btn-primary" disabled={!changed || saving} onClick={() => void save()}>{saving ? 'Saving…' : 'Save attendance'}</button>
               </div>
-              <ul className="grid max-h-[60vh] grid-cols-1 overflow-y-auto sm:grid-cols-2 xl:grid-cols-3">
-                {filtered.map((m) => (
+              <div ref={memberPagesAnchor} className="flex flex-wrap items-center gap-3 border-b border-brand-100 px-4 py-2 text-sm scroll-mt-4">
+                <p className="text-brand-700" aria-live="polite"><b>{presentOfActive}</b> of {members.length} marked present</p>
+                <div className="ml-auto flex gap-2">
+                  <button type="button" className="btn-ghost px-3 py-1 text-xs" onClick={() => setTicked((s) => new Set([...s, ...members.map((m) => m.memberId)]))}>Mark all present</button>
+                  <button type="button" className="btn-ghost px-3 py-1 text-xs" disabled={ticked.size === 0} onClick={() => setTicked(new Set())}>Clear</button>
+                </div>
+              </div>
+              <ul className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
+                {memberPages.pageRows.map((m) => (
                   <li key={m.memberId}>
                     <label className="flex cursor-pointer items-center gap-2 px-4 py-2 text-sm hover:bg-brand-50/50">
                       <input type="checkbox" checked={ticked.has(m.memberId)}
@@ -121,7 +138,9 @@ export default function AttendancePage() {
                     </label>
                   </li>
                 ))}
+                {filtered.length === 0 && <li className="px-4 py-8 text-sm text-brand-500 sm:col-span-2 xl:col-span-3">No member matches “{query}”.</li>}
               </ul>
+              <Pagination page={memberPages.page} pageSize={memberPages.perPage} total={memberPages.total} onPage={memberPages.setPage} />
             </>
           )}
         </section>

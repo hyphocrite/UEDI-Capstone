@@ -1,5 +1,6 @@
 // Loans as GET /api/loans returns them. Every amount is an integer number of centavos (₱1 = 100).
 import type { LoanType } from './applications'
+import { MODE_HINT, MODE_LABEL, shortLabel } from './paymentModes'
 import type { BonusType, PaymentMode, PaymentModeChange } from './paymentModes'
 import { reasonLabel } from './deductions'
 import type { MissReason } from './deductions'
@@ -93,13 +94,24 @@ export type Payment = {
   createdAt: string
 }
 
+/** How one payment came in ("Mode of payment"), in the same words as the loan's mode (paymentModes.ts). */
 export const paymentMethodLabel: Record<PaymentMethod, string> = {
-  payroll: 'Payroll',
-  cash: 'Cash',
-  e_money: 'E-money',
-  bank_transfer: 'Bank transfer',
-  other: 'Other',
-  offset: 'Offset',
+  payroll: MODE_LABEL.payroll,
+  cash: MODE_LABEL.cash,
+  e_money: MODE_LABEL.e_money,
+  bank_transfer: MODE_LABEL.bank_transfer,
+  other: 'Adjustment',
+  offset: 'Offset from new release',
+}
+
+/** For narrow table cells ("Cash", "E-wallet"); put paymentMethodLabel in title="". */
+export const paymentMethodShort = Object.fromEntries(Object.entries(paymentMethodLabel).map(([k, v]) => [k, shortLabel(v)])) as Record<PaymentMethod, string>
+
+/** The hint for the two methods the office records by hand. */
+export const paymentMethodHint: Partial<Record<PaymentMethod, string>> = {
+  payroll: MODE_HINT.payroll,
+  other: 'Correction entered by the Bookkeeper.',
+  offset: 'Old balance deducted from a new mutual assistance.',
 }
 
 /**
@@ -112,7 +124,7 @@ export const MANUAL_METHODS: PaymentMethod[] = ['payroll', 'other']
 /** "OR 1234" for receipted payments, "Payroll run Oct 15, 2026" for payroll; the ledger's OR / run column. */
 export function receiptOf(p: Pick<Payment, 'method' | 'orNumber' | 'runCutoff' | 'reference'>): string {
   if (p.orNumber) return `OR ${p.orNumber}`
-  if (p.method === 'payroll') return p.runCutoff ? `Payroll run ${formatDay(p.runCutoff)}` : p.reference || 'Payroll'
+  if (p.method === 'payroll') return p.runCutoff ? `Payroll run ${formatDay(p.runCutoff)}` : p.reference || 'Payroll run'
   return '—'
 }
 

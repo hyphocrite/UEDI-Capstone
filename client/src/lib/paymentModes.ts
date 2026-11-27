@@ -3,30 +3,53 @@ export type PaymentMode = 'payroll' | 'bonus' | 'cash' | 'e_money' | 'bank_trans
 export type BonusType = 'mid_year' | 'year_end' | 'cna' | 'sri'
 export type BonusCalendar = Record<BonusType, { month: number; day: number }>
 
-export const PAYMENT_MODES: { value: PaymentMode; label: string; hint: string }[] = [
-  { value: 'payroll', label: 'Payroll deduction', hint: 'Deducted from your salary every cutoff. The usual way.' },
-  { value: 'bonus', label: 'Bonus', hint: 'Paid in one go from a bonus: Mid-year, Year-end, CNA or SRI.' },
-  { value: 'cash', label: 'Cash', hint: 'Paid at the UDEI office.' },
-  { value: 'bank_transfer', label: 'Bank transfer', hint: "Sent to UDEI's bank account." },
+// The one wording for "Mode of payment" on the web: forms, lists, the loan page, the Statement and
+// the printed form all read their labels from here (the panel's request at the final defense).
+// The field is always called "Mode of payment". The server (services/paymentModes.js) and the app
+// (mobile/src/paymentModes.ts) use the same words.
+
+/** The label in lists, tables, exports and print. */
+export const MODE_LABEL: Record<PaymentMode, string> = {
+  payroll: 'Salary deduction',
+  bonus: 'Charge to bonus',
+  cash: 'Cash (over the counter)',
+  e_money: 'E-wallet (GCash / Maya)',
+  bank_transfer: 'Bank deposit / transfer',
+}
+
+/** The short line under each choice card. */
+export const MODE_HINT: Record<PaymentMode, string> = {
+  payroll: 'Deducted monthly from your DNSC salary.',
+  bonus: 'Paid in full from one bonus.',
+  cash: 'Paid at the UDEI office; the Treasurer issues an OR.',
+  e_money: "Sent to UDEI's GCash or Maya; attach the receipt.",
+  bank_transfer: "Deposited or transferred to UDEI's bank account.",
+}
+
+/** A label without its bracket part, for narrow table cells: "Cash", "E-wallet". Put the full label in title="". */
+export const shortLabel = (label: string) => label.replace(/\s*\(.*\)$/, '')
+
+const choice = (value: PaymentMode) => ({ value, label: MODE_LABEL[value], hint: MODE_HINT[value] })
+
+/** The four on UDEI's paper application form, in its order. */
+export const PAYMENT_MODES: { value: PaymentMode; label: string; hint: string }[] = (['payroll', 'bonus', 'cash', 'bank_transfer'] as const).map(choice)
+
+/** A loan can also be changed to an e-wallet, which is not on the paper form. */
+export const ALL_MODES: { value: PaymentMode; label: string; hint: string }[] = [...PAYMENT_MODES, choice('e_money')]
+
+/** short: the big name on the choice card; label: in "Charge to …"; long: the small line under it. */
+export const BONUS_TYPES: { value: BonusType; label: string; short: string; long: string }[] = [
+  { value: 'mid_year', label: 'Mid-Year Bonus', short: 'Mid-Year', long: 'Mid-Year Bonus' },
+  { value: 'year_end', label: 'Year-End Bonus', short: 'Year-End', long: 'Year-End Bonus' },
+  { value: 'cna', label: 'CNA Incentive', short: 'CNA', long: 'Collective Negotiation Agreement Incentive' },
+  { value: 'sri', label: 'SRI', short: 'SRI', long: 'Service Recognition Incentive' },
 ]
 
-/** E-money is a mode a loan can be changed to (GCash, Maya), not one on the paper form. */
-export const ALL_MODES: { value: PaymentMode; label: string }[] = [
-  ...PAYMENT_MODES.map(({ value, label }) => ({ value, label })),
-  { value: 'e_money', label: 'E-money' },
-]
+export const bonusLabel = (bonusType?: BonusType | null) => BONUS_TYPES.find((b) => b.value === bonusType)?.label ?? 'bonus'
 
-export const BONUS_TYPES: { value: BonusType; label: string; short: string }[] = [
-  { value: 'mid_year', label: 'Mid-year bonus', short: 'Mid-year' },
-  { value: 'year_end', label: 'Year-end bonus', short: 'Year-end' },
-  { value: 'cna', label: 'CNA (Collective Negotiation Agreement)', short: 'CNA' },
-  { value: 'sri', label: 'SRI (Service Recognition Incentive)', short: 'SRI' },
-]
-
-export const modeLabel = (mode: PaymentMode | undefined, bonusType?: BonusType | null) =>
-  mode === 'bonus'
-    ? `Bonus: ${BONUS_TYPES.find((b) => b.value === bonusType)?.label ?? 'bonus'}`
-    : ALL_MODES.find((m) => m.value === mode)?.label ?? 'Payroll deduction'
+/** "Salary deduction", or "Charge to Year-End Bonus". No mode on file means salary deduction. */
+export const modeLabel = (mode: PaymentMode | undefined | null, bonusType?: BonusType | null) =>
+  mode === 'bonus' ? (bonusType ? `Charge to ${bonusLabel(bonusType)}` : MODE_LABEL.bonus) : MODE_LABEL[mode ?? 'payroll'] ?? MODE_LABEL.payroll
 
 /** Same defaults as the server (UDEI to confirm). */
 export const FALLBACK_BONUS_CALENDAR: BonusCalendar = {
@@ -56,7 +79,7 @@ export function monthsBetween(a: string, b: string): number {
   return Math.max(1, m)
 }
 
-/** One entry of a loan's payment mode history. */
+/** One entry of a loan's mode of payment history. */
 export type PaymentModeChange = {
   mode: PaymentMode
   bonusType?: BonusType | null

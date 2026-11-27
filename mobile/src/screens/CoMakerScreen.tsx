@@ -6,7 +6,7 @@ import { centavos, date, LOAN_TYPE_LABEL, pesos } from '../format'
 import { CONSENT } from '../privacy'
 import { PrivacyLink } from './PrivacyNotice'
 import { colors } from '../theme'
-import { Badge, Button, Card, Empty, ErrorText, Header, Row, s, Check } from '../ui'
+import { Badge, Button, Card, Empty, ErrorText, Header, Row, s, Check, ShowMore, useShowMore } from '../ui'
 
 const STANDING: Record<VouchedLoan['standing'], { text: string; tone: 'green' | 'red' | 'gray' }> = {
   on_track: { text: 'On track', tone: 'green' },
@@ -65,6 +65,9 @@ export default function CoMakerScreen({ onChanged, memberId }: { onChanged: () =
 
   const waiting = portal?.requests.filter((r) => r.status === 'pending' && r.myStatus === 'pending') ?? []
   const answered = portal?.requests.filter((r) => !(r.status === 'pending' && r.myStatus === 'pending')) ?? []
+  const waitingList = useShowMore(waiting)
+  const loanList = useShowMore(portal?.loans ?? [])
+  const answeredList = useShowMore(answered)
 
   return (
     <View style={{ flex: 1 }}>
@@ -82,12 +85,13 @@ export default function CoMakerScreen({ onChanged, memberId }: { onChanged: () =
         {portal?.linked ? (
           <>
             <Text style={s.sectionTitle}>Waiting for your answer</Text>
-            {waiting.length ? waiting.map((r) => (
+            {waiting.length ? waitingList.visible.map((r) => (
               <RequestCard key={r.applicationId} request={r} memberId={memberId} onAnswered={() => { load(); onChanged() }} />
             )) : <Empty text="No requests waiting for your answer." />}
+            <ShowMore list={waitingList} />
 
             <Text style={s.sectionTitle}>Mutual assistance you vouched for</Text>
-            {portal.loans.length ? portal.loans.map((l) => (
+            {portal.loans.length ? loanList.visible.map((l) => (
               <Card key={l.loanId}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                   <Text style={{ fontWeight: '700', color: colors.text, flex: 1 }}>{l.borrowerName}</Text>
@@ -99,17 +103,19 @@ export default function CoMakerScreen({ onChanged, memberId }: { onChanged: () =
                 {l.pastDue ? <Text style={{ color: colors.danger, marginTop: 4 }}>{centavos(l.pastDueAmount)} past due.</Text> : null}
               </Card>
             )) : <Empty text="You haven't vouched for a released mutual assistance yet." />}
+            <ShowMore list={loanList} />
 
             {answered.length ? (
               <>
                 <Text style={s.sectionTitle}>Answered</Text>
-                {answered.map((r) => (
+                {answeredList.visible.map((r) => (
                   <Card key={r.applicationId}>
                     <Row label={r.borrowerName} value={pesos(r.amount)} />
                     <Text style={{ color: colors.muted }}>You {r.myStatus}{r.respondedAt ? ` on ${date(r.respondedAt)}` : ''} · application {r.status}</Text>
                     {r.myStatus === 'accepted' && r.status === 'pending' ? <StatementLink request={r} memberId={memberId} /> : null}
                   </Card>
                 ))}
+                <ShowMore list={answeredList} />
               </>
             ) : null}
           </>

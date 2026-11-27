@@ -5,6 +5,7 @@
 //   2. the Bookkeeper confirms, and only then is the payment recorded on the loan: received → posted.
 // Either can reject it with a reason instead. These are advance payments: payroll deduction keeps
 // running at the same amount (see deductions.amountsFor). Amounts are integer centavos.
+const paymentModes = require("./paymentModes");
 const Application = require("../models/Application");
 const Loan = require("../models/Loan");
 const PaymentSubmission = require("../models/PaymentSubmission");
@@ -17,13 +18,14 @@ const mailer = require("./mailer");
 const { LoanError } = loans;
 
 /** How each payment method reads on screen, everywhere (client/src/lib/payments.ts mirrors this). */
+// How one payment came in, in the same words as a loan's mode of payment (services/paymentModes.js).
 const METHOD_LABELS = {
-  payroll: "Payroll",
-  cash: "Cash",
-  e_money: "E-money",
-  bank_transfer: "Bank transfer",
-  other: "Other",
-  offset: "Offset",
+  payroll: paymentModes.MODE_LABELS.payroll,
+  cash: paymentModes.MODE_LABELS.cash,
+  e_money: paymentModes.MODE_LABELS.e_money,
+  bank_transfer: paymentModes.MODE_LABELS.bank_transfer,
+  other: "Adjustment",
+  offset: "Offset from new release",
 };
 
 const peso = (c) => `PHP ${(c / 100).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -59,7 +61,7 @@ async function create(loan, data, user, source) {
     throw new LoanError(400, "The date paid is before the mutual assistance was released.");
   }
   if (data.method !== "cash" && !data.reference) {
-    throw new LoanError(400, `Enter the ${data.method === "e_money" ? "e-money" : "bank"} reference number.`);
+    throw new LoanError(400, `Enter the ${data.method === "e_money" ? "GCash or Maya" : "bank"} reference number.`);
   }
   const { balance } = ledger.summarize(loan.schedule);
   if (data.amount > balance) throw new LoanError(400, `The amount is more than the remaining balance of ${peso(balance)}.`);
@@ -196,7 +198,7 @@ async function notifyMember(sub, kind) {
     const loan = await Loan.findById(sub.loan).select("memberId application loanNo");
     if (!loan) return;
     const users = await borrowerAccounts(loan);
-    const what = `${METHOD_LABELS[sub.method].toLowerCase()} payment of ${peso(sub.amount)} on mutual assistance ${sub.loanNo}`;
+    const what = `${paymentModes.shortLabel(METHOD_LABELS[sub.method]).toLowerCase()} payment of ${peso(sub.amount)} on mutual assistance ${sub.loanNo}`;
     const subject = kind === "posted" ? `Your payment on ${sub.loanNo} was posted` : `Your payment on ${sub.loanNo} was not accepted`;
     const text =
       kind === "posted"

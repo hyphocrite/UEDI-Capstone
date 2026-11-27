@@ -10,12 +10,24 @@ const ledger = require("./ledger");
 const PAYMENT_MODES = ["payroll", "bonus", "cash", "e_money", "bank_transfer"];
 const BONUS_TYPES = ["mid_year", "year_end", "cna", "sri"];
 
-const MODE_LABELS = { payroll: "Payroll deduction", bonus: "Bonus", cash: "Cash", e_money: "E-money", bank_transfer: "Bank transfer" };
-const BONUS_LABELS = { mid_year: "Mid-year bonus", year_end: "Year-end bonus", cna: "CNA (Collective Negotiation Agreement)", sri: "SRI (Service Recognition Incentive)" };
+// One wording for "Mode of payment" everywhere: screens, exports, emails and print (the panel at the
+// final defense). The web (client/src/lib/paymentModes.ts) and the app (mobile/src/paymentModes.ts)
+// use the same words. Only labels: the stored values above don't change.
+const MODE_LABELS = {
+  payroll: "Salary deduction",
+  bonus: "Charge to bonus",
+  cash: "Cash (over the counter)",
+  e_money: "E-wallet (GCash / Maya)",
+  bank_transfer: "Bank deposit / transfer",
+};
+const BONUS_LABELS = { mid_year: "Mid-Year Bonus", year_end: "Year-End Bonus", cna: "CNA Incentive", sri: "SRI" };
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
-/** "Payroll deduction", or "Bonus: Year-end bonus". */
-const modeLabel = (mode, bonusType) => (mode === "bonus" ? `Bonus: ${BONUS_LABELS[bonusType] || "bonus"}` : MODE_LABELS[mode] || mode);
+/** "Salary deduction", or "Charge to Year-End Bonus". */
+const modeLabel = (mode, bonusType) => (mode === "bonus" ? (BONUS_LABELS[bonusType] ? `Charge to ${BONUS_LABELS[bonusType]}` : MODE_LABELS.bonus) : MODE_LABELS[mode] || mode);
+
+/** A label without its bracket part, for narrow places and sentences: "Cash", "E-wallet". */
+const shortLabel = (label) => String(label).replace(/\s*\(.*\)$/, "");
 
 const DAY_MS = 86_400_000;
 const lastDay = (y, m) => new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
@@ -100,6 +112,7 @@ module.exports = {
   BONUS_LABELS,
   MONTHS,
   modeLabel,
+  shortLabel,
   nextBonusDate,
   monthsBetween,
   bonusTerm,

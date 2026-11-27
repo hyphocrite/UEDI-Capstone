@@ -1,9 +1,13 @@
-import { Fragment, useEffect, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { ChevronDown, ChevronRight, Search, History } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
+import Pagination from '../components/Pagination'
+import TableShell from '../components/TableShell'
 import { api } from '../lib/api'
 import { roleLabel } from '../lib/roles'
 import type { Role } from '../lib/roles'
+import { PER_PAGE } from '../lib/usePaged'
 
 /** One entry of GET /api/audit. */
 type Entry = {
@@ -30,6 +34,9 @@ type Result = { entries: Entry[]; total: number; page: number; limit: number; ac
 const when = (iso: string) =>
   new Date(iso).toLocaleString('en-PH', { timeZone: 'Asia/Manila', year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', second: '2-digit' })
 
+/** Older entries were stored as "Payment mode changed"; they are shown in today's words (the stored text, used to filter, is unchanged). */
+const actionText = (a: string) => a.replace(/^Payment mode changed/, 'Mode of payment changed')
+
 const isEmpty = (v: unknown) => v == null || (typeof v === 'object' && Object.keys(v as object).length === 0)
 
 function Json({ label, value }: { label: string; value: unknown }) {
@@ -51,11 +58,23 @@ export default function AuditLogPage() {
   const [outcome, setOutcome] = useState<'' | 'ok' | 'failed'>('')
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
-  const [page, setPage] = useState(1)
+  // The server pages the log (10 at a time); the page is kept in the URL (?page=2).
+  const [urlParams, setUrlParams] = useSearchParams()
+  const page = Math.max(1, Number(urlParams.get('page')) || 1)
+  const anchorRef = useRef<HTMLDivElement>(null)
+  const setPage = (n: number, scroll = true) => {
+    setUrlParams((p) => {
+      const next = new URLSearchParams(p)
+      if (n > 1) next.set('page', String(n))
+      else next.delete('page')
+      return next
+    }, { replace: true })
+    if (scroll) requestAnimationFrame(() => anchorRef.current?.scrollIntoView({ block: 'nearest' }))
+  }
   const [open, setOpen] = useState<string | null>(null)
 
   useEffect(() => {
-    const params = new URLSearchParams({ page: String(page), limit: '50' })
+    const params = new URLSearchParams({ page: String(page), limit: String(PER_PAGE) })
     if (query) params.set('q', query)
     if (action) params.set('action', action)
     if (outcome) params.set('outcome', outcome)
@@ -69,20 +88,27 @@ export default function AuditLogPage() {
       .catch((err: unknown) => setError(err instanceof Error ? err.message : 'Could not load the audit log.'))
   }, [query, action, outcome, from, to, page])
 
-  // Wait for typing to pause before searching.
+  // Wait for typing to pause before searching. Only a changed search goes back to page 1, so a reload keeps ?page=.
+  const searched = useRef('')
   useEffect(() => {
     const id = setTimeout(() => {
-      setQuery(q.trim())
-      setPage(1)
+      const next = q.trim()
+      if (next === searched.current) return
+      searched.current = next
+      setQuery(next)
+      setUrlParams((p) => {
+        const n = new URLSearchParams(p)
+        n.delete('page')
+        return n
+      }, { replace: true })
     }, 350)
     return () => clearTimeout(id)
-  }, [q])
+  }, [q, setUrlParams])
 
   const filter = <T,>(set: (v: T) => void) => (v: T) => {
     set(v)
-    setPage(1)
+    setPage(1, false)
   }
-  const pages = result ? Math.max(1, Math.ceil(result.total / result.limit)) : 1
 
   return (
     <>
@@ -102,7 +128,7 @@ export default function AuditLogPage() {
             {['Application approved', 'Application approved (final, loan created)', 'Application denied', 'Account unlinked from member', ...(result?.actions ?? [])]
               .filter((a, i, all) => all.indexOf(a) === i)
               .sort()
-              .map((a) => <option key={a}>{a}</option>)}
+              .map((a) => <option key={a} value={a}>{actionText(a)}</option>)}
           </select>
           <select className="input" value={outcome} onChange={(e) => filter(setOutcome)(e.target.value as '' | 'ok' | 'failed')} aria-label="Outcome">
             <option value="">All outcomes</option>
@@ -115,45 +141,45 @@ export default function AuditLogPage() {
 
         {error && <p className="m-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{error}</p>}
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+        <TableShell caption="Audit log" anchor={anchorRef}
+          footer={result && <Pagination page={result.page} pageSize={result.limit} total={result.total} onPage={setPage} />}>
             <thead className="table-head">
               <tr>
-                <th className="w-8 px-2 py-3" />
-                <th className="px-4 py-3">When (Manila)</th>
-                <th className="px-4 py-3">Who</th>
-                <th className="px-4 py-3">Action</th>
-                <th className="px-4 py-3">Record</th>
-                <th className="px-4 py-3">Outcome</th>
+                <th className="w-8"><span className="sr-only">Details</span></th>
+                <th>When (Manila)</th>
+                <th>Who</th>
+                <th>Action</th>
+                <th>Record</th>
+                <th className="w-32">Outcome</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-brand-50">
               {result?.entries.map((e) => (
                 <Fragment key={e._id}>
-                  <tr className="row-hover cursor-pointer align-top" onClick={() => setOpen(open === e._id ? null : e._id)}>
-                    <td className="px-2 py-3 text-brand-500">
+                  <tr className="row-hover cursor-pointer" onClick={() => setOpen(open === e._id ? null : e._id)}>
+                    <td className="cell text-brand-500">
                       {open === e._id ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap">{when(e.at)}</td>
-                    <td className="px-4 py-3">
-                      <p className="font-semibold text-ink">{e.userName || e.userEmail || 'Not signed in'}</p>
+                    <td className="cell whitespace-nowrap">{when(e.at)}</td>
+                    <td className="cell">
+                      <p className="line-clamp-2 font-semibold text-ink">{e.userName || e.userEmail || 'Not signed in'}</p>
                       <p className="text-xs text-brand-500">
                         {e.role ? roleLabel[e.role] ?? e.role : 'No account'}
                         {e.userName && e.userEmail ? ` · ${e.userEmail}` : ''}
                       </p>
                     </td>
-                    <td className="px-4 py-3">
-                      {e.action}
+                    <td className="cell">
+                      {actionText(e.action)}
                       {e.client === 'mobile' && <span className="ml-2 rounded bg-brand-50 px-1.5 py-0.5 text-xs text-brand-600">Mobile</span>}
                     </td>
-                    <td className="px-4 py-3 text-brand-700">{e.target || '—'}</td>
-                    <td className="px-4 py-3">
+                    <td className="cell text-brand-700"><p className="max-w-[16rem] truncate" title={e.target || undefined}>{e.target || '—'}</p></td>
+                    <td className="cell">
                       {e.ok ? (
                         <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">Succeeded</span>
                       ) : (
                         <>
                           <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-700">Failed ({e.status})</span>
-                          {e.error && <p className="mt-1 max-w-xs text-xs text-red-700">{e.error}</p>}
+                          {e.error && <p className="mt-1 max-w-[16rem] truncate text-xs text-red-700" title={e.error}>{e.error}</p>}
                         </>
                       )}
                     </td>
@@ -179,20 +205,7 @@ export default function AuditLogPage() {
               )}
               {!result && !error && <tr><td colSpan={6} className="px-4 py-10 text-center text-brand-500">Loading the audit log…</td></tr>}
             </tbody>
-          </table>
-        </div>
-
-        {result && result.total > 0 && (
-          <div className="flex items-center justify-between gap-3 border-t border-brand-100 px-4 py-3 text-sm">
-            <p className="text-brand-600">
-              {(result.page - 1) * result.limit + 1}–{Math.min(result.total, result.page * result.limit)} of {result.total.toLocaleString('en-PH')}
-            </p>
-            <div className="flex gap-2">
-              <button className="btn-ghost px-3 py-1.5" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Newer</button>
-              <button className="btn-ghost px-3 py-1.5" disabled={page >= pages} onClick={() => setPage((p) => p + 1)}>Older</button>
-            </div>
-          </div>
-        )}
+        </TableShell>
       </div>
     </>
   )
