@@ -258,18 +258,24 @@ input::-ms-clear {
   overflow: visible;
 }
 .kuwi g,
-.kuwi .kuwi-shadow,
 .kuwi .kuwi-sweat {
   transform-box: fill-box;
   transform-origin: center;
 }
-/* Idle: a gentle bob, the shadow shrinking as she rises. */
-.kuwi .kuwi-body {
+/* Performance: the motion that never stops (bob, hop, sway) moves the whole <svg> as one layer
+   (will-change), so the browser only slides a finished picture instead of redrawing the owl every
+   frame. Moves inside the drawing (blink, glance, wave, sparkle, sweat) are short bursts with long
+   still pauses, so they barely redraw. */
+.kuwi {
   transform-origin: 50% 100%;
+  will-change: transform;
   animation: kuwi-bob 3.2s ease-in-out infinite;
 }
-.kuwi .kuwi-shadow {
-  animation: kuwi-shadow 3.2s ease-in-out infinite;
+.kuwi--happy {
+  animation: kuwi-hop 2.4s ease-in-out infinite;
+}
+.kuwi--concerned {
+  animation: kuwi-sway 3.6s ease-in-out infinite;
 }
 /* Blinking (not when happy: her eyes are already smiling arcs), and glancing around when neutral. */
 .kuwi--neutral .kuwi-eyes,
@@ -279,46 +285,31 @@ input::-ms-clear {
 .kuwi--neutral .kuwi-pupils {
   animation: kuwi-glance 7s ease-in-out infinite;
 }
-/* Happy: a hop instead of the bob, a waving wing, twinkling sparkles. */
-.kuwi--happy .kuwi-body {
-  animation: kuwi-hop 2.4s ease-in-out infinite;
-}
-.kuwi--happy .kuwi-shadow {
-  animation: kuwi-hop-shadow 2.4s ease-in-out infinite;
-}
+/* Happy: a short wave, then rest; sparkles flash briefly. */
 .kuwi .kuwi-wave {
   transform-origin: 85% 90%;
-  animation: kuwi-wave 2.4s ease-in-out infinite;
+  animation: kuwi-wave 4.8s ease-in-out infinite;
 }
 .kuwi .kuwi-sparkle {
-  animation: kuwi-twinkle 1.8s ease-in-out infinite;
-}
-/* Concerned: a worried sway and a dripping sweat drop. */
-.kuwi--concerned .kuwi-body {
-  animation: kuwi-sway 3.6s ease-in-out infinite;
+  animation: kuwi-twinkle 3.6s ease-in-out infinite;
 }
 .kuwi .kuwi-sweat {
-  animation: kuwi-drip 2.8s ease-in infinite;
+  animation: kuwi-drip 4.2s ease-in infinite;
 }
 /* The wrapper (Mascot): pops in the first time, jumps on hover or tap. */
 .kuwi-pop {
+  will-change: transform;
   animation: kuwi-pop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
-.kuwi-pop > svg {
-  transform-origin: 50% 100%;
-}
-.kuwi-pop:hover > svg,
-.kuwi-pop:active > svg {
-  animation: kuwi-jump 0.5s ease-out;
+/* Listing kuwi-pop again keeps it from replaying when the pointer leaves. */
+.kuwi-pop:hover,
+.kuwi-pop:active {
+  animation: kuwi-pop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both, kuwi-jump 0.5s ease-out;
 }
 
 @keyframes kuwi-bob {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-3px); }
-}
-@keyframes kuwi-shadow {
-  0%, 100% { transform: scale(1); opacity: 0.18; }
-  50% { transform: scale(0.9); opacity: 0.12; }
 }
 @keyframes kuwi-blink {
   0%, 93%, 100% { transform: scaleY(1); }
@@ -337,20 +328,16 @@ input::-ms-clear {
   86% { transform: translateY(-2px); }
   92% { transform: translateY(0); }
 }
-@keyframes kuwi-hop-shadow {
-  0%, 60%, 80%, 92%, 100% { transform: scale(1); opacity: 0.18; }
-  70% { transform: scale(0.8); opacity: 0.1; }
-}
 @keyframes kuwi-wave {
-  0%, 45%, 100% { transform: rotate(0deg); }
-  10% { transform: rotate(-18deg); }
-  20% { transform: rotate(8deg); }
-  30% { transform: rotate(-14deg); }
-  38% { transform: rotate(4deg); }
+  0%, 30%, 100% { transform: rotate(0deg); }
+  6% { transform: rotate(-18deg); }
+  13% { transform: rotate(8deg); }
+  20% { transform: rotate(-14deg); }
+  26% { transform: rotate(4deg); }
 }
 @keyframes kuwi-twinkle {
-  0%, 100% { transform: scale(0.6) rotate(0deg); opacity: 0.35; }
-  50% { transform: scale(1.1) rotate(20deg); opacity: 1; }
+  0%, 30%, 100% { transform: scale(0.6); opacity: 0.35; }
+  15% { transform: scale(1.1) rotate(20deg); opacity: 1; }
 }
 @keyframes kuwi-sway {
   0%, 100% { transform: rotate(0deg); }
@@ -358,10 +345,10 @@ input::-ms-clear {
   75% { transform: rotate(2.5deg); }
 }
 @keyframes kuwi-drip {
-  0%, 15% { transform: translateY(0) scale(0.6); opacity: 0; }
-  30% { transform: translateY(0) scale(1); opacity: 1; }
-  85% { transform: translateY(7px) scale(1); opacity: 1; }
-  100% { transform: translateY(10px) scale(0.8); opacity: 0; }
+  0%, 10% { transform: translateY(0) scale(0.6); opacity: 0; }
+  20% { transform: translateY(0) scale(1); opacity: 1; }
+  50% { transform: translateY(7px) scale(1); opacity: 1; }
+  60%, 100% { transform: translateY(10px) scale(0.8); opacity: 0; }
 }
 @keyframes kuwi-pop {
   from { transform: scale(0.4); opacity: 0; }
@@ -378,18 +365,17 @@ input::-ms-clear {
    and blinks, so she doesn't look frozen. */
 @media (prefers-reduced-motion: reduce) {
   .kuwi-pop,
-  .kuwi-pop > svg,
+  .kuwi-pop:hover,
+  .kuwi-pop:active,
   .kuwi .kuwi-wave,
   .kuwi .kuwi-sparkle,
   .kuwi .kuwi-sweat,
-  .kuwi .kuwi-tuft,
   .kuwi--neutral .kuwi-pupils {
     animation: none !important;
   }
-  .kuwi .kuwi-body {
+  .kuwi,
+  .kuwi--happy,
+  .kuwi--concerned {
     animation: kuwi-bob 4.4s ease-in-out infinite !important;
-  }
-  .kuwi .kuwi-shadow {
-    animation: kuwi-shadow 4.4s ease-in-out infinite !important;
   }
 }
