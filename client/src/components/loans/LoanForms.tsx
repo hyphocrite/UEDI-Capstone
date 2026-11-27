@@ -4,7 +4,7 @@ import { Banknote, Send } from 'lucide-react'
 import { api } from '../../lib/api'
 import { useConfirm } from '../../context/ConfirmContext'
 import { loanTypeLabel } from '../../lib/applications'
-import { MANUAL_METHODS, formatCentavos, paymentMethodLabel, toCentavos, todayInput } from '../../lib/loans'
+import { MANUAL_METHODS, formatCentavos, paymentMethodHint, paymentMethodLabel, toCentavos, todayInput } from '../../lib/loans'
 import type { Loan, OtherActiveLoan, Payment, PaymentMethod } from '../../lib/loans'
 
 const errorText = (err: unknown, fallback: string) => (err instanceof Error ? err.message : fallback)
@@ -163,10 +163,11 @@ export function PaymentForm({ loan, onDone }: { loan: Loan; onDone: (loan: Loan,
           <input id="paidAt" type="date" className="input" value={paidAt} max={todayInput()} onChange={(e) => setPaidAt(e.target.value)} />
         </div>
         <div className="min-w-0">
-          <label className="label" htmlFor="method">Method</label>
+          <label className="label" htmlFor="method">Mode of payment</label>
           <select id="method" className="input" value={method} onChange={(e) => setMethod(e.target.value as PaymentMethod)}>
             {MANUAL_METHODS.map((m) => <option key={m} value={m}>{paymentMethodLabel[m]}</option>)}
           </select>
+          {paymentMethodHint[method] && <p className="mt-1 text-xs text-brand-500">{paymentMethodHint[method]}</p>}
         </div>
         <div className="min-w-0">
           <label className="label" htmlFor="reference">Reference</label>

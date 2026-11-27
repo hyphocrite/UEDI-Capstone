@@ -34,6 +34,9 @@ type Result = { entries: Entry[]; total: number; page: number; limit: number; ac
 const when = (iso: string) =>
   new Date(iso).toLocaleString('en-PH', { timeZone: 'Asia/Manila', year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', second: '2-digit' })
 
+/** Older entries were stored as "Payment mode changed"; they are shown in today's words (the stored text, used to filter, is unchanged). */
+const actionText = (a: string) => a.replace(/^Payment mode changed/, 'Mode of payment changed')
+
 const isEmpty = (v: unknown) => v == null || (typeof v === 'object' && Object.keys(v as object).length === 0)
 
 function Json({ label, value }: { label: string; value: unknown }) {
@@ -125,7 +128,7 @@ export default function AuditLogPage() {
             {['Application approved', 'Application approved (final, loan created)', 'Application denied', 'Account unlinked from member', ...(result?.actions ?? [])]
               .filter((a, i, all) => all.indexOf(a) === i)
               .sort()
-              .map((a) => <option key={a}>{a}</option>)}
+              .map((a) => <option key={a} value={a}>{actionText(a)}</option>)}
           </select>
           <select className="input" value={outcome} onChange={(e) => filter(setOutcome)(e.target.value as '' | 'ok' | 'failed')} aria-label="Outcome">
             <option value="">All outcomes</option>
@@ -166,7 +169,7 @@ export default function AuditLogPage() {
                       </p>
                     </td>
                     <td className="cell">
-                      {e.action}
+                      {actionText(e.action)}
                       {e.client === 'mobile' && <span className="ml-2 rounded bg-brand-50 px-1.5 py-0.5 text-xs text-brand-600">Mobile</span>}
                     </td>
                     <td className="cell text-brand-700"><p className="max-w-[16rem] truncate" title={e.target || undefined}>{e.target || '—'}</p></td>

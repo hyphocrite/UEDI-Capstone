@@ -95,11 +95,14 @@ export function Choice<T extends string>({
   value,
   options,
   onChange,
+  wide,
 }: {
   label: string
   value: T
-  options: { value: T; label: string }[]
+  options: { value: T; label: string; hint?: string }[]
   onChange: (v: T) => void
+  /** Two choices per row (for longer labels and hints). */
+  wide?: boolean
 }) {
   return (
     <View style={{ marginBottom: 14 }}>
@@ -113,9 +116,10 @@ export function Choice<T extends string>({
               accessibilityRole="radio"
               accessibilityState={{ selected: on }}
               onPress={() => onChange(o.value)}
-              style={[s.chip, on && s.chipOn]}
+              style={[s.chip, wide && { flexBasis: '45%', paddingHorizontal: 10 }, on && s.chipOn]}
             >
-              <Text style={[s.chipText, on && { color: '#fff' }]}>{o.label}</Text>
+              <Text style={[s.chipText, wide && { textAlign: 'center' }, on && { color: '#fff' }]}>{o.label}</Text>
+              {o.hint ? <Text style={{ fontSize: 11, marginTop: 2, textAlign: 'center', color: on ? '#DDF3E7' : colors.muted }}>{o.hint}</Text> : null}
             </Pressable>
           )
         })}

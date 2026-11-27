@@ -84,7 +84,7 @@ export default function ApplyScreen({ onDone }: { onDone: () => void }) {
   const bonus = f.paymentMode === 'bonus' && f.bonusType
     ? (() => {
         const dueDate = nextBonusDate(rules.bonusCalendar ?? FALLBACK_BONUS_CALENDAR, f.bonusType, todayIso)
-        return { dueDate, months: monthsBetween(todayIso, dueDate), label: BONUS_OPTIONS.find((b) => b.value === f.bonusType)!.long }
+        return { dueDate, months: monthsBetween(todayIso, dueDate), label: BONUS_OPTIONS.find((b) => b.value === f.bonusType)!.name }
       })()
     : null
   const term = Math.max(1, Math.min(num(f.termMonths) || 1, MAX_TERM[f.loanType]))
@@ -199,10 +199,10 @@ export default function ApplyScreen({ onDone }: { onDone: () => void }) {
                 { value: 'emergency', label: 'Short term (Emergency)' },
               ]}
             />
-            <Choice label="Mode of payment" value={f.paymentMode} onChange={set('paymentMode')} options={MODE_OPTIONS} />
+            <Choice label="Mode of payment" value={f.paymentMode} onChange={set('paymentMode')} options={MODE_OPTIONS} wide />
             {f.paymentMode === 'bonus' ? (
               <>
-                <Choice label="Charge to" value={f.bonusType} onChange={set('bonusType')} options={BONUS_OPTIONS} />
+                <Choice label="Which bonus?" value={f.bonusType} onChange={set('bonusType')} options={BONUS_OPTIONS} wide />
                 <Text style={{ color: colors.muted, fontSize: 13, marginBottom: 10 }}>
                   {bonus ? `One payment on the ${bonus.label}, expected ${bonus.dueDate} (${bonus.months} month${bonus.months === 1 ? '' : 's'} of interest). Payroll doesn't deduct every cutoff.` : 'Choose the bonus it is charged to.'}
                 </Text>
@@ -224,7 +224,7 @@ export default function ApplyScreen({ onDone }: { onDone: () => void }) {
               hint={`Up to ${MAX_TERM[f.loanType]} months for ${f.loanType === 'long_term' ? 'Long term' : 'Emergency'} mutual assistance.`}
             />
             <Choice
-              label="Payroll deduction"
+              label="Deduction"
               value={f.paymentFrequency}
               onChange={set('paymentFrequency')}
               options={[

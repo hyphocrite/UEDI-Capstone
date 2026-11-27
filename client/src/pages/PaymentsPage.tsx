@@ -9,7 +9,7 @@ import TableShell from '../components/TableShell'
 import { SubmissionStatusChip } from '../components/payments/SubmissionList'
 import { useAuth } from '../context/AuthContext'
 import { api, downloadFile, openFile } from '../lib/api'
-import { formatCentavos, formatDay, todayInput } from '../lib/loans'
+import { formatCentavos, formatDay, paymentMethodLabel, paymentMethodShort, todayInput } from '../lib/loans'
 import type { PaymentSubmission, SubmissionStatus } from '../lib/payments'
 import { usePaged } from '../lib/usePaged'
 
@@ -24,7 +24,7 @@ const TABS: { status: SubmissionStatus; label: string; actor?: 'treasurer' | 'bo
 type Action = 'receive' | 'confirm' | 'reject' | 'view'
 
 /**
- * Payments outside payroll: cash, e-money and bank transfers. The Treasurer receives each one and
+ * Payments outside payroll: cash, e-wallet and bank deposits / transfers. The Treasurer receives each one and
  * issues the Official Receipt; the Bookkeeper confirms it, and only then is it posted to the ledger.
  */
 export default function PaymentsPage() {
@@ -95,7 +95,7 @@ export default function PaymentsPage() {
 
   return (
     <>
-      <PageHeader icon={Wallet} title="Payments" subtitle="Cash, e-money and bank transfers: the Treasurer issues the OR, then the Bookkeeper confirms and posts it to the ledger." />
+      <PageHeader icon={Wallet} title="Payments" subtitle="Cash, e-wallet and bank deposits / transfers: the Treasurer issues the OR, then the Bookkeeper confirms and posts it to the ledger." />
 
       <div className="mb-4 flex gap-1 overflow-x-auto rounded-lg bg-brand-50 p-1" role="tablist" aria-label="Payment status">
         {TABS.map((t) => (
@@ -117,7 +117,7 @@ export default function PaymentsPage() {
           <label className="label" htmlFor="pay-month">Month paid</label>
           <input id="pay-month" type="month" className="input" value={month} onChange={(e) => setMonth(e.target.value)} />
         </div>
-        <button type="button" className="btn-ghost" onClick={exportMonth} title="The month's posted cash, e-money and bank payments, and its payroll deductions">
+        <button type="button" className="btn-ghost" onClick={exportMonth} title="The month's posted cash, e-wallet and bank payments, and its salary deductions">
           <FileSpreadsheet className="h-4 w-4" /> Export to Excel
         </button>
       </div>
@@ -142,7 +142,7 @@ export default function PaymentsPage() {
                 </div>
                 <p className="truncate text-xs text-brand-600">
                   {s.memberId ? `UDEI ${s.memberId} · ` : ''}<Link to={`/loans/${s.loan}`} className="underline">{s.loanNo}</Link>
-                  {' · '}{s.methodLabel} · {formatDay(s.paidAt)}{s.reference ? ` · ref. ${s.reference}` : ''}
+                  {' · '}{paymentMethodShort[s.method]} · {formatDay(s.paidAt)}{s.reference ? ` · ref. ${s.reference}` : ''}
                   {s.received?.orNumber && <span className="font-semibold"> · OR {s.received.orNumber}</span>}
                 </p>
                 <div className="mt-1.5 flex items-center gap-2">
@@ -176,7 +176,7 @@ export default function PaymentsPage() {
                   <th>Borrower</th>
                   <th>UDEI no.</th>
                   <th>MA no.</th>
-                  <th>Method</th>
+                  <th>Mode of payment</th>
                   <th>Reference / OR</th>
                   <th className="text-right">Amount</th>
                   <th>Proof</th>
@@ -191,7 +191,7 @@ export default function PaymentsPage() {
                     <td className="cell"><span className="line-clamp-2 font-semibold text-ink">{s.borrowerName}</span></td>
                     <td className="cell whitespace-nowrap">{s.memberId || '—'}</td>
                     <td className="cell whitespace-nowrap"><Link to={`/loans/${s.loan}`} className="text-brand-700 underline">{s.loanNo}</Link></td>
-                    <td className="cell whitespace-nowrap">{s.methodLabel}</td>
+                    <td className="cell whitespace-nowrap" title={paymentMethodLabel[s.method]}>{paymentMethodShort[s.method]}</td>
                     <td className="cell whitespace-nowrap">
                       {s.reference || '—'}
                       {s.received?.orNumber && <span className="block text-xs font-semibold text-brand-700">OR {s.received.orNumber}</span>}
@@ -293,7 +293,7 @@ function ActionModal({ sub: s, action, canAct, role, onAction, onClose, onDone, 
         <Row label="Borrower" value={`${s.borrowerName}${s.memberId ? ` (${s.memberId})` : ''}`} wide />
         <Row label="MA no." value={s.loanNo} />
         <Row label="Amount" value={formatCentavos(s.amount)} strong />
-        <Row label="Method" value={s.methodLabel} />
+        <Row label="Mode of payment" value={paymentMethodLabel[s.method]} />
         <Row label="Date paid" value={formatDay(s.paidAt)} />
         {s.reference && <Row label="Reference" value={s.reference} />}
         <Row label="Sent by" value={s.source === 'office' ? `${s.submittedByName} (office)` : `${s.submittedByName} (member)`} />
@@ -314,7 +314,7 @@ function ActionModal({ sub: s, action, canAct, role, onAction, onClose, onDone, 
       {action === 'receive' && (
         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <p className="text-sm text-brand-700 sm:col-span-2">
-            {s.method === 'bank_transfer' ? 'Check that the transfer came in to UDEI’s account, then' : s.method === 'e_money' ? 'Check that it came in to UDEI’s e-money account, then' : 'Count the cash, then'} enter the Official Receipt you issued.
+            {s.method === 'bank_transfer' ? 'Check that the transfer came in to UDEI’s account, then' : s.method === 'e_money' ? 'Check that it came in to UDEI’s GCash or Maya account, then' : 'Count the cash, then'} enter the Official Receipt you issued.
           </p>
           <div className="min-w-0">
             <label className="label" htmlFor="or-no">OR number</label>

@@ -8,7 +8,7 @@ import { ADVANCE_NOTE, PROOF_ACCEPT, SUBMISSION_METHODS, uploadProof } from '../
 import type { PaymentSubmission, SubmissionMethod } from '../../lib/payments'
 
 /**
- * A member reports a payment made outside payroll: e-money, bank transfer or cash at the office.
+ * A member reports a payment made outside payroll: e-wallet, bank deposit / transfer or cash at the office.
  * The proof photo is uploaded right after; the Treasurer then issues the OR and the Bookkeeper posts it.
  * The office uses the same form for walk-in payments (`office`), where proof is optional.
  */
@@ -34,7 +34,7 @@ export default function SendPaymentForm({ loan, office = false, onSent, onCancel
     const centavos = toCentavos(amount)
     if (!(centavos > 0)) return setError('Enter the amount paid.')
     if (centavos > loan.balance) return setError(`That is more than the remaining balance of ${formatCentavos(loan.balance)}.`)
-    if (needsReference && !reference.trim()) return setError(`Enter the ${method === 'e_money' ? 'e-money' : 'bank'} reference number.`)
+    if (needsReference && !reference.trim()) return setError(`Enter the ${method === 'e_money' ? 'GCash or Maya' : 'bank'} reference number.`)
     if (needsProof && !proof) return setError('Add a photo or screenshot of the receipt or transfer.')
     setBusy(true)
     setError('')
@@ -73,7 +73,7 @@ export default function SendPaymentForm({ loan, office = false, onSent, onCancel
       </p>
 
       <fieldset className="mt-4">
-        <legend className="label">Method</legend>
+        <legend className="label">Mode of payment</legend>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
           {SUBMISSION_METHODS.map((m) => (
             <label key={m.value} className={`flex cursor-pointer flex-col rounded-lg border px-3 py-2 text-sm ${method === m.value ? 'border-brand-600 bg-brand-50' : 'border-brand-200'}`}>

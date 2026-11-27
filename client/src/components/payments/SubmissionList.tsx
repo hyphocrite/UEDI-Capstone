@@ -4,7 +4,7 @@ import { ExternalLink, Paperclip, Upload } from 'lucide-react'
 import Pagination from '../Pagination'
 import { usePaged } from '../../lib/usePaged'
 import { openFile } from '../../lib/api'
-import { formatCentavos, formatDay } from '../../lib/loans'
+import { formatCentavos, formatDay, paymentMethodLabel } from '../../lib/loans'
 import { PROOF_ACCEPT, submissionStatusLabel, submissionStatusTone, uploadProof } from '../../lib/payments'
 import type { PaymentSubmission } from '../../lib/payments'
 
@@ -37,7 +37,7 @@ export default function SubmissionList({ submissions, staff = false, onChange }:
           <li key={s._id} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-start sm:justify-between sm:px-5">
             <div className="min-w-0">
               <p className="font-semibold text-ink">
-                {formatCentavos(s.amount)} <span className="font-normal">{s.methodLabel} · paid {formatDay(s.paidAt)}</span>
+                {formatCentavos(s.amount)} <span className="font-normal">{paymentMethodLabel[s.method]} · paid {formatDay(s.paidAt)}</span>
               </p>
               <p className="text-xs text-brand-600">
                 {s.reference && <>Ref. {s.reference} · </>}

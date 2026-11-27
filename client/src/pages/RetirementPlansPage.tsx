@@ -11,7 +11,7 @@ import { useAuth } from '../context/AuthContext'
 import { useConfirm } from '../context/ConfirmContext'
 import { api } from '../lib/api'
 import { formatDate } from '../lib/format'
-import { formatCentavos, toCentavos } from '../lib/loans'
+import { formatCentavos, paymentMethodLabel, paymentMethodShort, toCentavos } from '../lib/loans'
 import { byMemberId, monthLabel, planStatusLabel } from '../lib/members'
 import type { Member, RetirementPlan } from '../lib/members'
 import { usePaged } from '../lib/usePaged'
@@ -229,9 +229,9 @@ function PlanDetail({ plan, canWrite, onChange }: { plan: RetirementPlan; canWri
               <input id="c-amount" type="number" min={0} className="input" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} /></div>
             <div><label className="label" htmlFor="c-dues">Dues (₱)</label>
               <input id="c-dues" type="number" min={0} className="input" value={form.dues} onChange={(e) => setForm({ ...form, dues: e.target.value })} /></div>
-            <div><label className="label" htmlFor="c-method">Paid by</label>
+            <div><label className="label" htmlFor="c-method">Mode of payment</label>
               <select id="c-method" className="input" value={form.method} onChange={(e) => setForm({ ...form, method: e.target.value })}>
-                <option value="payroll">Payroll</option><option value="cash">Cash</option><option value="other">Other</option>
+                {(['payroll', 'cash', 'other'] as const).map((m) => <option key={m} value={m}>{paymentMethodLabel[m]}</option>)}
               </select></div>
             <div><label className="label" htmlFor="c-ref">OR / reference</label>
               <input id="c-ref" className="input" maxLength={60} value={form.reference} onChange={(e) => setForm({ ...form, reference: e.target.value })} /></div>
@@ -255,7 +255,7 @@ function PlanDetail({ plan, canWrite, onChange }: { plan: RetirementPlan; canWri
                   <span className="font-medium">{formatCentavos(c.amount)} <span className="text-xs text-brand-500">+ {short(c.dues)} dues</span></span>
                 </div>
                 <div className="flex justify-between gap-2 text-xs text-brand-500 no-underline">
-                  <span>{c.source === 'import' ? 'From UDEI spreadsheet' : `${c.method}${c.reference ? ` · ${c.reference}` : ''} · ${c.recordedByName ?? ''}`}</span>
+                  <span>{c.source === 'import' ? 'From UDEI spreadsheet' : `${paymentMethodShort[c.method as keyof typeof paymentMethodShort] ?? c.method}${c.reference ? ` · ${c.reference}` : ''} · ${c.recordedByName ?? ''}`}</span>
                   {canWrite && !c.voided && <button className="text-red-600 hover:underline" onClick={() => setVoiding({ id: c._id, reason: '' })}>Void</button>}
                 </div>
                 {c.voided && <p className="text-xs no-underline">Voided: {c.voidReason}</p>}

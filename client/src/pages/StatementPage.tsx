@@ -5,7 +5,8 @@ import { ArrowLeft, FileText } from 'lucide-react'
 import BrandLogo from '../components/BrandLogo'
 import { api } from '../lib/api'
 import { loanTypeLabel } from '../lib/applications'
-import { formatCentavos, formatDay, paymentMethodLabel, receiptOf, todayKey } from '../lib/loans'
+import { formatCentavos, formatDay, paymentMethodLabel, paymentMethodShort, receiptOf, todayKey } from '../lib/loans'
+import { modeLabel } from '../lib/paymentModes'
 import type { Loan, Payment } from '../lib/loans'
 
 /**
@@ -71,7 +72,7 @@ export default function StatementPage() {
           <Row label="Type" value={loan.source === 'ledger' ? 'Balance carried over from the ledger' : loanTypeLabel[loan.loanType]} />
           <Row label="Principal" value={formatCentavos(loan.principal)} />
           <Row label="Rate and term" value={`${loan.monthlyRate}% a month · ${loan.termMonths} months`} />
-          <Row label="Mode of payment" value={loan.paymentModeLabel ?? 'Payroll deduction'} />
+          <Row label="Mode of payment" value={loan.paymentModeLabel ?? modeLabel(loan.paymentMode, loan.bonusType)} />
           {loan.paymentModeNow !== 'bonus' && <Row label="Installments" value={loan.paymentFrequency === 'quincenal' ? 'Every payday (15th and month-end)' : 'Monthly (month-end)'} />}
           <Row label="Released" value={loan.release?.releasedAt ? formatDay(loan.release.releasedAt) : 'Not yet released'} />
         </section>
@@ -87,13 +88,13 @@ export default function StatementPage() {
         <h2 className="mt-6 mb-2 font-semibold text-brand-800">Payments received</h2>
         <table className="w-full text-sm">
           <thead className="table-head">
-            <tr><th>Date</th><th>How</th><th>OR / payroll run</th><th>Reference</th><th className="text-right">Amount</th></tr>
+            <tr><th>Date</th><th>Mode of payment</th><th>OR / payroll run</th><th>Reference</th><th className="text-right">Amount</th></tr>
           </thead>
           <tbody className="divide-y divide-brand-50">
             {payments.map((p) => (
               <tr key={p._id}>
                 <td className="cell whitespace-nowrap">{formatDay(p.paidAt)}</td>
-                <td className="cell">{paymentMethodLabel[p.method]}</td>
+                <td className="cell whitespace-nowrap" title={paymentMethodLabel[p.method]}>{paymentMethodShort[p.method]}</td>
                 <td className="cell whitespace-nowrap">{receiptOf(p)}</td>
                 <td className="cell">{p.method === 'payroll' ? '—' : p.reference || '—'}</td>
                 <td className="cell-num">{formatCentavos(p.amount)}</td>

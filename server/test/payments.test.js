@@ -54,7 +54,7 @@ test("member e-money submission → Treasurer receives with OR → Bookkeeper co
   const sub = created.json.submission;
   assert.equal(sub.status, "submitted");
   assert.equal(sub.source, "member");
-  assert.equal(sub.methodLabel, "E-money");
+  assert.equal(sub.methodLabel, "E-wallet (GCash / Maya)");
 
   // Proof first: the Treasurer can't receive a transfer the member hasn't shown.
   assert.equal((await post(tr(), `/payments/${sub._id}/receive`, { orNumber: "OR-5001", receivedAt: daysAgo(0) })).status, 409, "no proof yet");

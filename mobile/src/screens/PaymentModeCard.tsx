@@ -60,8 +60,8 @@ export default function PaymentModeCard({ loan, onChanged }: { loan: Loan; onCha
             A change on or before the first week of the month starts that month; later ones start next month, because UDEI bills
             payroll in the first week. To pay cash ahead while staying on payroll, use Send a payment instead.
           </Text>
-          <Choice label="Pay by" value={mode} onChange={(m) => { setMode(m); setError(null) }} options={CHANGE_OPTIONS} />
-          {mode === 'bonus' ? <Choice label="Charge to" value={bonusType} onChange={setBonusType} options={BONUS_OPTIONS} /> : null}
+          <Choice label="Mode of payment" value={mode} onChange={(m) => { setMode(m); setError(null) }} options={CHANGE_OPTIONS} wide />
+          {mode === 'bonus' ? <Choice label="Which bonus?" value={bonusType} onChange={setBonusType} options={BONUS_OPTIONS} wide /> : null}
           <Field label="Note (optional)" value={note} onChangeText={setNote} maxLength={300} />
           <ErrorText text={error} />
           <View style={{ flexDirection: 'row', gap: 10 }}>

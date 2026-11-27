@@ -14,6 +14,7 @@ const Member = require("../models/Member");
 const Payment = require("../models/Payment");
 const PaymentSubmission = require("../models/PaymentSubmission");
 const DeductionRun = require("../models/DeductionRun");
+const { METHOD_LABELS } = require("./paymentSubmissions");
 const ledger = require("./ledger");
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -188,7 +189,6 @@ async function paymentsWorkbook(month) {
   const payroll = await Payment.find({ method: "payroll", voided: false, paidAt: range }).sort({ paidAt: 1 }).lean();
   const loans = new Map((await Loan.find({ _id: { $in: payroll.map((p) => p.loan) } }).select("loanNo borrowerName memberId").lean()).map((l) => [String(l._id), l]));
   const runs = new Map((await DeductionRun.find({ _id: { $in: payroll.map((p) => p.deductionRun).filter(Boolean) } }).select("cutoffDate kind bonusType").lean()).map((r) => [String(r._id), r]));
-  const METHOD = { cash: "Cash", e_money: "E-money", bank_transfer: "Bank transfer" };
   const day = (d) => ledger.calendarDay(d).toISOString().slice(0, 10);
 
   const wb = new ExcelJS.Workbook();
@@ -213,10 +213,10 @@ async function paymentsWorkbook(month) {
   ws.addRow([]);
   table(
     ws,
-    ["Date", "UDEI No.", "Borrower", "MA no.", "Method", "Reference", "OR No.", "Amount", "Received by (Treasurer)", "Confirmed by (Bookkeeper)"],
-    subs.map((s) => [day(s.paidAt), s.memberId || "", s.borrowerName, s.loanNo, METHOD[s.method] || s.method, s.reference || "", s.received?.orNumber || "", pesos(gross(payOf.get(String(s.payment)) || { amount: s.amount })), s.received?.byName || "", s.confirmed?.byName || ""]),
+    ["Date", "UDEI No.", "Borrower", "MA no.", "Mode of payment", "Reference", "OR No.", "Amount", "Received by (Treasurer)", "Confirmed by (Bookkeeper)"],
+    subs.map((s) => [day(s.paidAt), s.memberId || "", s.borrowerName, s.loanNo, METHOD_LABELS[s.method] || s.method, s.reference || "", s.received?.orNumber || "", pesos(gross(payOf.get(String(s.payment)) || { amount: s.amount })), s.received?.byName || "", s.confirmed?.byName || ""]),
     [8],
-    [12, 10, 26, 15, 14, 22, 12, 13, 24, 24],
+    [12, 10, 26, 15, 24, 22, 12, 13, 24, 24],
   );
 
   const pr = wb.addWorksheet("Payroll");

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { AUTO_RESTRUCTURE_TEXT, PAYROLL_DEDUCTION_TEXT, bonusOf, installmentOf, longDate, termMonthsOf } from './applicationForm'
-import { BONUS_TYPES } from '../../lib/paymentModes'
+import { BONUS_TYPES, MODE_LABEL, modeLabel } from '../../lib/paymentModes'
 import { useSettings } from '../../lib/settings'
 import type { Form } from './applicationForm'
 import CoMakerForm from './CoMakerForm'
@@ -123,14 +123,15 @@ export default function ApplicationPreview({ form: f, documents, staffView, link
           <div className="space-y-1">
             <p className="flex flex-wrap gap-x-4 gap-y-1">
               <span>Mode of payment:</span>
-              <Box checked={f.paymentMode === 'payroll'}>Payroll deduction</Box>
-              <Box checked={f.paymentMode === 'cash'}>Cash</Box>
-              <Box checked={f.paymentMode === 'bank_transfer'}>Bank transfer</Box>
-              <Box checked={f.paymentMode === 'e_money'}>E-money</Box>
+              {/* The same four as the web form and UDEI's paper form, in the same words (lib/paymentModes.ts). */}
+              <Box checked={f.paymentMode === 'payroll'}>{MODE_LABEL.payroll}</Box>
+              <Box checked={f.paymentMode === 'bonus'}>{MODE_LABEL.bonus}:</Box>
+              <Box checked={f.paymentMode === 'cash'}>{MODE_LABEL.cash}</Box>
+              <Box checked={f.paymentMode === 'bank_transfer'}>{MODE_LABEL.bank_transfer}</Box>
             </p>
             <p className="flex flex-wrap gap-x-4 gap-y-1 pl-4">
               {BONUS_TYPES.map((b) => (
-                <Box key={b.value} checked={f.paymentMode === 'bonus' && f.bonusType === b.value}>Charge to {b.short} bonus</Box>
+                <Box key={b.value} checked={f.paymentMode === 'bonus' && f.bonusType === b.value}>{modeLabel('bonus', b.value)}</Box>
               ))}
             </p>
           </div>

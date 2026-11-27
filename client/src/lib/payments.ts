@@ -2,6 +2,7 @@
 // A member or the office submits; the Treasurer receives it and issues the Official Receipt (OR);
 // the Bookkeeper confirms, which posts it to the loan. Either may reject it with a reason.
 import { ApiError } from './api'
+import { MODE_HINT, MODE_LABEL } from './paymentModes'
 
 export type SubmissionMethod = 'cash' | 'e_money' | 'bank_transfer'
 export type SubmissionStatus = 'submitted' | 'received' | 'posted' | 'rejected'
@@ -32,11 +33,12 @@ export type PaymentSubmission = {
   createdAt: string
 }
 
-export const SUBMISSION_METHODS: { value: SubmissionMethod; label: string; hint: string }[] = [
-  { value: 'e_money', label: 'E-money', hint: 'GCash, Maya or a QR payment' },
-  { value: 'bank_transfer', label: 'Bank transfer', hint: 'Deposit or online transfer to UDEI' },
-  { value: 'cash', label: 'Cash', hint: 'Paid at the UDEI office' },
-]
+/** Modes of payment a payment outside payroll can come in by (labels from paymentModes.ts). */
+export const SUBMISSION_METHODS: { value: SubmissionMethod; label: string; hint: string }[] = (['e_money', 'bank_transfer', 'cash'] as const).map((value) => ({
+  value,
+  label: MODE_LABEL[value],
+  hint: MODE_HINT[value],
+}))
 
 export const submissionStatusLabel: Record<SubmissionStatus, string> = {
   submitted: 'Waiting for the Treasurer',

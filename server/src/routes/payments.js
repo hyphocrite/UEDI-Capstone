@@ -20,7 +20,7 @@ const calendarDate = (what) => z.string().regex(/^\d{4}-\d{2}-\d{2}$/, `Enter th
 
 const submitSchema = z.object({
   amount: z.coerce.number().int({ message: "Enter the amount in centavos." }).min(1, "Enter the amount paid.").max(100_000_000_00),
-  method: z.enum(["cash", "e_money", "bank_transfer"], { message: "Choose cash, e-money or bank transfer." }),
+  method: z.enum(["cash", "e_money", "bank_transfer"], { message: "Choose a mode of payment: cash, e-wallet or bank deposit / transfer." }),
   paidAt: calendarDate("date paid"),
   reference: z.string().trim().max(60).optional(),
   note: z.string().trim().max(300).optional(),

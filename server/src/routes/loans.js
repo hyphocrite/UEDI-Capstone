@@ -30,7 +30,7 @@ const paymentSchema = z.object({
   // Payroll and corrections only. Cash, e-money and bank transfers go through the Payments flow
   // (routes/payments.js: received by the Treasurer with an OR, confirmed by the Bookkeeper).
   // "offset" payments are only made by a release.
-  method: z.enum(["payroll", "other"], { message: "Record cash, e-money and bank transfers on the Payments page, where the Treasurer issues the OR. Here: payroll or other." }),
+  method: z.enum(["payroll", "other"], { message: "Record cash, e-wallet and bank deposits / transfers on the Payments page, where the Treasurer issues the OR. Here: salary deduction or adjustment." }),
   reference: z.string().trim().max(60).optional(),
 });
 
