@@ -5,13 +5,13 @@ import EmptyState from '../components/EmptyState'
 import Modal from '../components/Modal'
 import PageHeader from '../components/PageHeader'
 import Pagination from '../components/Pagination'
+import TableShell from '../components/TableShell'
 import { SubmissionStatusChip } from '../components/payments/SubmissionList'
 import { useAuth } from '../context/AuthContext'
 import { api, downloadFile, openFile } from '../lib/api'
 import { formatCentavos, formatDay, todayInput } from '../lib/loans'
 import type { PaymentSubmission, SubmissionStatus } from '../lib/payments'
-
-const PAGE_SIZE = 10
+import { usePaged } from '../lib/usePaged'
 
 /** The four tabs, and the role that acts on each (its count shows in the navigation for that role). */
 const TABS: { status: SubmissionStatus; label: string; actor?: 'treasurer' | 'bookkeeper' }[] = [
@@ -36,7 +36,6 @@ export default function PaymentsPage() {
   const [tab, setTab] = useState<SubmissionStatus>(role === 'bookkeeper' ? 'received' : 'submitted')
   const [month, setMonth] = useState('')
   const [query, setQuery] = useState('')
-  const [page, setPage] = useState(1)
   const [open, setOpen] = useState<{ sub: PaymentSubmission; action: Action } | null>(null)
 
   // ?id=… (from a loan page) opens that payment on its tab once the list is in.
@@ -82,7 +81,7 @@ export default function PaymentsPage() {
         (!q || [s.borrowerName, s.memberId, s.loanNo, s.reference, s.received?.orNumber].some((v) => v?.toLowerCase().includes(q))),
     )
   }, [list, tab, query])
-  const pageRows = shown.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  const { page, setPage, pageRows, perPage, anchor } = usePaged(shown, { resetKey: [tab, query, month] })
 
   const done = (updated: PaymentSubmission) => {
     setList((l) => (l ?? []).map((s) => (s._id === updated._id ? updated : s)))
@@ -101,7 +100,7 @@ export default function PaymentsPage() {
       <div className="mb-4 flex gap-1 overflow-x-auto rounded-lg bg-brand-50 p-1" role="tablist" aria-label="Payment status">
         {TABS.map((t) => (
           <button key={t.status} type="button" role="tab" aria-selected={tab === t.status}
-            onClick={() => { setTab(t.status); setPage(1) }}
+            onClick={() => setTab(t.status)}
             className={`flex shrink-0 items-center gap-2 rounded-md px-3 py-1.5 text-sm font-semibold whitespace-nowrap transition ${tab === t.status ? 'bg-white text-brand-800 shadow-sm' : 'text-brand-600 hover:text-brand-800'}`}>
             {t.label}
             <span className={`rounded-full px-1.5 text-xs ${t.actor && t.actor === role && counts[t.status] > 0 ? 'bg-accent text-white' : 'bg-brand-100 text-brand-700'}`}>{counts[t.status]}</span>
@@ -109,14 +108,14 @@ export default function PaymentsPage() {
         ))}
       </div>
 
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end">
-        <div className="relative min-w-0 flex-1">
+      <div className="mb-4 grid grid-cols-2 items-end gap-3 sm:flex">
+        <div className="relative col-span-2 min-w-0 flex-1">
           <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-brand-400" />
-          <input className="input pl-9" placeholder="Search name, UDEI no., MA no., reference or OR" value={query} onChange={(e) => { setQuery(e.target.value); setPage(1) }} aria-label="Search payments" />
+          <input className="input pl-9" placeholder="Search name, UDEI no., MA no., reference or OR" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search payments" />
         </div>
         <div className="min-w-0 sm:w-48">
           <label className="label" htmlFor="pay-month">Month paid</label>
-          <input id="pay-month" type="month" className="input" value={month} onChange={(e) => { setMonth(e.target.value); setPage(1) }} />
+          <input id="pay-month" type="month" className="input" value={month} onChange={(e) => setMonth(e.target.value)} />
         </div>
         <button type="button" className="btn-ghost" onClick={exportMonth} title="The month's posted cash, e-money and bank payments, and its payroll deductions">
           <FileSpreadsheet className="h-4 w-4" /> Export to Excel
@@ -125,7 +124,7 @@ export default function PaymentsPage() {
 
       {error && <p className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{error}</p>}
 
-      <div className="card min-w-0">
+      <div ref={anchor} className="card min-w-0 scroll-mt-4">
         {list === null ? (
           <p className="px-4 py-6 text-sm text-brand-500">Loading…</p>
         ) : shown.length === 0 ? (
@@ -136,81 +135,77 @@ export default function PaymentsPage() {
           {/* Phones: one card per payment instead of a wide table. */}
           <ul className="divide-y divide-brand-50 sm:hidden">
             {pageRows.map((s) => (
-              <li key={s._id} className="px-4 py-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="font-semibold text-ink">{s.borrowerName}</p>
-                    <p className="text-xs text-brand-600">
-                      {s.memberId ? `UDEI ${s.memberId} · ` : ''}<Link to={`/loans/${s.loan}`} className="underline">{s.loanNo}</Link>
-                    </p>
-                  </div>
+              <li key={s._id} className="px-4 py-2.5">
+                <div className="flex items-baseline justify-between gap-3">
+                  <p className="min-w-0 truncate font-semibold text-ink">{s.borrowerName}</p>
                   <p className="shrink-0 font-bold text-ink tabular-nums">{formatCentavos(s.amount)}</p>
                 </div>
-                <p className="mt-1 text-sm text-brand-700">
-                  {s.methodLabel} · paid {formatDay(s.paidAt)}{s.reference ? ` · ref. ${s.reference}` : ''}
+                <p className="truncate text-xs text-brand-600">
+                  {s.memberId ? `UDEI ${s.memberId} · ` : ''}<Link to={`/loans/${s.loan}`} className="underline">{s.loanNo}</Link>
+                  {' · '}{s.methodLabel} · {formatDay(s.paidAt)}{s.reference ? ` · ref. ${s.reference}` : ''}
                   {s.received?.orNumber && <span className="font-semibold"> · OR {s.received.orNumber}</span>}
                 </p>
-                <div className="mt-2 flex flex-wrap items-center gap-2">
+                <div className="mt-1.5 flex items-center gap-2">
                   <SubmissionStatusChip s={s} />
                   {s.proof && (
-                    <button type="button" className="inline-flex items-center gap-1 text-xs text-brand-700 underline" onClick={() => openFile(`/api/payments/${s._id}/proof`).catch((e: unknown) => setError(e instanceof Error ? e.message : 'Could not open the file.'))}>
+                    <button type="button" aria-label="Open proof of payment" className="inline-flex items-center gap-1 text-xs text-brand-700 underline" onClick={() => openFile(`/api/payments/${s._id}/proof`).catch((e: unknown) => setError(e instanceof Error ? e.message : 'Could not open the file.'))}>
                       <Paperclip className="h-3.5 w-3.5" /> Proof
                     </button>
                   )}
-                </div>
-                <div className="mt-2 flex gap-2">
-                  {canAct(s) ? (
-                    <>
-                      <button type="button" className="btn-primary flex-1 py-1.5 text-sm" onClick={() => setOpen({ sub: s, action: role === 'treasurer' ? 'receive' : 'confirm' })}>
-                        {role === 'treasurer' ? 'Receive' : 'Confirm'}
-                      </button>
-                      <button type="button" className="btn-ghost flex-1 py-1.5 text-sm text-red-700" onClick={() => setOpen({ sub: s, action: 'reject' })}>Reject</button>
-                    </>
-                  ) : (
-                    <button type="button" className="btn-ghost py-1.5 text-sm" onClick={() => setOpen({ sub: s, action: 'view' })}>Details</button>
-                  )}
+                  <div className="ml-auto flex shrink-0 gap-1.5">
+                    {canAct(s) ? (
+                      <>
+                        <button type="button" className="btn-primary px-3 py-1 text-xs" onClick={() => setOpen({ sub: s, action: role === 'treasurer' ? 'receive' : 'confirm' })}>
+                          {role === 'treasurer' ? 'Receive' : 'Confirm'}
+                        </button>
+                        <button type="button" className="btn-ghost px-3 py-1 text-xs text-red-700" onClick={() => setOpen({ sub: s, action: 'reject' })}>Reject</button>
+                      </>
+                    ) : (
+                      <button type="button" className="btn-ghost px-3 py-1 text-xs" onClick={() => setOpen({ sub: s, action: 'view' })}>Details</button>
+                    )}
+                  </div>
                 </div>
               </li>
             ))}
           </ul>
-          <div className="hidden overflow-x-auto sm:block">
-            <table className="w-full text-sm">
+          <div className="hidden sm:block">
+            <TableShell caption="Payments">
               <thead className="table-head">
                 <tr>
-                  <th className="px-3 py-2">Date paid</th>
-                  <th className="px-3 py-2">Borrower</th>
-                  <th className="px-3 py-2">UDEI no.</th>
-                  <th className="px-3 py-2">MA no.</th>
-                  <th className="px-3 py-2">Method</th>
-                  <th className="px-3 py-2">Reference / OR</th>
-                  <th className="px-3 py-2 text-right">Amount</th>
-                  <th className="px-3 py-2">Proof</th>
-                  <th className="px-3 py-2">Status</th>
-                  <th className="px-3 py-2"><span className="sr-only">Actions</span></th>
+                  <th>Date paid</th>
+                  <th>Borrower</th>
+                  <th>UDEI no.</th>
+                  <th>MA no.</th>
+                  <th>Method</th>
+                  <th>Reference / OR</th>
+                  <th className="text-right">Amount</th>
+                  <th>Proof</th>
+                  <th className="w-32">Status</th>
+                  <th className="w-24"><span className="sr-only">Actions</span></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-brand-50">
                 {pageRows.map((s) => (
-                  <tr key={s._id} className="align-top">
-                    <td className="px-3 py-2 whitespace-nowrap">{formatDay(s.paidAt)}</td>
-                    <td className="px-3 py-2 font-semibold text-ink">{s.borrowerName}</td>
-                    <td className="px-3 py-2 whitespace-nowrap">{s.memberId || '—'}</td>
-                    <td className="px-3 py-2 whitespace-nowrap"><Link to={`/loans/${s.loan}`} className="text-brand-700 underline">{s.loanNo}</Link></td>
-                    <td className="px-3 py-2 whitespace-nowrap">{s.methodLabel}</td>
-                    <td className="px-3 py-2 whitespace-nowrap">
+                  <tr key={s._id} className="row-hover">
+                    <td className="cell whitespace-nowrap">{formatDay(s.paidAt)}</td>
+                    <td className="cell"><span className="line-clamp-2 font-semibold text-ink">{s.borrowerName}</span></td>
+                    <td className="cell whitespace-nowrap">{s.memberId || '—'}</td>
+                    <td className="cell whitespace-nowrap"><Link to={`/loans/${s.loan}`} className="text-brand-700 underline">{s.loanNo}</Link></td>
+                    <td className="cell whitespace-nowrap">{s.methodLabel}</td>
+                    <td className="cell whitespace-nowrap">
                       {s.reference || '—'}
                       {s.received?.orNumber && <span className="block text-xs font-semibold text-brand-700">OR {s.received.orNumber}</span>}
                     </td>
-                    <td className="px-3 py-2 text-right font-semibold whitespace-nowrap tabular-nums">{formatCentavos(s.amount)}</td>
-                    <td className="px-3 py-2">
+                    <td className="cell-num font-semibold">{formatCentavos(s.amount)}</td>
+                    <td className="cell">
                       {s.proof ? (
                         <button type="button" className="inline-flex items-center gap-1 text-brand-700 underline" onClick={() => openFile(`/api/payments/${s._id}/proof`).catch((e: unknown) => setError(e instanceof Error ? e.message : 'Could not open the file.'))}>
                           <Paperclip className="h-3.5 w-3.5" /> View
                         </button>
                       ) : <span className="text-brand-400">None</span>}
                     </td>
-                    <td className="px-3 py-2"><SubmissionStatusChip s={s} /></td>
-                    <td className="px-3 py-2 whitespace-nowrap">
+                    <td className="cell whitespace-nowrap"><SubmissionStatusChip s={s} /></td>
+                    <td className="cell whitespace-nowrap">
                       <div className="flex justify-end gap-1">
                         {canAct(s) ? (
                           <>
@@ -227,11 +222,11 @@ export default function PaymentsPage() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </TableShell>
           </div>
           </>
         )}
-        <Pagination page={page} pageSize={PAGE_SIZE} total={shown.length} onPage={setPage} />
+        <Pagination page={page} pageSize={perPage} total={shown.length} onPage={setPage} />
       </div>
 
       {open && (

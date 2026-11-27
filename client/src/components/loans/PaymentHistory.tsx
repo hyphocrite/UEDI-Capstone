@@ -1,7 +1,9 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Ban } from 'lucide-react'
 import Modal from '../Modal'
+import Pagination from '../Pagination'
+import { usePaged } from '../../lib/usePaged'
 import { api } from '../../lib/api'
 import { useConfirm } from '../../context/ConfirmContext'
 import { formatCentavos, formatDay, paymentMethodLabel, receiptOf } from '../../lib/loans'
@@ -21,6 +23,9 @@ export default function PaymentHistory({ loan, payments, canVoid, onChange }: Pr
   const [reason, setReason] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  // Newest first, 10 at a time.
+  const newestFirst = useMemo(() => [...payments].sort((a, b) => b.paidAt.localeCompare(a.paidAt)), [payments])
+  const { anchor: pagedAnchor, ...paged } = usePaged(newestFirst)
 
   const close = () => {
     setVoiding(null)
@@ -63,8 +68,9 @@ export default function PaymentHistory({ loan, payments, canVoid, onChange }: Pr
 
   return (
     <>
+      <div ref={pagedAnchor} className="scroll-mt-4">
       <ul className="divide-y divide-brand-50">
-        {payments.map((p) => (
+        {paged.pageRows.map((p) => (
           <li key={p._id} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-start sm:justify-between sm:px-5">
             <div className={`min-w-0 ${p.voided ? 'text-brand-400' : ''}`}>
               <p className={`font-semibold ${p.voided ? 'line-through' : 'text-ink'}`}>
@@ -99,6 +105,8 @@ export default function PaymentHistory({ loan, payments, canVoid, onChange }: Pr
           </li>
         ))}
       </ul>
+      <Pagination page={paged.page} pageSize={paged.perPage} total={paged.total} onPage={paged.setPage} />
+      </div>
 
       <Modal title="Void this payment?" open={voiding !== null} onClose={close}>
         {voiding && (

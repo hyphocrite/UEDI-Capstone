@@ -3,6 +3,7 @@ import { AlertTriangle, CheckCircle2, Handshake, XCircle } from 'lucide-react'
 import { CONSENT } from '../lib/privacy'
 import { Link } from 'react-router-dom'
 import PageHeader from '../components/PageHeader'
+import Pagination from '../components/Pagination'
 import ProgressBar from '../components/ProgressBar'
 import StatementActions from '../components/comaker/StatementActions'
 import { useAuth } from '../context/AuthContext'
@@ -12,6 +13,7 @@ import { loanTypeLabel } from '../lib/applications'
 import type { LoanType } from '../lib/applications'
 import { formatDate, formatPeso, percent } from '../lib/format'
 import { formatCentavos, formatDay } from '../lib/loans'
+import { usePaged } from '../lib/usePaged'
 
 type Request = {
   applicationId: string
@@ -100,6 +102,9 @@ export default function CoMakerPage() {
 
   const pending = data?.requests.filter((r) => r.myStatus === 'pending' && r.status === 'pending') ?? []
   const answered = data?.requests.filter((r) => !(r.myStatus === 'pending' && r.status === 'pending')) ?? []
+  const { anchor: pendingPagesAnchor, ...pendingPages } = usePaged(pending)
+  const { anchor: loanPagesAnchor, ...loanPages } = usePaged(data?.loans ?? [])
+  const { anchor: answeredPagesAnchor, ...answeredPages } = usePaged(answered)
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -117,13 +122,13 @@ export default function CoMakerPage() {
 
       {data?.linked && (
         <>
-          <section className="card mb-6 min-w-0">
+          <section ref={pendingPagesAnchor} className="card mb-6 min-w-0 scroll-mt-4">
             <h2 className="border-b border-brand-100 px-4 py-3 font-semibold text-brand-800">Waiting for your answer ({pending.length})</h2>
             {pending.length === 0 ? (
               <p className="px-4 py-6 text-sm text-brand-500">No one is waiting for you to vouch for them.</p>
             ) : (
               <ul className="divide-y divide-brand-50">
-                {pending.map((r) => (
+                {pendingPages.pageRows.map((r) => (
                   <li key={r.applicationId} className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
                     <div className="min-w-0">
                       <p className="font-semibold text-ink">{r.borrowerName} asks you to vouch for {formatPeso(r.amount)}</p>
@@ -149,15 +154,16 @@ export default function CoMakerPage() {
                 ))}
               </ul>
             )}
+            <Pagination page={pendingPages.page} pageSize={pendingPages.perPage} total={pendingPages.total} onPage={pendingPages.setPage} />
           </section>
 
-          <section className="card mb-6 min-w-0">
+          <section ref={loanPagesAnchor} className="card mb-6 min-w-0 scroll-mt-4">
             <h2 className="flex items-center gap-2 border-b border-brand-100 px-4 py-3 font-semibold text-brand-800"><Handshake className="h-5 w-5 text-accent" /> Mutual assistance you vouched for</h2>
             {data.loans.length === 0 ? (
               <p className="px-4 py-6 text-sm text-brand-500">None yet. Mutual assistance appears here once an application you vouched for is approved and released.</p>
             ) : (
               <ul className="divide-y divide-brand-50">
-                {data.loans.map((l) => (
+                {loanPages.pageRows.map((l) => (
                   <li key={l.loanId} className="grid gap-3 px-4 py-4 sm:grid-cols-[1fr_14rem] sm:items-center">
                     <div className="min-w-0">
                       <p className="font-semibold text-ink">{l.borrowerName} <span className="font-normal text-brand-500">· {l.loanNo}</span></p>
@@ -173,13 +179,14 @@ export default function CoMakerPage() {
                 ))}
               </ul>
             )}
+            <Pagination page={loanPages.page} pageSize={loanPages.perPage} total={loanPages.total} onPage={loanPages.setPage} />
           </section>
 
           {answered.length > 0 && (
-            <section className="card min-w-0">
+            <section ref={answeredPagesAnchor} className="card min-w-0 scroll-mt-4">
               <h2 className="border-b border-brand-100 px-4 py-3 font-semibold text-brand-800">Your earlier answers</h2>
               <ul className="divide-y divide-brand-50 text-sm">
-                {answered.map((r) => (
+                {answeredPages.pageRows.map((r) => (
                   <li key={r.applicationId} className="px-4 py-3">
                     <div className="flex flex-wrap justify-between gap-2">
                       <span>{r.borrowerName} · {formatPeso(r.amount)} <span className="text-brand-500">({r.applicationNo})</span></span>
@@ -194,6 +201,7 @@ export default function CoMakerPage() {
                   </li>
                 ))}
               </ul>
+              <Pagination page={answeredPages.page} pageSize={answeredPages.perPage} total={answeredPages.total} onPage={answeredPages.setPage} />
             </section>
           )}
         </>

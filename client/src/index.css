@@ -106,6 +106,17 @@ input::-ms-clear {
 
 @utility table-head {
   @apply bg-brand-50 text-left text-xs font-semibold tracking-wide text-brand-700 uppercase;
+  & th {
+    @apply px-3 py-2.5 whitespace-nowrap;
+  }
+}
+
+/* Table cells: one compact row height (about 44px) everywhere. cell-num for money and counts. */
+@utility cell {
+  @apply px-3 py-2 align-middle;
+}
+@utility cell-num {
+  @apply cell text-right whitespace-nowrap tabular-nums;
 }
 
 /* Bars grow from zero when their data loads: vertical bars up from the bottom, horizontal ones
@@ -193,9 +204,44 @@ input::-ms-clear {
 }
 
 /* Print stays plain: gradients drop back to each element's solid colour. */
+/* TableShell: the header stays put while rows scroll inside the card; on phones the first column
+   (member or MA number) stays put while swiping sideways. */
+.table-shell thead th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background-color: var(--color-brand-50);
+}
+@media (max-width: 39.999rem) {
+  .table-shell tbody td:first-child,
+  .table-shell thead th:first-child,
+  .table-shell tfoot td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 5;
+    background-color: #fff;
+    box-shadow: inset -1px 0 0 var(--color-brand-100);
+  }
+  .table-shell thead th:first-child {
+    z-index: 11;
+    background-color: var(--color-brand-50);
+  }
+}
+
 @media print {
   body {
     background: #fff !important;
+  }
+  /* Printed tables show every row, with the header repeated on each page. */
+  .table-shell {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  thead {
+    display: table-header-group;
+  }
+  .table-shell thead th {
+    position: static;
   }
   [class*="bg-grad-"],
   [class*="border-grad-"] {

@@ -4,6 +4,8 @@ import { HandCoins, KeyRound, Pencil, PiggyBank, Plus, ReceiptText, Search, Sear
 import EmptyState from '../components/EmptyState'
 import PageHeader from '../components/PageHeader'
 import Pagination from '../components/Pagination'
+import TableShell from '../components/TableShell'
+import { usePaged } from '../lib/usePaged'
 import MemberAccountsPanel from '../components/members/MemberAccountsPanel'
 import StatCard from '../components/StatCard'
 import StatusBadge from '../components/StatusBadge'
@@ -23,7 +25,6 @@ import type { Member } from '../lib/members'
 import { useSettings } from '../lib/settings'
 
 const short = (c: number) => formatCentavos(c).replace(/\.00$/, '')
-const PER_PAGE = 10
 type Tab = 'members' | 'accounts'
 
 export default function MembersPage() {
@@ -31,21 +32,14 @@ export default function MembersPage() {
   // The tab and page live in the URL (/members?tab=accounts&page=2), so a reload or a link keeps them.
   const [params, setParams] = useSearchParams()
   const tab: Tab = params.get('tab') === 'accounts' ? 'accounts' : 'members'
-  const page = Math.max(1, Number(params.get('page')) || 1)
-  const setUrl = (next: { tab?: Tab; page?: number }) =>
+  const setTab = (next: Tab) =>
     setParams((p) => {
       const q = new URLSearchParams(p)
-      if (next.tab !== undefined) {
-        if (next.tab === 'accounts') q.set('tab', 'accounts')
-        else q.delete('tab')
-      }
-      if (next.page !== undefined) {
-        if (next.page > 1) q.set('page', String(next.page))
-        else q.delete('page')
-      }
+      if (next === 'accounts') q.set('tab', 'accounts')
+      else q.delete('tab')
+      q.delete('page')
       return q
     }, { replace: true })
-  const toPage = (n: number) => setUrl({ page: n })
   const [accounts, setAccounts] = useState<Account[] | null>(null)
   const [accountsError, setAccountsError] = useState('')
   const [members, setMembers] = useState<Member[] | null>(null)
@@ -97,9 +91,7 @@ export default function MembersPage() {
   }, [list, query, branch, status])
   const sorted = useMemo(() => [...filtered].sort(byMemberId), [filtered])
   const sortedMembers = useMemo(() => [...list].sort(byMemberId), [list])
-  const pages = Math.max(1, Math.ceil(sorted.length / PER_PAGE))
-  const current = Math.min(page, pages)
-  const visible = sorted.slice((current - 1) * PER_PAGE, current * PER_PAGE)
+  const { page, setPage, pageRows: visible, perPage, anchor } = usePaged(sorted, { urlParam: 'page', resetKey: [query, branch, status] })
   const waitingCount = (accounts ?? []).filter(waitingToLink).length
 
   const saved = (m: Member) => {
@@ -127,7 +119,7 @@ export default function MembersPage() {
 
       <div className="mb-6 inline-flex max-w-full rounded-lg border border-brand-200 bg-white p-1" role="tablist" aria-label="Members or sign-in accounts">
         {([['members', 'Members', Users], ['accounts', 'Sign-in accounts', KeyRound]] as const).map(([id, label, Icon]) => (
-          <button key={id} role="tab" aria-selected={tab === id} onClick={() => setUrl({ tab: id, page: 1 })}
+          <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)}
             className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-semibold transition sm:px-4 ${tab === id ? 'bg-brand-800 bg-grad-brand text-white' : 'text-brand-700 hover:bg-brand-50'}`}>
             <Icon className="h-4 w-4" /> {label}
             {id === 'accounts' && waitingCount > 0 && (
@@ -144,7 +136,7 @@ export default function MembersPage() {
       {loadError && <p className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{loadError}</p>}
 
       {tab === 'accounts' ? (
-        <MemberAccountsPanel members={sortedMembers} accounts={accounts} setAccounts={setAccounts} loadError={accountsError} page={page} onPage={toPage} />
+        <MemberAccountsPanel members={sortedMembers} accounts={accounts} setAccounts={setAccounts} loadError={accountsError} />
       ) : (
       <>
       <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -159,41 +151,40 @@ export default function MembersPage() {
           <div className="relative flex-1">
             <Search className="pointer-events-none absolute top-2.5 left-3 h-4 w-4 text-brand-400" />
             <input className="input pl-9" placeholder="Search by name or member no." value={query}
-              onChange={(e) => { setQuery(e.target.value); toPage(1) }} aria-label="Search members" />
+              onChange={(e) => setQuery(e.target.value)} aria-label="Search members" />
           </div>
-          <select className="input sm:w-44" value={status} onChange={(e) => { setStatus(e.target.value as typeof status); toPage(1) }} aria-label="Filter by status">
+          <select className="input sm:w-44" value={status} onChange={(e) => setStatus(e.target.value as typeof status)} aria-label="Filter by status">
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>
             <option value="all">All statuses</option>
           </select>
-          <select className="input sm:w-48" value={branch} onChange={(e) => { setBranch(e.target.value); toPage(1) }} aria-label="Filter by branch">
+          <select className="input sm:w-48" value={branch} onChange={(e) => setBranch(e.target.value)} aria-label="Filter by branch">
             <option value="All">All branches</option>
             {branchOptions.map((b) => <option key={b}>{b}</option>)}
           </select>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+        <TableShell caption="Members" anchor={anchor} footer={<Pagination page={page} pageSize={perPage} total={sorted.length} onPage={setPage} />}>
             <thead className="table-head">
               <tr>
-                <th className="px-4 py-3">Member</th>
-                <th className="px-4 py-3">Contact</th>
-                <th className="px-4 py-3">Member since</th>
-                <th className="px-4 py-3 text-right">Mutual assistance balance</th>
-                <th className="px-4 py-3 text-right">Retirement plan</th>
-                <th className="px-4 py-3">Score</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3"><span className="sr-only">Edit</span></th>
+                <th>Member</th>
+                <th>Contact</th>
+                <th>Member since</th>
+                <th className="text-right">Mutual assistance balance</th>
+                <th className="text-right">Retirement plan</th>
+                <th className="w-24">Score</th>
+                <th className="w-32">Status</th>
+                <th className="w-24"><span className="sr-only">Edit</span></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-brand-50">
               {visible.map((m) => (
                 <tr key={m.memberId} className="row-hover">
-                  <td className="px-4 py-3">
-                    <p className={`font-semibold ${m.lastName ? 'text-ink' : 'text-brand-500 italic'}`}>{m.fullName}</p>
+                  <td className="cell">
+                    <p className={`line-clamp-2 font-semibold ${m.lastName ? 'text-ink' : 'text-brand-500 italic'}`}>{m.fullName}</p>
                     <p className="text-xs text-brand-500">No. {m.memberId}{m.branch ? ` · ${m.branch}` : ''}</p>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="cell">
                     {m.phone || m.email ? (
                       <>
                         <p>{m.phone}</p>
@@ -201,8 +192,8 @@ export default function MembersPage() {
                       </>
                     ) : <span className="text-brand-400">Not on file</span>}
                   </td>
-                  <td className="px-4 py-3">{m.joinedAt ? formatDate(m.joinedAt) : <span className="text-brand-400">Not on file</span>}</td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="cell whitespace-nowrap">{m.joinedAt ? formatDate(m.joinedAt) : <span className="text-brand-400">Not on file</span>}</td>
+                  <td className="cell-num">
                     {(m.loanBalance ?? 0) > 0 ? <span className="font-semibold">{short(m.loanBalance!)}</span> : <span className="text-brand-400">None</span>}
                     {(m.openLoans ?? 0) > 0 && <p className="text-xs text-brand-500">{m.openLoans} in the system</p>}
                     {m.ledgerLoan && (
@@ -210,7 +201,7 @@ export default function MembersPage() {
                     )}
                     {!m.ledgerLoan && (m.openingLoan?.balance ?? 0) > 0 && <p className="text-xs text-amber-700">No payroll deduction yet</p>}
                   </td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="cell-num">
                     {m.plan ? (
                       <>
                         <p className="font-semibold">{short(m.plan.balance)}</p>
@@ -218,7 +209,7 @@ export default function MembersPage() {
                       </>
                     ) : <span className="text-brand-400">None</span>}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="cell">
                     {m.score && (
                       <button className="text-left" onClick={() => setScoring(m)} title="See how the score is made up">
                         <span className="block text-base font-bold text-brand-800">{m.score.score ?? '—'}</span>
@@ -226,11 +217,11 @@ export default function MembersPage() {
                       </button>
                     )}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="cell">
                     <StatusBadge status={memberStatusLabel[m.status]} />
-                    {m.remarks && <p className="mt-1 text-xs text-brand-600">{m.remarks}</p>}
+                    {m.remarks && <p className="mt-1 max-w-[16rem] truncate text-xs text-brand-600" title={m.remarks}>{m.remarks}</p>}
                   </td>
-                  <td className="px-4 py-3 text-right whitespace-nowrap">
+                  <td className="cell text-right whitespace-nowrap">
                     {canSetDeduction && !m.ledgerLoan && (m.openingLoan?.balance ?? 0) > 0 && (
                       <button className="rounded p-1.5 text-brand-600 transition hover:bg-brand-50 hover:text-accent-dark" onClick={() => setDeducting(m)}
                         title="Set up payroll deduction" aria-label={`Set up payroll deduction for ${m.fullName}`}>
@@ -253,9 +244,7 @@ export default function MembersPage() {
               )}
               {!members && !loadError && <tr><td colSpan={8} className="px-4 py-10 text-center text-brand-500">Loading members…</td></tr>}
             </tbody>
-          </table>
-        </div>
-        <Pagination page={current} pageSize={PER_PAGE} total={sorted.length} onPage={toPage} />
+        </TableShell>
         <p className="border-t border-brand-100 px-4 py-3 text-xs text-brand-500">
           The mutual assistance balance is what the member owes in this system plus the balance carried over from UDEI's ledger
           {list.find((m) => m.openingLoan)?.openingLoan?.asOf ? ` (as of ${formatDate(list.find((m) => m.openingLoan)!.openingLoan!.asOf)})` : ''}.

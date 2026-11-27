@@ -87,16 +87,16 @@ export default function StatementPage() {
         <h2 className="mt-6 mb-2 font-semibold text-brand-800">Payments received</h2>
         <table className="w-full text-sm">
           <thead className="table-head">
-            <tr><th className="px-3 py-2">Date</th><th className="px-3 py-2">How</th><th className="px-3 py-2">OR / payroll run</th><th className="px-3 py-2">Reference</th><th className="px-3 py-2 text-right">Amount</th></tr>
+            <tr><th>Date</th><th>How</th><th>OR / payroll run</th><th>Reference</th><th className="text-right">Amount</th></tr>
           </thead>
           <tbody className="divide-y divide-brand-50">
             {payments.map((p) => (
               <tr key={p._id}>
-                <td className="px-3 py-1.5 whitespace-nowrap">{formatDay(p.paidAt)}</td>
-                <td className="px-3 py-1.5">{paymentMethodLabel[p.method]}</td>
-                <td className="px-3 py-1.5 whitespace-nowrap">{receiptOf(p)}</td>
-                <td className="px-3 py-1.5">{p.method === 'payroll' ? '—' : p.reference || '—'}</td>
-                <td className="px-3 py-1.5 text-right whitespace-nowrap">{formatCentavos(p.amount)}</td>
+                <td className="cell whitespace-nowrap">{formatDay(p.paidAt)}</td>
+                <td className="cell">{paymentMethodLabel[p.method]}</td>
+                <td className="cell whitespace-nowrap">{receiptOf(p)}</td>
+                <td className="cell">{p.method === 'payroll' ? '—' : p.reference || '—'}</td>
+                <td className="cell-num">{formatCentavos(p.amount)}</td>
               </tr>
             ))}
             {payments.length === 0 && <tr><td colSpan={5} className="px-3 py-4 text-center text-brand-500">No payments yet.</td></tr>}
@@ -113,9 +113,9 @@ export default function StatementPage() {
         <table className="w-full text-sm">
           <thead className="table-head">
             <tr>
-              <th className="px-3 py-2">No.</th><th className="px-3 py-2">Due</th><th className="px-3 py-2 text-right">Principal</th>
-              <th className="px-3 py-2 text-right">Interest</th><th className="px-3 py-2 text-right">Amount due</th>
-              <th className="px-3 py-2 text-right">Paid</th><th className="px-3 py-2">Status</th>
+              <th>No.</th><th>Due</th><th className="text-right">Principal</th>
+              <th className="text-right">Interest</th><th className="text-right">Amount due</th>
+              <th className="text-right">Paid</th><th>Status</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-brand-50">
@@ -123,13 +123,13 @@ export default function StatementPage() {
               const late = s.paid < s.totalDue && s.dueDate.slice(0, 10) < today
               return (
                 <tr key={s.no} className="print:break-inside-avoid">
-                  <td className="px-3 py-1.5">{s.no}</td>
-                  <td className="px-3 py-1.5 whitespace-nowrap">{formatDay(s.dueDate)}</td>
-                  <td className="px-3 py-1.5 text-right whitespace-nowrap">{formatCentavos(s.principalDue)}</td>
-                  <td className="px-3 py-1.5 text-right whitespace-nowrap">{formatCentavos(s.interestDue)}</td>
-                  <td className="px-3 py-1.5 text-right whitespace-nowrap">{formatCentavos(s.totalDue)}</td>
-                  <td className="px-3 py-1.5 text-right whitespace-nowrap">{formatCentavos(s.paid)}</td>
-                  <td className={`px-3 py-1.5 whitespace-nowrap ${late ? 'font-semibold text-red-700' : 'text-brand-600'}`}>
+                  <td className="cell">{s.no}</td>
+                  <td className="cell whitespace-nowrap">{formatDay(s.dueDate)}</td>
+                  <td className="cell-num">{formatCentavos(s.principalDue)}</td>
+                  <td className="cell-num">{formatCentavos(s.interestDue)}</td>
+                  <td className="cell-num">{formatCentavos(s.totalDue)}</td>
+                  <td className="cell-num">{formatCentavos(s.paid)}</td>
+                  <td className={`cell whitespace-nowrap ${late ? 'font-semibold text-red-700' : 'text-brand-600'}`}>
                     {s.paid >= s.totalDue ? 'Paid' : late ? 'Past due' : s.paid > 0 ? 'Partly paid' : 'Not yet due'}
                   </td>
                 </tr>

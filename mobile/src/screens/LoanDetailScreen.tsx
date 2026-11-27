@@ -3,7 +3,7 @@ import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-nati
 import { api, type Loan, type Payment, type PaymentSubmission } from '../api'
 import { centavos, date, LOAN_TYPE_LABEL } from '../format'
 import { colors } from '../theme'
-import { Badge, Card, Empty, ErrorText, Header, Row, s } from '../ui'
+import { Badge, Card, Empty, ErrorText, Header, Row, s, ShowMore, useShowMore } from '../ui'
 import { loanBadge } from './status'
 import SendPayment, { SubmissionRow } from './SendPayment'
 import PaymentModeCard from './PaymentModeCard'
@@ -22,6 +22,8 @@ export default function LoanDetailScreen({ id, onBack }: { id: string; onBack: (
 
   const loan = data?.loan
   const today = new Date()
+  const sentList = useShowMore(data?.submissions ?? [])
+  const paidList = useShowMore(data?.payments ?? [])
   return (
     <View style={{ flex: 1 }}>
       <Header
@@ -76,7 +78,8 @@ export default function LoanDetailScreen({ id, onBack }: { id: string; onBack: (
               <>
                 <Text style={s.sectionTitle}>Payments you sent</Text>
                 <Card style={{ paddingVertical: 8 }}>
-                  {data!.submissions.map((x) => <SubmissionRow key={x._id} s={x} onChanged={reload} />)}
+                  {sentList.visible.map((x) => <SubmissionRow key={x._id} s={x} onChanged={reload} />)}
+                  <ShowMore list={sentList} />
                 </Card>
               </>
             ) : null}
@@ -107,7 +110,7 @@ export default function LoanDetailScreen({ id, onBack }: { id: string; onBack: (
             <Text style={s.sectionTitle}>Payments received</Text>
             <Card style={{ paddingVertical: 8 }}>
               {data!.payments.length === 0 ? <Empty text="No payments yet." /> : null}
-              {data!.payments.map((p) => (
+              {paidList.visible.map((p) => (
                 <View key={p.id} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8 }}>
                   <View>
                     <Text style={{ color: colors.text }}>{date(p.paidAt)}</Text>
@@ -116,6 +119,7 @@ export default function LoanDetailScreen({ id, onBack }: { id: string; onBack: (
                   <Text style={{ color: colors.text, fontWeight: '700' }}>{centavos(p.amount)}</Text>
                 </View>
               ))}
+              <ShowMore list={paidList} />
             </Card>
           </>
         ) : null}

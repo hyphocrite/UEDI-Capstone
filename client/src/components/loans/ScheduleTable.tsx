@@ -1,21 +1,21 @@
+import TableShell from '../TableShell'
 import { formatCentavos, formatDay, todayKey } from '../../lib/loans'
 import type { Installment } from '../../lib/loans'
 
-/** The repayment schedule. Paid installments are marked paid; unpaid ones due before today are red. */
+/** The repayment schedule, every row (it is read as a whole). Paid installments are marked paid; unpaid ones due before today are red. */
 export default function ScheduleTable({ schedule }: { schedule: Installment[] }) {
   const today = todayKey()
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
+    <TableShell caption="Repayment schedule" maxHeight="tall">
         <thead className="table-head">
           <tr>
-            <th className="px-3 py-3">No.</th>
-            <th className="px-3 py-3">Due</th>
-            <th className="px-3 py-3 text-right">Principal</th>
-            <th className="px-3 py-3 text-right">Interest</th>
-            <th className="px-3 py-3 text-right">Total</th>
-            <th className="px-3 py-3 text-right">Paid</th>
-            <th className="px-3 py-3">Status</th>
+            <th>No.</th>
+            <th>Due</th>
+            <th className="text-right">Principal</th>
+            <th className="text-right">Interest</th>
+            <th className="text-right">Total</th>
+            <th className="text-right">Paid</th>
+            <th className="w-32">Status</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-brand-50">
@@ -25,13 +25,13 @@ export default function ScheduleTable({ schedule }: { schedule: Installment[] })
             const state = paid ? 'Paid' : late ? 'Past due' : x.paid > 0 ? 'Part paid' : 'Due'
             return (
               <tr key={x.no} className={paid ? 'text-brand-400' : late ? 'bg-red-50/60 text-red-700' : 'text-ink'}>
-                <td className="px-3 py-2">{x.no}</td>
-                <td className="px-3 py-2 whitespace-nowrap">{formatDay(x.dueDate)}</td>
-                <td className="px-3 py-2 text-right whitespace-nowrap">{formatCentavos(x.principalDue)}</td>
-                <td className="px-3 py-2 text-right whitespace-nowrap">{formatCentavos(x.interestDue)}</td>
-                <td className="px-3 py-2 text-right font-semibold whitespace-nowrap">{formatCentavos(x.totalDue)}</td>
-                <td className="px-3 py-2 text-right whitespace-nowrap">{x.paid ? formatCentavos(x.paid) : '—'}</td>
-                <td className="px-3 py-2 whitespace-nowrap">
+                <td className="cell tabular-nums">{x.no}</td>
+                <td className="cell whitespace-nowrap">{formatDay(x.dueDate)}</td>
+                <td className="cell-num">{formatCentavos(x.principalDue)}</td>
+                <td className="cell-num">{formatCentavos(x.interestDue)}</td>
+                <td className="cell-num font-semibold">{formatCentavos(x.totalDue)}</td>
+                <td className="cell-num">{x.paid ? formatCentavos(x.paid) : '—'}</td>
+                <td className="cell whitespace-nowrap">
                   <span
                     className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ring-1 ring-inset ${
                       paid
@@ -50,7 +50,6 @@ export default function ScheduleTable({ schedule }: { schedule: Installment[] })
             )
           })}
         </tbody>
-      </table>
-    </div>
+    </TableShell>
   )
 }

@@ -238,7 +238,8 @@ function Collections({ rows }: { rows: NonNullable<Dashboard['collections']> }) 
 }
 
 function Recent({ data }: { data: Dashboard }) {
-  const list = data.applications.recent
+  // At most 5 on the dashboard; "View all" opens the full list.
+  const list = data.applications.recent.slice(0, 5)
   return (
     <Panel title="Latest applications" icon={FilePlus2} action={viewAll('/loans/pending')}>
       {list.length === 0 ? (
@@ -268,7 +269,7 @@ function Recent({ data }: { data: Dashboard }) {
 }
 
 function DueSoon({ data }: { data: Dashboard }) {
-  const list = data.loans.dueSoon
+  const list = data.loans.dueSoon.slice(0, 5)
   return (
     <Panel title="Next payments due" icon={CalendarClock} action={viewAll('/loans')}>
       {list.length === 0 ? (

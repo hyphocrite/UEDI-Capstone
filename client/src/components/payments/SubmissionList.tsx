@@ -1,6 +1,8 @@
 import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ExternalLink, Paperclip, Upload } from 'lucide-react'
+import Pagination from '../Pagination'
+import { usePaged } from '../../lib/usePaged'
 import { openFile } from '../../lib/api'
 import { formatCentavos, formatDay } from '../../lib/loans'
 import { PROOF_ACCEPT, submissionStatusLabel, submissionStatusTone, uploadProof } from '../../lib/payments'
@@ -24,12 +26,14 @@ export default function SubmissionList({ submissions, staff = false, onChange }:
   onChange?: (s: PaymentSubmission) => void
 }) {
   const [error, setError] = useState('')
+  const { anchor: pagedAnchor, ...paged } = usePaged(submissions)
   if (!submissions.length) return <p className="px-4 py-6 text-sm text-brand-500 sm:px-5">No payments sent outside payroll yet.</p>
   return (
     <>
       {error && <p className="mx-4 mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 sm:mx-5" role="alert">{error}</p>}
+      <div ref={pagedAnchor} className="scroll-mt-4">
       <ul className="divide-y divide-brand-50">
-        {submissions.map((s) => (
+        {paged.pageRows.map((s) => (
           <li key={s._id} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-start sm:justify-between sm:px-5">
             <div className="min-w-0">
               <p className="font-semibold text-ink">
@@ -58,6 +62,8 @@ export default function SubmissionList({ submissions, staff = false, onChange }:
           </li>
         ))}
       </ul>
+      <Pagination page={paged.page} pageSize={paged.perPage} total={paged.total} onPage={paged.setPage} />
+      </div>
     </>
   )
 }

@@ -3,6 +3,8 @@ import type { FormEvent } from 'react'
 import { CalendarClock, CalendarDays, PiggyBank, Plus, Search, TrendingUp, Wallet } from 'lucide-react'
 import Modal from '../components/Modal'
 import PageHeader from '../components/PageHeader'
+import Pagination from '../components/Pagination'
+import TableShell from '../components/TableShell'
 import StatCard from '../components/StatCard'
 import StatusBadge from '../components/StatusBadge'
 import { useAuth } from '../context/AuthContext'
@@ -12,6 +14,7 @@ import { formatDate } from '../lib/format'
 import { formatCentavos, toCentavos } from '../lib/loans'
 import { byMemberId, monthLabel, planStatusLabel } from '../lib/members'
 import type { Member, RetirementPlan } from '../lib/members'
+import { usePaged } from '../lib/usePaged'
 
 const short = (c: number) => formatCentavos(c).replace(/\.00$/, '')
 const today = () => new Date().toLocaleDateString('en-CA')
@@ -40,7 +43,8 @@ export default function RetirementPlansPage() {
     const q = query.trim().toLowerCase()
     return (!onlyBehind || p.status === 'behind') && (!q || p.memberName.toLowerCase().includes(q) || p.memberId.toLowerCase().includes(q))
   })
-  const selected = list.find((p) => p._id === selectedId) ?? filtered[0] ?? null
+  const paged = usePaged(filtered, { urlParam: 'page', resetKey: [query, onlyBehind] })
+  const selected = list.find((p) => p._id === selectedId) ?? paged.pageRows[0] ?? null
   const replace = (p: RetirementPlan) => setPlans((ps) => ps?.map((x) => (x._id === p._id ? p : x)) ?? null)
   const year = today().slice(0, 4)
 
@@ -72,31 +76,31 @@ export default function RetirementPlansPage() {
               <input type="checkbox" checked={onlyBehind} onChange={(e) => setOnlyBehind(e.target.checked)} /> Behind only
             </label>
           </div>
-          <div className="max-h-[36rem] overflow-auto">
-            <table className="w-full text-sm">
-              <thead className="table-head sticky top-0">
+          <TableShell caption="Retirement plans" anchor={paged.anchor}
+            footer={<Pagination page={paged.page} pageSize={paged.perPage} total={paged.total} onPage={paged.setPage} />}>
+              <thead className="table-head">
                 <tr>
-                  <th className="px-4 py-3">Member</th>
-                  <th className="px-4 py-3 text-right">Monthly</th>
-                  <th className="px-4 py-3 text-right">Balance</th>
-                  <th className="px-4 py-3">Last paid</th>
-                  <th className="px-4 py-3">Status</th>
+                  <th>Member</th>
+                  <th className="text-right">Monthly</th>
+                  <th className="text-right">Balance</th>
+                  <th>Last paid</th>
+                  <th className="w-32">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-brand-50">
-                {filtered.map((p) => (
+                {paged.pageRows.map((p) => (
                   <tr key={p._id} onClick={() => setSelectedId(p._id)}
                     className={`cursor-pointer ${p._id === selected?._id ? 'bg-brand-50' : 'row-hover'}`}>
-                    <td className="px-4 py-3">
+                    <td className="cell">
                       <button className="text-left" onClick={() => setSelectedId(p._id)}>
-                        <p className="font-semibold text-ink">{p.memberName}</p>
+                        <p className="line-clamp-2 font-semibold text-ink">{p.memberName}</p>
                         <p className="text-xs text-brand-500">No. {p.memberId}</p>
                       </button>
                     </td>
-                    <td className="px-4 py-3 text-right">{p.monthlyContribution > 0 ? short(p.monthlyContribution) : <span className="text-brand-400">Not set</span>}</td>
-                    <td className="px-4 py-3 text-right font-semibold">{short(p.balance)}</td>
-                    <td className="px-4 py-3">{p.lastMonthPaid ? monthLabel(p.lastMonthPaid) : <span className="text-brand-400">None yet</span>}</td>
-                    <td className="px-4 py-3">
+                    <td className="cell-num">{p.monthlyContribution > 0 ? short(p.monthlyContribution) : <span className="text-brand-400">Not set</span>}</td>
+                    <td className="cell-num font-semibold">{short(p.balance)}</td>
+                    <td className="cell whitespace-nowrap">{p.lastMonthPaid ? monthLabel(p.lastMonthPaid) : <span className="text-brand-400">None yet</span>}</td>
+                    <td className="cell">
                       <StatusBadge status={planStatusLabel[p.status]} />
                       {p.missedMonths.length > 0 && <p className="mt-1 text-xs text-amber-700">{p.missedMonths.length} month{p.missedMonths.length > 1 ? 's' : ''} unpaid</p>}
                     </td>
@@ -107,8 +111,7 @@ export default function RetirementPlansPage() {
                 )}
                 {!plans && !error && <tr><td colSpan={5} className="px-4 py-10 text-center text-brand-500">Loading plans…</td></tr>}
               </tbody>
-            </table>
-          </div>
+          </TableShell>
         </div>
 
         {selected && <PlanDetail key={selected._id} plan={selected} canWrite={canWrite} onChange={replace} />}
@@ -132,6 +135,9 @@ function PlanDetail({ plan, canWrite, onChange }: { plan: RetirementPlan; canWri
   const [message, setMessage] = useState<{ tone: 'ok' | 'error'; text: string } | null>(null)
   const [saving, setSaving] = useState(false)
   const [voiding, setVoiding] = useState<{ id: string; reason: string } | null>(null)
+  // Newest month first, 10 at a time.
+  const contributions = useMemo(() => [...plan.contributions].sort((a, b) => b.month.localeCompare(a.month)), [plan.contributions])
+  const { anchor: contribPagedAnchor, ...contribPaged } = usePaged(contributions)
 
   const record = async (e: FormEvent) => {
     e.preventDefault()
@@ -240,8 +246,9 @@ function PlanDetail({ plan, canWrite, onChange }: { plan: RetirementPlan; canWri
         {plan.contributions.length === 0 ? (
           <p className="mt-2 text-sm text-brand-500">None recorded yet.</p>
         ) : (
-          <ul className="mt-2 max-h-80 divide-y divide-brand-50 overflow-y-auto text-sm">
-            {plan.contributions.map((c) => (
+          <div ref={contribPagedAnchor} className="scroll-mt-4">
+          <ul className="mt-2 divide-y divide-brand-50 text-sm">
+            {contribPaged.pageRows.map((c) => (
               <li key={c._id} className={`py-2 ${c.voided ? 'text-brand-400 line-through' : ''}`}>
                 <div className="flex justify-between gap-2">
                   <span>{monthLabel(c.month)}</span>
@@ -255,6 +262,8 @@ function PlanDetail({ plan, canWrite, onChange }: { plan: RetirementPlan; canWri
               </li>
             ))}
           </ul>
+          <Pagination page={contribPaged.page} pageSize={contribPaged.perPage} total={contribPaged.total} onPage={contribPaged.setPage} />
+          </div>
         )}
       </div>
 

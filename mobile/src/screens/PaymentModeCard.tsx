@@ -4,7 +4,7 @@ import { api, type Loan } from '../api'
 import { date } from '../format'
 import { BONUS_OPTIONS, CHANGE_OPTIONS, modeLabel, type BonusType, type PaymentMode } from '../paymentModes'
 import { colors } from '../theme'
-import { Button, Card, Choice, ErrorText, Field } from '../ui'
+import { Button, Card, Choice, ErrorText, Field, ShowMore, useShowMore } from '../ui'
 
 /**
  * How the loan is paid, its changes, and changing it for a coming month. A change made after the
@@ -19,6 +19,8 @@ export default function PaymentModeCard({ loan, onChanged }: { loan: Loan; onCha
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState<string | null>(null)
   const history = [...(loan.paymentModeHistory ?? [])].filter((h) => h.note !== 'On the application').reverse()
+  // The latest 3, then Show more.
+  const historyList = useShowMore(history, 3)
 
   const send = async () => {
     if (mode === 'bonus' && !bonusType) return setError('Choose which bonus it is charged to.')
@@ -40,11 +42,12 @@ export default function PaymentModeCard({ loan, onChanged }: { loan: Loan; onCha
     <Card style={{ marginTop: 16 }}>
       <Text style={{ fontWeight: '700', color: colors.text, fontSize: 16 }}>Mode of payment</Text>
       <Text style={{ color: colors.text, marginTop: 4 }}>This month: {loan.paymentModeLabel ?? modeLabel(loan.paymentMode, loan.bonusType)}</Text>
-      {history.map((h, i) => (
+      {historyList.visible.map((h, i) => (
         <Text key={`${h.effectiveFrom}-${i}`} style={{ color: colors.muted, fontSize: 12, marginTop: 2 }}>
           {modeLabel(h.mode, h.bonusType)} from {date(h.effectiveFrom)}{h.note ? ` · “${h.note}”` : ''}
         </Text>
       ))}
+      <ShowMore list={historyList} />
       {done ? <Text style={{ color: colors.accent, marginTop: 8 }}>{done}</Text> : null}
       {loan.status === 'active' && !open ? (
         <View style={{ marginTop: 10 }}>

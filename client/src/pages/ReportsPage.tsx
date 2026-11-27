@@ -1,8 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Download, FileText, HandCoins, PiggyBank, TrendingUp, Wallet, BarChart3 } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import LedgerExportButton from '../components/LedgerExportButton'
 import StatCard from '../components/StatCard'
+import Pagination from '../components/Pagination'
+import TableShell from '../components/TableShell'
+import { usePaged } from '../lib/usePaged'
 import { api } from '../lib/api'
 import { formatCentavos } from '../lib/loans'
 
@@ -62,8 +65,11 @@ export default function ReportsPage() {
   const report = current?.report ?? null
   const error = current?.error ?? ''
 
-  const rows = report?.rows ?? []
+  const rows = useMemo(() => report?.rows ?? [], [report])
   const caption = periods.find((p) => p.id === period)!.caption
+  // The table: newest period first, 10 at a time. The chart and the totals use every period.
+  const newestFirst = useMemo(() => [...rows].reverse(), [rows])
+  const paged = usePaged(newestFirst, { resetKey: period })
 
   const download = () => {
     const url = URL.createObjectURL(new Blob([toCsv(rows)], { type: 'text/csv;charset=utf-8' }))
@@ -121,45 +127,46 @@ export default function ReportsPage() {
         {report ? <CollectionsChart key={period + report.generatedAt} rows={rows} /> : <div className="h-60" />}
       </div>
 
-      <div className="card min-w-0 overflow-x-auto">
-        <table className="w-full text-sm">
+      <div className="card min-w-0">
+        <TableShell caption="Report by period" anchor={paged.anchor}
+          footer={<Pagination page={paged.page} pageSize={paged.perPage} total={paged.total} onPage={paged.setPage} />}>
           <thead className="table-head">
             <tr>
-              <th className="px-4 py-3">Period</th>
-              <th className="px-4 py-3 text-right">Mutual assistance released</th>
-              <th className="px-4 py-3 text-right">Mutual assistance collections</th>
-              <th className="px-4 py-3 text-right">Retirement contributions</th>
-              <th className="px-4 py-3 text-right">Dues</th>
-              <th className="px-4 py-3 text-right">Applications</th>
-              <th className="px-4 py-3 text-right">Approved / denied</th>
+              <th>Period</th>
+              <th className="text-right">Mutual assistance released</th>
+              <th className="text-right">Mutual assistance collections</th>
+              <th className="text-right">Retirement contributions</th>
+              <th className="text-right">Dues</th>
+              <th className="text-right">Applications</th>
+              <th className="text-right">Approved / denied</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-brand-50">
-            {[...rows].reverse().map((r) => (
+            {paged.pageRows.map((r) => (
               <tr key={r.label} className="row-hover">
-                <td className="px-4 py-2.5 font-medium">{r.label}</td>
-                <td className="px-4 py-2.5 text-right">{short(r.loansReleased)}{r.newLoans > 0 && <span className="text-xs text-brand-500"> ({r.newLoans})</span>}</td>
-                <td className="px-4 py-2.5 text-right">{short(r.loanCollections)}</td>
-                <td className="px-4 py-2.5 text-right">{short(r.planContributions)}</td>
-                <td className="px-4 py-2.5 text-right">{short(r.monthlyDues)}</td>
-                <td className="px-4 py-2.5 text-right">{r.applications}</td>
-                <td className="px-4 py-2.5 text-right">{r.approved} / {r.denied}</td>
+                <td className="cell font-medium whitespace-nowrap">{r.label}</td>
+                <td className="cell-num">{short(r.loansReleased)}{r.newLoans > 0 && <span className="text-xs text-brand-500"> ({r.newLoans})</span>}</td>
+                <td className="cell-num">{short(r.loanCollections)}</td>
+                <td className="cell-num">{short(r.planContributions)}</td>
+                <td className="cell-num">{short(r.monthlyDues)}</td>
+                <td className="cell-num">{r.applications}</td>
+                <td className="cell-num">{r.approved} / {r.denied}</td>
               </tr>
             ))}
             {report && (
               <tr className="bg-brand-50 font-semibold">
-                <td className="px-4 py-2.5">Total</td>
-                <td className="px-4 py-2.5 text-right">{short(sum(rows, 'loansReleased'))}</td>
-                <td className="px-4 py-2.5 text-right">{short(sum(rows, 'loanCollections'))}</td>
-                <td className="px-4 py-2.5 text-right">{short(sum(rows, 'planContributions'))}</td>
-                <td className="px-4 py-2.5 text-right">{short(sum(rows, 'monthlyDues'))}</td>
-                <td className="px-4 py-2.5 text-right">{sum(rows, 'applications')}</td>
-                <td className="px-4 py-2.5 text-right">{sum(rows, 'approved')} / {sum(rows, 'denied')}</td>
+                <td className="cell">Total</td>
+                <td className="cell-num">{short(sum(rows, 'loansReleased'))}</td>
+                <td className="cell-num">{short(sum(rows, 'loanCollections'))}</td>
+                <td className="cell-num">{short(sum(rows, 'planContributions'))}</td>
+                <td className="cell-num">{short(sum(rows, 'monthlyDues'))}</td>
+                <td className="cell-num">{sum(rows, 'applications')}</td>
+                <td className="cell-num">{sum(rows, 'approved')} / {sum(rows, 'denied')}</td>
               </tr>
             )}
             {!report && !error && <tr><td colSpan={7} className="px-4 py-10 text-center text-brand-500">Loading…</td></tr>}
           </tbody>
-        </table>
+        </TableShell>
       </div>
       <p className="mt-3 text-xs text-brand-500">
         Includes mutual assistance and payments recorded in the system and those imported from UDEI's 2026 ledger. Payments made by

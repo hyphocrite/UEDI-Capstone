@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { UserCog } from 'lucide-react'
+import Pagination from '../Pagination'
 import { useAuth } from '../../context/AuthContext'
+import { usePaged } from '../../lib/usePaged'
 import { api } from '../../lib/api'
 import { useConfirm } from '../../context/ConfirmContext'
 import { ROLES, roleLabel } from '../../lib/roles'
@@ -15,6 +17,8 @@ export default function UsersSection() {
   const [users, setUsers] = useState<UserRow[] | null>(null)
   const [savingId, setSavingId] = useState<string | null>(null)
   const [message, setMessage] = useState<{ tone: 'ok' | 'error'; text: string } | null>(null)
+
+  const { anchor: pagedAnchor, ...paged } = usePaged(users ?? [])
 
   useEffect(() => {
     api<{ users: UserRow[] }>('/api/auth/users')
@@ -73,8 +77,9 @@ export default function UsersSection() {
       {users === null ? (
         <p className="p-5 text-sm text-brand-500">Loading users…</p>
       ) : (
+        <div ref={pagedAnchor} className="scroll-mt-4">
         <ul className="divide-y divide-brand-50">
-          {users.map((u) => {
+          {paged.pageRows.map((u) => {
             const self = u.id === session?.id
             return (
               <li key={u.id} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
@@ -98,6 +103,8 @@ export default function UsersSection() {
             )
           })}
         </ul>
+        <Pagination page={paged.page} pageSize={paged.perPage} total={paged.total} onPage={paged.setPage} />
+        </div>
       )}
     </section>
   )
