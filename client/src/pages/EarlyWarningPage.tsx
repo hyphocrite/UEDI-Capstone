@@ -115,7 +115,7 @@ export default function EarlyWarningPage() {
                 </p>
               </div>
               {l.reasons.length && l.level ? (
-                <MascotSays mood={l.level === 'low' ? 'happy' : 'concerned'}
+                <MascotSays collapsible storageKey="early-warning" mood={l.level === 'low' ? 'happy' : 'concerned'}
                   title={l.level === 'low' ? `${l.borrowerName.split(' ')[0]}'s mutual assistance looks fine. Small things I noticed:` : `Why I'm watching ${l.borrowerName.split(' ')[0]}'s mutual assistance:`}>
                   <ul className="space-y-1 text-brand-800">
                     {l.reasons.map((r) => <li key={r.feature} className="flex gap-2"><ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" /> {r.text}</li>)}

@@ -1,8 +1,11 @@
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
-import { AccessibilityInfo, ActivityIndicator, Animated, Easing, Pressable, StyleSheet, Text, TextInput, View, type TextInputProps, type ViewStyle } from 'react-native'
+import { AccessibilityInfo, ActivityIndicator, Animated, Easing, LayoutAnimation, Platform, Pressable, UIManager, StyleSheet, Text, TextInput, View, type TextInputProps, type ViewStyle } from 'react-native'
 import { colors, radius } from './theme'
+
+// LayoutAnimation (Kuwi's Show/Hide) needs this switch on Android's old architecture.
+if (Platform.OS === 'android') UIManager.setLayoutAnimationEnabledExperimental?.(true)
 
 export function Header({ title, subtitle, right }: { title: string; subtitle?: string; right?: ReactNode }) {
   return (
@@ -384,17 +387,47 @@ export function Kuwi({ mood = 'neutral', size = 60, label = true }: { mood?: key
 }
 
 /** Kuwi the owl explaining something in a speech bubble (the same owl as on the website). */
-export function MascotSays({ mood = 'neutral', title, children }: { mood?: keyof typeof kuwi; title?: string; children: ReactNode }) {
+/**
+ * Kuwi the owl explaining something in a speech bubble (the same owl as on the website). Kuwi sits
+ * above a full-width bubble, so the text isn't squeezed beside her on narrow phones. The title is a
+ * Show/Hide button; the rest folds open with a short fade-and-rise (none with Reduce Motion).
+ */
+export function MascotSays({ mood = 'neutral', title, collapsible = true, children }: { mood?: keyof typeof kuwi; title?: string; collapsible?: boolean; children: ReactNode }) {
+  const [open, setOpen] = useState(!collapsible)
+  const [reveal] = useState(() => new Animated.Value(open ? 1 : 0))
+  const toggle = () => {
+    const next = !open
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+    setOpen(next)
+    if (next) {
+      reveal.setValue(0)
+      AccessibilityInfo.isReduceMotionEnabled()
+        .then((still) => (still ? reveal.setValue(1) : Animated.timing(reveal, { toValue: 1, duration: 320, easing: Easing.out(Easing.quad), useNativeDriver: true }).start()))
+        .catch(() => reveal.setValue(1))
+    }
+  }
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginTop: 10 }}>
-      <View style={{ alignItems: 'center' }}>
-        {/* The "KUWI" label under her names her, so the image itself isn't read out too. */}
-        <Kuwi mood={mood} size={60} label={false} />
-        <Text style={{ fontSize: 9, fontWeight: '700', color: colors.muted, letterSpacing: 0.5 }}>KUWI</Text>
+    <View style={{ marginTop: 10 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+        {/* The "KUWI" label beside her names her, so the image itself isn't read out too. */}
+        <Kuwi mood={mood} size={52} label={false} />
+        <Text style={{ fontSize: 10, fontWeight: '700', color: colors.muted, letterSpacing: 0.5 }}>KUWI</Text>
       </View>
-      <View style={{ flex: 1, backgroundColor: colors.bg, borderColor: colors.border, borderWidth: 1, borderRadius: 14, padding: 10 }}>
-        {title ? <Text style={{ fontWeight: '700', color: colors.text, marginBottom: 2 }}>{title}</Text> : null}
-        {children}
+      <View style={{ backgroundColor: colors.bg, borderColor: colors.border, borderWidth: 1, borderRadius: 14, padding: 10, marginTop: 4 }}>
+        {collapsible ? (
+          <Pressable onPress={toggle} accessibilityRole="button" accessibilityState={{ expanded: open }} hitSlop={6}
+            style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+            <Text style={{ flex: 1, fontWeight: '700', color: colors.text }}>{title ?? "Kuwi's tips"}</Text>
+            <Text style={{ fontSize: 12, fontWeight: '700', color: colors.muted }}>{open ? 'Hide ▲' : 'Show ▼'}</Text>
+          </Pressable>
+        ) : title ? (
+          <Text style={{ fontWeight: '700', color: colors.text, marginBottom: 2 }}>{title}</Text>
+        ) : null}
+        {open ? (
+          <Animated.View style={{ opacity: reveal, transform: [{ translateY: reveal.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }) }] }}>
+            {children}
+          </Animated.View>
+        ) : null}
       </View>
     </View>
   )

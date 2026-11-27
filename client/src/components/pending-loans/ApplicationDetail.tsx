@@ -104,7 +104,7 @@ export default function ApplicationDetail({ app, onChange }: { app: LoanApplicat
             <p className="mx-auto mt-3 max-w-2xl text-sm text-brand-100">A suggestion from the credit model. The four signers decide.</p>
             {app.explanation && (app.explanation.against.length > 0 || (app.explanation.inFavor?.length ?? 0) > 0) && (
               <div className="mt-4 border-t border-white/15 pt-4 text-left">
-                <MascotSays tone="dark" mood={e.suggestion === 'approve' ? 'happy' : e.suggestion === 'deny' ? 'concerned' : 'neutral'}
+                <MascotSays collapsible storageKey="pending" tone="dark" mood={e.suggestion === 'approve' ? 'happy' : e.suggestion === 'deny' ? 'concerned' : 'neutral'}
                   title="Here's what moved the score, in plain words:">
                   <div className="grid gap-3 sm:grid-cols-2">
                     {/* The first few only: they are sorted by how much they moved the score. */}

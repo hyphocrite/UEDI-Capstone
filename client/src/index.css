@@ -360,6 +360,40 @@ input::-ms-clear {
   65% { transform: translateY(0) rotate(2deg); }
 }
 
+/* Kuwi's bubble (MascotSays): folds open and shut, and her reasons and tips rise in one by one. */
+.kuwi-collapse {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 0.35s ease, opacity 0.25s ease;
+}
+.kuwi-collapse[data-open='false'] {
+  grid-template-rows: 0fr;
+  opacity: 0;
+}
+.kuwi-says[data-open='true'] .kuwi-callout {
+  animation: kuwi-rise 0.4s ease-out both;
+}
+.kuwi-says[data-open='true'] .kuwi-tips {
+  animation-delay: 0.12s;
+}
+.kuwi-says[data-open='true'] .kuwi-item {
+  animation: kuwi-rise 0.35s ease-out both;
+  animation-delay: calc(0.08s + var(--i, 0) * 0.07s);
+}
+.kuwi-says[data-open='true'] .kuwi-bulb {
+  animation: kuwi-bulb 2.4s ease-in-out 0.6s 2;
+}
+@keyframes kuwi-rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes kuwi-bulb {
+  0%, 100% { transform: rotate(0deg) scale(1); filter: none; }
+  15% { transform: rotate(-14deg) scale(1.2); filter: drop-shadow(0 0 4px rgb(251 191 36 / 0.9)); }
+  30% { transform: rotate(10deg) scale(1.1); }
+  45% { transform: rotate(0deg) scale(1); filter: none; }
+}
+
 /* Reduce motion (on by default on many Windows PCs: Settings > Accessibility > Visual effects >
    Animation effects): no pop, hop, jump, wave, sway or sparkle, but she still breathes (a slow bob)
    and blinks, so she doesn't look frozen. */
@@ -370,8 +404,14 @@ input::-ms-clear {
   .kuwi .kuwi-wave,
   .kuwi .kuwi-sparkle,
   .kuwi .kuwi-sweat,
-  .kuwi--neutral .kuwi-pupils {
+  .kuwi--neutral .kuwi-pupils,
+  .kuwi-says .kuwi-callout,
+  .kuwi-says .kuwi-item,
+  .kuwi-says .kuwi-bulb {
     animation: none !important;
+  }
+  .kuwi-collapse {
+    transition: none;
   }
   .kuwi,
   .kuwi--happy,
