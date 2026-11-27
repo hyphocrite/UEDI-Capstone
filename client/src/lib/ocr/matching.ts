@@ -158,7 +158,7 @@ export function matchAddress(text: string, declared: string): MatchResult {
 
 // ---- Employer ---------------------------------------------------------------
 
-// Short and long forms of the same employer. DNSC is UEDI's own institution.
+// Short and long forms of the same employer. DNSC is UDEI's own institution.
 const EMPLOYER_ALIASES: string[][] = [['DNSC', 'DAVAO DEL NORTE STATE COLLEGE']]
 
 export function matchEmployer(text: string, declared: string): MatchResult {

@@ -98,7 +98,7 @@ async function notifyBorrower(loan, balance, termMonths, rate) {
   }
   const users = await User.find({ _id: { $in: [...ids] }, role: { $in: ["staff", "member"] } }).select("email fullName");
   const first = loan.schedule.find((x) => x.paid < x.totalDue);
-  const text = `Your short-term mutual assistance ${loan.loanNo} is now long term. It wasn't fully paid by the end of its term, so the ${peso(balance)} left is spread over ${termMonths} months at ${rate}% a month.${first ? ` The first installment of ${peso(first.totalDue)} is due ${ledger.calendarDay(first.dueDate).toISOString().slice(0, 10)}.` : ""} Your payments so far stay on your ledger.`;
+  const text = `Your short-term mutual assistance ${loan.loanNo} is now long term. It wasn't fully paid by the end of its term, so the ${peso(balance)} left is spread over ${termMonths} months at ${rate}% per month.${first ? ` The first installment of ${peso(first.totalDue)} is due ${ledger.calendarDay(first.dueDate).toISOString().slice(0, 10)}.` : ""} Your payments so far stay on your ledger.`;
   await Promise.all(
     users.map((u) =>
       mailer

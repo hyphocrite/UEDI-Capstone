@@ -56,13 +56,13 @@ export default function RegisterPage() {
 
   return (
     <AuthShell
-      title="Create your account"
+      title="Create Your Account"
       subtitle="For UDEI members: follow your mutual assistance and apply online. Office roles are given by the administrator."
       footer={
         <>
           Already registered?{' '}
           <Link to="/login" className="font-semibold text-brand-800 hover:underline">
-            Log in
+            Sign in
           </Link>
         </>
       }

@@ -9,7 +9,7 @@ const FIRST_DUE_MIN_DAYS = 10;
 const toCentavos = (pesos) => Math.round(Number(pesos) * 100);
 
 /**
- * Interest rate per installment, as a fraction. UEDI charges its monthly rate on the remaining
+ * Interest rate per installment, as a fraction. UDEI charges its monthly rate on the remaining
  * balance (2,000 on a 100,000 balance, then 1,800 at 90,000), so a quincenal installment carries
  * half the monthly rate.
  */

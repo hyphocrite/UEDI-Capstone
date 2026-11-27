@@ -32,7 +32,7 @@ GSIS Premium         2,430.00
 PhilHealth             675.00
 Pag-IBIG               200.00
 Withholding Tax      1,250.00
-UEDI Mutual Assistance 5,220.00
+UDEI Mutual Assistance 5,220.00
 Total Deductions     9,775.00
 NET PAY (1st Quincena)
 9,225.00`
@@ -117,7 +117,7 @@ test('genuine payslip is verified; semi-monthly net pay is doubled', () => {
   const r = analyzeDocument(PAYSLIP, ana, { today })
   assert.equal(r.typeId, 'payslip')
   assert.equal(r.verdict, 'verified', JSON.stringify(r.checks))
-  assert.match(r.checks.find((c) => c.id === 'netPay')!.detail, /quincena/)
+  assert.match(r.checks.find((c) => c.id === 'netPay')!.detail, /per payday/)
 })
 
 test('inflated salary or net pay is caught', () => {
@@ -156,7 +156,7 @@ test('certificate issue dates are read', () => {
   assert.deepEqual(findDates('Issued this 10th day of October, 2026 at Panabo City.'), ['2026-10-10'])
 })
 
-test('UEDI form mentioning salary and net pay is not mistaken for a payslip', () => {
+test('UDEI form mentioning salary and net pay is not mistaken for a payslip', () => {
   const form = 'UNITED DNSC EMPLOYEES, INC.\nMUTUAL ASSISTANCE APPLICATION FORM\nMonthly Salary: 27,000.00 Net take home pay: 18,450.00\nPayroll Officer'
   assert.equal(detectDocumentType(form).id, 'application_form')
 })

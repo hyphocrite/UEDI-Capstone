@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { AUTO_RESTRUCTURE_TEXT, PAYROLL_DEDUCTION_TEXT, bonusOf, installmentOf, longDate, termMonthsOf } from './applicationForm'
-import { BONUS_TYPES, MODE_LABEL, modeLabel } from '../../lib/paymentModes'
+import { BONUS_TYPES, MODE_LABEL, modeLabel, FREQUENCY_LABEL } from '../../lib/paymentModes'
 import { useSettings } from '../../lib/settings'
 import type { Form } from './applicationForm'
 import CoMakerForm from './CoMakerForm'
@@ -72,7 +72,7 @@ export default function ApplicationPreview({ form: f, documents, staffView, link
         />
 
         <div className="flex flex-wrap justify-between gap-x-6 gap-y-2">
-          <Field label="Application No." className="min-w-[14rem] flex-1 sm:max-w-[18rem]">{applicationNo}</Field>
+          <Field label="Application no." className="min-w-[14rem] flex-1 sm:max-w-[18rem]">{applicationNo}</Field>
           <Field label="Date" className="min-w-[14rem] flex-1 sm:max-w-[18rem]">{longDate(f.applicationDate)}</Field>
         </div>
 
@@ -143,11 +143,11 @@ export default function ApplicationPreview({ form: f, documents, staffView, link
             <>
               <p className="flex flex-wrap gap-x-4 gap-y-1">
                 <span>{f.paymentMode === 'payroll' ? 'Payroll deduction:' : 'Installments:'}</span>
-                <Box checked={quincenal}>Quincenal (15th and 30th)</Box>
-                <Box checked={!quincenal}>Monthly</Box>
+                <Box checked={quincenal}>{FREQUENCY_LABEL.quincenal}</Box>
+                <Box checked={!quincenal}>{FREQUENCY_LABEL.monthly}</Box>
               </p>
               <Field label="Installment">
-                {inst ? `${formatPeso(Math.round(inst.monthly))} per month${quincenal ? `, ${formatPeso(Math.round(inst.quincenal))} per quincena` : ''}` : ''}
+                {inst ? `${formatPeso(Math.round(inst.monthly))} per month${quincenal ? `, ${formatPeso(Math.round(inst.quincenal))} per payday` : ''}` : ''}
               </Field>
             </>
           )}

@@ -52,7 +52,7 @@ export type Form = {
   longTermDueDate: string
   shortTermBalance: string
   shortTermDueDate: string
-  /** What the member already pays UEDI per month on open loans (pesos). */
+  /** What the member already pays UDEI per month on open loans (pesos). */
   monthlyPayment: string
 
   payrollDeduction: boolean
@@ -169,7 +169,7 @@ export function affordabilityNote(f: Form): string | null {
   const inst = installmentOf(f)
   const net = num(f.netTakeHomePay)
   if (!inst || net <= 0) return null
-  // Existing UEDI deductions count too: net pay minus what is already deducted minus the new installment.
+  // Existing UDEI deductions count too: net pay minus what is already deducted minus the new installment.
   const existing = num(f.monthlyPayment)
   const total = existing + inst.monthly
   const left = net - total

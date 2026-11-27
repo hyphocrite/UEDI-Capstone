@@ -1,7 +1,7 @@
 const env = require("../config/env");
 
 /**
- * Fixed-window limit per client IP, kept in memory (fine for UEDI's single API process).
+ * Fixed-window limit per client IP, kept in memory (fine for UDEI's single API process).
  * `key` can narrow it further, e.g. to IP + email for login attempts.
  */
 function rateLimit({ windowMs, max, message, key = () => "" }) {

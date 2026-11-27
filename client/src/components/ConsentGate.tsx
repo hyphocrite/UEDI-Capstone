@@ -45,7 +45,7 @@ export default function ConsentGate({ children }: { children: ReactNode }) {
         </label>
         {error && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{error}</p>}
         <div className="mt-5 flex flex-wrap justify-end gap-2">
-          <button type="button" className="btn-ghost" onClick={() => void logout()}>Log out</button>
+          <button type="button" className="btn-ghost" onClick={() => void logout()}>Sign out</button>
           <button type="button" className="btn-primary" disabled={busy} onClick={submit}>{busy ? 'Saving…' : 'Agree and continue'}</button>
         </div>
       </div>

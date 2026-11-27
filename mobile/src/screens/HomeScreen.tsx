@@ -62,7 +62,7 @@ export default function HomeScreen({ loans, applications, score, loading, onRefr
                 {centavos(next.pastDueAmount)} is overdue. Please settle it at the UDEI office.
               </Text>
             ) : null}
-            <Text style={{ color: colors.muted, fontSize: 12, marginTop: 8 }}>Deducted from your payroll, per your loan agreement.</Text>
+            <Text style={{ color: colors.muted, fontSize: 12, marginTop: 8 }}>Deducted from your payroll, per your mutual assistance agreement.</Text>
             <View style={{ height: 10 }} />
             <Button variant="outline" title="View mutual assistance" onPress={() => onOpenLoan(next.id)} />
           </Card>

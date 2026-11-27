@@ -162,7 +162,7 @@ export default function LoansPage() {
                     {l.collectFrom?.source === 'final_pay' && <p className="text-xs font-semibold text-red-700">Separated from DNSC</p>}
                   </td>
                   <td className="cell-num">{formatCentavos(l.principal)}</td>
-                  <td className="cell whitespace-nowrap">{l.monthlyRate}%/mo · {l.termMonths} mo</td>
+                  <td className="cell whitespace-nowrap">{l.monthlyRate}% per month · {l.termMonths} months</td>
                   <td className="cell whitespace-nowrap">{l.release?.releasedAt ? formatDay(l.release.releasedAt) : '—'}</td>
                   <td className="cell-num font-semibold">{l.status === 'for_release' ? '—' : formatCentavos(l.balance)}</td>
                   <td className="cell"><ProgressBar value={percent(l.amountPaid, l.totalPayable)} label={`${l.loanNo} paid`} /></td>
@@ -213,7 +213,7 @@ export default function LoansPage() {
                     <td className="cell-num">{formatCentavos(c.balanceStartOfYear)}</td>
                     <td className="cell-num">
                       {formatCentavos(c.appliedThisYear)}
-                      {c.loansThisYear > 0 && <p className="text-xs text-brand-500">{c.loansThisYear} {c.loansThisYear === 1 ? 'loan' : 'loans'}</p>}
+                      {c.loansThisYear > 0 && <p className="text-xs text-brand-500">{c.loansThisYear} mutual assistance</p>}
                     </td>
                     <td className="cell-num">{formatCentavos(c.payments)}</td>
                     <td className="cell-num">{formatCentavos(c.interest)}</td>

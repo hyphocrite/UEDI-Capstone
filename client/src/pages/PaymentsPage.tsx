@@ -111,7 +111,7 @@ export default function PaymentsPage() {
       <div className="mb-4 grid grid-cols-2 items-end gap-3 sm:flex">
         <div className="relative col-span-2 min-w-0 flex-1">
           <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-brand-400" />
-          <input className="input pl-9" placeholder="Search name, UDEI no., MA no., reference or OR" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search payments" />
+          <input className="input pl-9" placeholder="Search name, UDEI no., MA no., reference or OR no." value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search payments" />
         </div>
         <div className="min-w-0 sm:w-48">
           <label className="label" htmlFor="pay-month">Month paid</label>
@@ -177,7 +177,7 @@ export default function PaymentsPage() {
                   <th>UDEI no.</th>
                   <th>MA no.</th>
                   <th>Mode of payment</th>
-                  <th>Reference / OR</th>
+                  <th>Reference / OR no.</th>
                   <th className="text-right">Amount</th>
                   <th>Proof</th>
                   <th className="w-32">Status</th>
@@ -277,7 +277,7 @@ function ActionModal({ sub: s, action, canAct, role, onAction, onClose, onDone, 
 
   const submit = () => {
     if (action === 'receive') {
-      if (!orNumber.trim()) return setError('Enter the OR number.')
+      if (!orNumber.trim()) return setError('Enter the OR no.')
       return run('receive', { orNumber: orNumber.trim(), receivedAt })
     }
     if (action === 'confirm') return run('confirm')
@@ -317,7 +317,7 @@ function ActionModal({ sub: s, action, canAct, role, onAction, onClose, onDone, 
             {s.method === 'bank_transfer' ? 'Check that the transfer came in to UDEI’s account, then' : s.method === 'e_money' ? 'Check that it came in to UDEI’s GCash or Maya account, then' : 'Count the cash, then'} enter the Official Receipt you issued.
           </p>
           <div className="min-w-0">
-            <label className="label" htmlFor="or-no">OR number</label>
+            <label className="label" htmlFor="or-no">Official Receipt (OR) no.</label>
             <input id="or-no" className="input" maxLength={30} value={orNumber} onChange={(e) => setOrNumber(e.target.value)} placeholder="e.g. 004512" />
           </div>
           <div className="min-w-0">

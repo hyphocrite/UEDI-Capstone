@@ -51,6 +51,14 @@ export const bonusLabel = (bonusType?: BonusType | null) => BONUS_TYPES.find((b)
 export const modeLabel = (mode: PaymentMode | undefined | null, bonusType?: BonusType | null) =>
   mode === 'bonus' ? (bonusType ? `Charge to ${bonusLabel(bonusType)}` : MODE_LABEL.bonus) : MODE_LABEL[mode ?? 'payroll'] ?? MODE_LABEL.payroll
 
+/** How often payroll deducts ("quincenal" is only the stored value). For choices and labels. */
+export const FREQUENCY_LABEL: Record<'quincenal' | 'monthly', string> = {
+  quincenal: 'Twice a month (15th and month-end)',
+  monthly: 'Monthly (month-end)',
+}
+/** The same in a sentence: "12 months, twice a month (15th and month-end)". */
+export const frequencyLabel = (f: string | undefined | null) => (f === 'quincenal' ? 'twice a month (15th and month-end)' : 'monthly (month-end)')
+
 /** Same defaults as the server (UDEI to confirm). */
 export const FALLBACK_BONUS_CALENDAR: BonusCalendar = {
   mid_year: { month: 5, day: 15 },

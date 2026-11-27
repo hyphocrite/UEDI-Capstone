@@ -93,7 +93,7 @@ export default function CreditModelPage() {
             <h2 className="text-lg font-semibold text-brand-800">Benchmark of 8 regressors and the stacked ensemble</h2>
             <p className="text-sm text-brand-600">
               {dataset
-                ? `${dataset.rows.toLocaleString()} past mutual assistance (loans), average repayment score ${dataset.targetMean.toFixed(1)}. ${dataset.validation}. Ranked by R².`
+                ? `${dataset.rows.toLocaleString()} past mutual assistance, average repayment score ${dataset.targetMean.toFixed(1)}. ${dataset.validation}. Ranked by R².`
                 : 'R²: share of the variation in past repayment scores a model explains. MAE: average points off.'}
             </p>
           </div>

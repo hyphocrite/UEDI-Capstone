@@ -7,7 +7,7 @@ import { usePaged } from '../../lib/usePaged'
 import { useAuth } from '../../context/AuthContext'
 import { api } from '../../lib/api'
 import { KuwiReasons, KuwiTips, MascotSays } from '../mascot/Mascot'
-import { canAddDocuments, canChange, coMakerFormPath, loanTypeLabel } from '../../lib/applications'
+import { canAddDocuments, canChange, coMakerFormPath, loanTypeLabel, memberStatusText } from '../../lib/applications'
 import type { LoanApplication } from '../../lib/applications'
 import { formatDate, formatDateTime, formatPeso } from '../../lib/format'
 import { roleLabel } from '../../lib/roles'
@@ -91,13 +91,13 @@ export default function MyApplications() {
               )}
               {a.status === 'approved' && (
                 <p className="mt-2 flex items-center gap-2 text-sm text-emerald-800">
-                  <CheckCircle2 className="h-4 w-4 shrink-0" /> Approved.
+                  <CheckCircle2 className="h-4 w-4 shrink-0" /> {memberStatusText.approved}.
                   {a.loanId ? <Link to={`/loans/${a.loanId}`} className="font-semibold underline">See mutual assistance {a.loanNo}</Link> : null}
                 </p>
               )}
               {a.status === 'denied' && (
                 <div className="mt-2 rounded-lg bg-red-50 p-3 text-sm text-red-900">
-                  <p className="flex items-center gap-2 font-semibold"><XCircle className="h-4 w-4 shrink-0" /> Not approved</p>
+                  <p className="flex items-center gap-2 font-semibold"><XCircle className="h-4 w-4 shrink-0" /> {memberStatusText.denied}</p>
                   {denial?.note && <p className="mt-1">The {roleLabel[denial.step]} wrote: “{denial.note}”</p>}
                   {a.explanation && (a.explanation.against.length > 0 || a.explanation.tips.length > 0) && (
                     <div className="mt-3">

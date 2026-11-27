@@ -185,7 +185,7 @@ export default function ProfilePage() {
       {member && (
         <div className="mt-6 flex justify-end">
           <button type="button" className="btn-ghost" onClick={() => void logout().then(() => navigate('/login'))}>
-            <LogOut className="h-4 w-4" /> Log out
+            <LogOut className="h-4 w-4" /> Sign out
           </button>
         </div>
       )}

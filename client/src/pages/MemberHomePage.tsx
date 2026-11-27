@@ -8,7 +8,7 @@ import MyScoreCard from '../components/members/MyScoreCard'
 import { KuwiReasons, KuwiTips, MascotSays } from '../components/mascot/Mascot'
 import { useAuth } from '../context/AuthContext'
 import { api } from '../lib/api'
-import { loanTypeLabel } from '../lib/applications'
+import { loanTypeLabel, memberStatusText } from '../lib/applications'
 import type { LoanApplication } from '../lib/applications'
 import { formatPeso } from '../lib/format'
 import { formatCentavos, formatDay } from '../lib/loans'
@@ -154,8 +154,8 @@ function ApplicationCard({ state }: { state: Load<{ applications: LoanApplicatio
                 Waiting for the {a.currentStep !== 'none' ? roleLabel[a.currentStep] : 'signers'} · {a.approvals.length} of 4 signed
               </p>
             )}
-            {a.status === 'approved' && <p className="mt-1 flex items-center gap-2 text-sm text-emerald-800"><CircleCheck className="h-4 w-4" /> Approved{a.loanNo ? `: MA no. ${a.loanNo}` : ''}</p>}
-            {a.status === 'denied' && <p className="mt-1 flex items-center gap-2 text-sm text-red-800"><XCircle className="h-4 w-4" /> Not approved. See why on My Mutual Assistance.</p>}
+            {a.status === 'approved' && <p className="mt-1 flex items-center gap-2 text-sm text-emerald-800"><CircleCheck className="h-4 w-4" /> {memberStatusText.approved}{a.loanNo ? `: MA no. ${a.loanNo}` : ''}</p>}
+            {a.status === 'denied' && <p className="mt-1 flex items-center gap-2 text-sm text-red-800"><XCircle className="h-4 w-4" /> {memberStatusText.denied}. See why on My Mutual Assistance.</p>}
             <Link to="/loans" className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-brand-700 hover:underline">See all applications <ArrowRight className="h-3.5 w-3.5" /></Link>
           </>
         )

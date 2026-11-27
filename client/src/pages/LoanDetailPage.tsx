@@ -18,7 +18,7 @@ import { atLeast } from '../lib/roles'
 import type { PaymentSubmission } from '../lib/payments'
 import { loanTypeLabel } from '../lib/applications'
 import { displayStatus, formatCentavos, formatDay, missedDeductionText } from '../lib/loans'
-import { modeLabel } from '../lib/paymentModes'
+import { modeLabel, frequencyLabel } from '../lib/paymentModes'
 import type { Loan, OtherActiveLoan, Payment } from '../lib/loans'
 
 export default function LoanDetailPage() {
@@ -120,7 +120,7 @@ export default function LoanDetailPage() {
         <dl className="grid grid-cols-1 gap-x-6 gap-y-3 text-sm min-[420px]:grid-cols-2 lg:grid-cols-4">
           <Item label="Principal" value={formatCentavos(loan.principal)} />
           <Item label="Rate" value={`${loan.monthlyRate}% per month on the remaining balance`} />
-          <Item label="Term" value={loan.paymentMode === 'bonus' && loan.schedule.length === 1 ? `One payment on ${formatDay(loan.schedule[0].dueDate)}` : `${loan.termMonths} months, ${loan.paymentFrequency === 'quincenal' ? 'quincenal' : 'monthly'}`} />
+          <Item label="Term" value={loan.paymentMode === 'bonus' && loan.schedule.length === 1 ? `One payment on ${formatDay(loan.schedule[0].dueDate)}` : `${loan.termMonths} months, ${frequencyLabel(loan.paymentFrequency)}`} />
           <Item label="Mode of payment" value={loan.paymentModeLabel ?? modeLabel(loan.paymentMode, loan.bonusType)} />
           <Item label="Total payable" value={loan.status === 'for_release' ? 'Set on release' : formatCentavos(loan.totalPayable)} />
           <Item label="Paid" value={formatCentavos(loan.amountPaid)} />
@@ -196,22 +196,22 @@ export default function LoanDetailPage() {
 
         {loan.schedule.length > 0 && (
           <section className="card min-w-0">
-            <h2 className="border-b border-brand-100 px-4 py-3 font-semibold text-brand-800 sm:px-5">Repayment schedule</h2>
+            <h2 className="border-b border-brand-100 px-4 py-3 font-semibold text-brand-800 sm:px-5">Payment schedule</h2>
             <ScheduleTable schedule={loan.schedule} />
           </section>
         )}
 
         {loan.status !== 'for_release' && (
           <section className="card min-w-0">
-            <h2 className="border-b border-brand-100 px-4 py-3 font-semibold text-brand-800 sm:px-5">Payments</h2>
+            <h2 className="border-b border-brand-100 px-4 py-3 font-semibold text-brand-800 sm:px-5">Payments received</h2>
             <PaymentHistory loan={loan} payments={payments} canVoid={canRecord} onChange={(l, p) => { setLoan(l); withPayment(p); loadSubmissions() }} />
           </section>
         )}
 
-        {loan.status !== 'for_release' && submissions && (submissions.length > 0 || borrower) && (
+        {loan.status !== 'for_release' && submissions && submissions.length > 0 && (
           <section className="card min-w-0">
             <h2 className="border-b border-brand-100 px-4 py-3 font-semibold text-brand-800 sm:px-5">
-              {borrower ? 'Payments you sent' : 'Payments sent outside payroll'}
+              {borrower ? 'Payments you sent' : 'Payments sent for review'}
             </h2>
             <SubmissionList submissions={submissions} staff={!borrower} onChange={() => { loadSubmissions(); void reload() }} />
           </section>

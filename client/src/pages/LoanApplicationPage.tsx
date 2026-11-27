@@ -266,7 +266,7 @@ export default function LoanApplicationPage() {
   if (editId && (closedReason || !original)) {
     return (
       <div className="mx-auto max-w-xl">
-        <PageHeader icon={Pencil} title="Change your application" subtitle={original?.applicationNo ?? 'Loading…'} />
+        <PageHeader icon={Pencil} title="Change Your Application" subtitle={original?.applicationNo ?? 'Loading…'} />
         {closedReason ? (
           <div className="card space-y-3 p-5 text-sm">
             <p className="text-amber-800">{closedReason}</p>
@@ -311,7 +311,7 @@ export default function LoanApplicationPage() {
       <div className="print:hidden">
         {original ? (
           <PageHeader icon={Pencil}
-            title="Change your application"
+            title="Change Your Application"
             subtitle={`${original.applicationNo}, filed ${formatDateTime(original.createdAt)}. You can change it until the Bookkeeper signs.`}
           />
         ) : (
@@ -427,7 +427,7 @@ export default function LoanApplicationPage() {
                     ? 'Saving replaces the form; documents already attached stay, and new ones are added.'
                     : staffView
                       ? 'Submitting sends the form and document checks to Pending Applications.'
-                      : 'Submitting sends your application to UDEI. The Bookkeeper, CreCom Chairman, President and Treasurer then sign it.'}
+                      : 'Submitting sends your application to UDEI. The Bookkeeper, Credit Committee Chairman, President and Treasurer then sign it.'}
             </p>
             <div className="flex flex-wrap gap-2">
               {original && <Link to="/loans" className="btn-ghost">Cancel</Link>}

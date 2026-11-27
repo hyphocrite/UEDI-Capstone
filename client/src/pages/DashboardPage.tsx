@@ -115,7 +115,7 @@ function Attention({ data, risk, signer }: { data: Dashboard; risk: { high: numb
     { show: signer && data.applications.awaitingYou > 0, icon: PenLine, tone: 'brand', title: plural(data.applications.awaitingYou, 'application'), text: 'waiting for your signature', to: '/loans/pending' },
     { show: data.applications.overdue > 0, icon: Clock, tone: 'red', title: plural(data.applications.overdue, 'application'), text: 'waiting more than 48 hours at one step', to: '/loans/pending' },
     { show: data.loans.pastDue > 0, icon: AlertTriangle, tone: 'red', title: plural(data.loans.pastDue, 'loan'), text: `past due, ${formatCentavos(data.loans.pastDueAmount)} unpaid`, to: '/loans?status=Past%20due' },
-    { show: (risk?.high ?? 0) > 0, icon: Siren, tone: 'amber', title: plural(risk?.high ?? 0, 'loan'), text: 'at high risk of missing a payment', to: '/early-warning' },
+    { show: (risk?.high ?? 0) > 0, icon: Siren, tone: 'amber', title: plural(risk?.high ?? 0, 'mutual assistance', 'mutual assistance'), text: 'at high risk of missing a payment', to: '/early-warning' },
     { show: data.loans.forRelease > 0, icon: Wallet, tone: 'brand', title: plural(data.loans.forRelease, 'approved mutual assistance', 'approved mutual assistance'), text: 'waiting to be released', to: '/loans?status=For%20release' },
     { show: data.members.accountsToLink > 0, icon: KeyRound, tone: 'amber', title: plural(data.members.accountsToLink, 'account'), text: 'waiting to be linked to a member number', to: '/members?tab=accounts' },
     { show: data.plans.behind > 0, icon: PiggyBank, tone: 'amber', title: plural(data.plans.behind, 'retirement plan'), text: 'behind on contributions', to: '/retirement-plans' },

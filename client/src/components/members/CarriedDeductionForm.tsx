@@ -6,6 +6,7 @@ import { useConfirm } from '../../context/ConfirmContext'
 import { formatCentavos, formatDay, todayKey, toCentavos } from '../../lib/loans'
 import type { Loan } from '../../lib/loans'
 import type { Member } from '../../lib/members'
+import { FREQUENCY_LABEL } from '../../lib/paymentModes'
 
 type Frequency = 'quincenal' | 'monthly'
 
@@ -88,8 +89,8 @@ export default function CarriedDeductionForm({ member, onClose, onSaved }: {
           <div>
             <label className="label" htmlFor="cd-frequency">Deducted</label>
             <select id="cd-frequency" className="input" value={frequency} onChange={(e) => changeFrequency(e.target.value as Frequency)}>
-              <option value="quincenal">Every payday</option>
-              <option value="monthly">Once a month</option>
+              <option value="quincenal">{FREQUENCY_LABEL.quincenal}</option>
+              <option value="monthly">{FREQUENCY_LABEL.monthly}</option>
             </select>
           </div>
           <div>

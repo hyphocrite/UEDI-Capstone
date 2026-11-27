@@ -13,7 +13,7 @@ import { KuwiReasons, KuwiTips, MascotSays } from '../mascot/Mascot'
 import { useAuth } from '../../context/AuthContext'
 import { useConfirm } from '../../context/ConfirmContext'
 import { atLeast } from '../../lib/roles'
-import { modeLabel } from '../../lib/paymentModes'
+import { modeLabel, frequencyLabel } from '../../lib/paymentModes'
 import { creditScore, employmentStatusLabel, loanTypeLabel, monthlyInstallment, scoreLine } from '../../lib/applications'
 import type { LoanApplication, Suggestion } from '../../lib/applications'
 import { formatDate, formatPeso } from '../../lib/format'
@@ -154,12 +154,12 @@ export default function ApplicationDetail({ app, onChange }: { app: LoanApplicat
             </p>
             <p className="mt-0.5 text-2xl font-bold text-brand-800">{formatPeso(app.loan.amount)}</p>
             <p className="text-sm text-brand-700">
-              {loanTypeLabel[app.loan.loanType]} · {app.loan.termMonths} months · {app.loan.monthlyRate}%/month
+              {loanTypeLabel[app.loan.loanType]} · {app.loan.termMonths} months · {app.loan.monthlyRate}% per month
             </p>
             <p className="text-xs text-brand-500">
               {app.loan.paymentMode && app.loan.paymentMode !== 'payroll'
                 ? modeLabel(app.loan.paymentMode, app.loan.bonusType)
-                : app.loan.paymentFrequency === 'quincenal' ? 'Payroll deduction every payday' : 'Payroll deduction monthly'}
+                : `Salary deduction, ${frequencyLabel(app.loan.paymentFrequency)}`}
             </p>
           </div>
           <div className={`min-w-0 rounded-xl border-2 px-4 py-3 ${app.loan.purpose ? 'border-brand-200 bg-white' : 'border-dashed border-amber-300 bg-amber-50/60'}`}>
@@ -181,10 +181,10 @@ export default function ApplicationDetail({ app, onChange }: { app: LoanApplicat
         <dl className="grid grid-cols-1 gap-x-6 gap-y-3 text-sm min-[420px]:grid-cols-2 sm:grid-cols-3">
           <Item label="Monthly salary" value={formatPeso(a.monthlySalary)} />
           <Item label="Net take-home pay" value={formatPeso(a.netTakeHomePay)} warn={a.netTakeHomePay < a.monthlySalary * 0.4} />
-          <Item label={`Installment (${app.loan.paymentFrequency === 'quincenal' ? 'per month, half each quincena' : 'per month'})`} value={formatPeso(Math.round(installment))} />
+          <Item label={`Installment (${app.loan.paymentFrequency === 'quincenal' ? 'per month, half each payday' : 'per month'})`} value={formatPeso(Math.round(installment))} />
           <Item label="Share of net pay" value={`${Math.round(share * 100)}%`} warn={share > 0.5} />
           <Item label="Net pay left after this and existing mutual assistance" value={formatPeso(Math.round(left))} warn={left < 5000} />
-          <Item label="Interest rate" value={`${app.loan.monthlyRate}% a month`} />
+          <Item label="Interest rate" value={`${app.loan.monthlyRate}% per month`} />
           <Item label="Employment" value={`${employmentStatusLabel[a.employmentStatus]}, ${a.employer}`} warn={a.employmentStatus !== 'permanent'} />
           <Item label="Years as member" value={String(a.yearsAsMember)} />
           <Item label="Past mutual assistance (paid late)" value={`${a.priorLoans} (${a.priorLatePayments})`} warn={a.priorLatePayments > 0} />

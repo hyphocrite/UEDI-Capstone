@@ -355,7 +355,7 @@ router.patch("/users/:id/member", requireLevel("loan_officer"), async (req, res,
 
 const roleSchema = z.object({ role: z.enum(ROLES, { message: "Choose a valid role." }) });
 
-// Admins assign roles. An admin can't change their own role, and UEDI always keeps one admin.
+// Admins assign roles. An admin can't change their own role, and UDEI always keeps one admin.
 router.patch("/users/:id/role", requireRole("admin"), async (req, res, next) => {
   try {
     const parsed = roleSchema.safeParse(req.body || {});

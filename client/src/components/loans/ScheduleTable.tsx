@@ -6,7 +6,7 @@ import type { Installment } from '../../lib/loans'
 export default function ScheduleTable({ schedule }: { schedule: Installment[] }) {
   const today = todayKey()
   return (
-    <TableShell caption="Repayment schedule" maxHeight="tall">
+    <TableShell caption="Payment schedule" maxHeight="tall">
         <thead className="table-head">
           <tr>
             <th>No.</th>

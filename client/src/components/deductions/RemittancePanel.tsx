@@ -82,7 +82,7 @@ export default function RemittancePanel({ runId, value, onChange, totalRemitted,
       </p>
       <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div className="min-w-0">
-          <label className="label" htmlFor="orNo">O.R. number</label>
+          <label className="label" htmlFor="orNo">Official Receipt (OR) no.</label>
           <input id="orNo" className="input" maxLength={40} value={value.officialReceiptNo} onChange={(e) => onChange({ officialReceiptNo: e.target.value })} />
         </div>
         <div className="min-w-0">

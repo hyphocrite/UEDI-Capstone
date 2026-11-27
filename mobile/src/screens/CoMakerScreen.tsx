@@ -9,9 +9,9 @@ import { colors } from '../theme'
 import { Badge, Button, Card, Empty, ErrorText, Header, Row, s, Check, ShowMore, useShowMore } from '../ui'
 
 const STANDING: Record<VouchedLoan['standing'], { text: string; tone: 'green' | 'red' | 'gray' }> = {
-  on_track: { text: 'On track', tone: 'green' },
+  on_track: { text: 'Up to date', tone: 'green' },
   behind: { text: 'Behind', tone: 'red' },
-  paid: { text: 'Paid', tone: 'gray' },
+  paid: { text: 'Fully paid', tone: 'green' },
 }
 
 /**

@@ -92,7 +92,7 @@ export default function HomePage() {
             ) : (
               <>
                 <Link to="/login" className="btn px-3 text-brand-100 hover:bg-white/10 hover:text-white">
-                  Log in
+                  Sign in
                 </Link>
                 <Link to="/register" className="btn-accent">
                   Create account
@@ -313,7 +313,7 @@ export default function HomePage() {
                 <li><Link to="/dashboard" className="transition hover:text-white">Dashboard</Link></li>
               ) : (
                 <>
-                  <li><Link to="/login" className="transition hover:text-white">Log in</Link></li>
+                  <li><Link to="/login" className="transition hover:text-white">Sign in</Link></li>
                   <li><Link to="/register" className="transition hover:text-white">Create account</Link></li>
                 </>
               )}

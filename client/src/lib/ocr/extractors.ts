@@ -1,6 +1,6 @@
 // Field extractors for OCR text. Name extraction is ported from Chainscore
 // (src/lib/ocrName.ts); dates, ID numbers and the payslip reader (basic salary, gross,
-// net pay, pay period) were written for UEDI. Matching against the form is in matching.ts.
+// net pay, pay period) were written for UDEI. Matching against the form is in matching.ts.
 
 import { fixDigits } from './matching'
 

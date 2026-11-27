@@ -22,7 +22,7 @@ export default function ConversionNote({ loan }: { loan: Loan }) {
       {loan.conversions.map((c, i) => (
         <details key={i} className="rounded-lg border border-amber-200 bg-amber-50/60 px-3 py-2 text-sm text-amber-900">
           <summary className="cursor-pointer font-semibold">
-            Converted to long term on {formatDay(c.at)}: {formatCentavos(c.balance)} spread over {c.newTermMonths} months at {c.monthlyRate}% a month
+            Converted to long term on {formatDay(c.at)}: {formatCentavos(c.balance)} spread over {c.newTermMonths} months at {c.monthlyRate}% per month
           </summary>
           <p className="mt-2 text-xs">The short term wasn't fully paid by the end of its term. Its schedule before the conversion:</p>
           <div className="mt-2 rounded-lg bg-white">

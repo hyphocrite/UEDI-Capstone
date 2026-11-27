@@ -233,7 +233,7 @@ function PlanDetail({ plan, canWrite, onChange }: { plan: RetirementPlan; canWri
               <select id="c-method" className="input" value={form.method} onChange={(e) => setForm({ ...form, method: e.target.value })}>
                 {(['payroll', 'cash', 'other'] as const).map((m) => <option key={m} value={m}>{paymentMethodLabel[m]}</option>)}
               </select></div>
-            <div><label className="label" htmlFor="c-ref">OR / reference</label>
+            <div><label className="label" htmlFor="c-ref">OR no. / reference</label>
               <input id="c-ref" className="input" maxLength={60} value={form.reference} onChange={(e) => setForm({ ...form, reference: e.target.value })} /></div>
           </div>
           {message && <p className={`rounded-lg px-3 py-2 text-sm ${message.tone === 'ok' ? 'bg-emerald-50 text-emerald-800' : 'bg-red-50 text-red-700'}`}>{message.text}</p>}

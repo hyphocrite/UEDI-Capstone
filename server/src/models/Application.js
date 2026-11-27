@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 const { STEPS, currentStepOf } = require("../services/approvals");
 const { idCheckStatus } = require("../services/idCheck");
 
-// Fields follow UEDI's Mutual Assistance Application Form.
+// Fields follow UDEI's Mutual Assistance Application Form.
 const LOAN_TYPES = ["long_term", "emergency"];
 const EMPLOYMENT_STATUSES = ["permanent", "temporary", "contractual", "job_order"];
 const PAYMENT_FREQUENCIES = ["quincenal", "monthly"];
@@ -193,7 +193,7 @@ const applicationSchema = new mongoose.Schema(
       longTermDueDate: Date,
       shortTermBalance: { type: Number, default: 0, min: 0 },
       shortTermDueDate: Date,
-      // What the member already pays UEDI per month across their open loans.
+      // What the member already pays UDEI per month across their open loans.
       monthlyPayment: { type: Number, default: 0, min: 0 },
       loans: [
         new mongoose.Schema(

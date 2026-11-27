@@ -54,9 +54,9 @@ function compareMonthly(found: number | null, declared: number, semiMonthly: boo
   if (!declared) return { status: 'warn', detail: `Document shows ${peso(found)}. Enter the ${what} to compare.` }
   if (withinTolerance(found, declared, t)) return { status: 'pass', detail: `${peso(found)} matches the declared ${peso(declared)}.` }
   if (semiMonthly && withinTolerance(found * 2, declared, t)) {
-    return { status: 'pass', detail: `${peso(found)} per quincena, ${peso(found * 2)} a month, matches the declared ${peso(declared)}.` }
+    return { status: 'pass', detail: `${peso(found)} per payday, ${peso(found * 2)} per month, matches the declared ${peso(declared)}.` }
   }
-  const monthly = semiMonthly ? ` (${peso(found * 2)} a month)` : ''
+  const monthly = semiMonthly ? ` (${peso(found * 2)} per month)` : ''
   return { status: 'fail', detail: `Document shows ${peso(found)}${monthly}; the form says ${peso(declared)}.` }
 }
 

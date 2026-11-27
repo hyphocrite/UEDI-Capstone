@@ -62,7 +62,7 @@ export default function AddDocumentsPage() {
   if (!app) {
     return (
       <div className="mx-auto max-w-xl">
-        <PageHeader icon={Paperclip} title="Add supporting documents" subtitle="Loading…" />
+        <PageHeader icon={Paperclip} title="Add Supporting Documents" subtitle="Loading…" />
         {error ? <p className="card p-5 text-sm text-red-700" role="alert">{error}</p> : <p className="py-10 text-center text-sm text-brand-500">Loading the application…</p>}
       </div>
     )
@@ -71,7 +71,7 @@ export default function AddDocumentsPage() {
   if (!canAddDocuments(app, session?.id)) {
     return (
       <div className="mx-auto max-w-xl">
-        <PageHeader icon={Paperclip} title="Add supporting documents" subtitle={app.applicationNo} />
+        <PageHeader icon={Paperclip} title="Add Supporting Documents" subtitle={app.applicationNo} />
         <div className="card space-y-3 p-5 text-sm">
           <p className="text-amber-800">
             {app.status !== 'pending' ? `This application was already ${app.status}, so documents can't be added.` : 'Only the person who filed this application can add documents to it.'}
@@ -85,7 +85,7 @@ export default function AddDocumentsPage() {
   return (
     <div className="mx-auto max-w-4xl min-w-0">
       <PageHeader icon={Paperclip}
-        title="Add supporting documents"
+        title="Add Supporting Documents"
         subtitle={`${app.applicationNo} · ${formatPeso(app.loan.amount)} ${loanTypeLabel[app.loan.loanType]}. You can add documents until the application is decided.`}
       />
       {app.approvals.length > 0 && (

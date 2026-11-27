@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* UEDI palette: header #0B422A, surface #F7F9F6, accent #10B981, ink #0D1F17 */
+/* UDEI palette: header #0B422A, surface #F7F9F6, accent #10B981, ink #0D1F17 */
 @theme {
   --color-brand-50: #ecf7f1;
   --color-brand-100: #d2ecde;

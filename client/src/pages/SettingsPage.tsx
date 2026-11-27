@@ -71,7 +71,7 @@ export default function SettingsPage() {
     for (const t of LOAN_TYPES) {
       const was = current.products[t]
       const now = draft.products[t]
-      if (Number(now.monthlyRate) !== was.monthlyRate) list.push(`${was.label} rate: ${was.monthlyRate}% → ${now.monthlyRate}% a month`)
+      if (Number(now.monthlyRate) !== was.monthlyRate) list.push(`${was.label} rate: ${was.monthlyRate}% → ${now.monthlyRate}% per month`)
       if (Number(now.maxTermMonths) !== was.maxTermMonths) list.push(`${was.label} longest term: ${was.maxTermMonths} → ${now.maxTermMonths} months`)
     }
     if (Number(draft.minMonthlySalary) !== current.minMonthlySalary) {
@@ -151,7 +151,7 @@ export default function SettingsPage() {
           <thead className="table-head">
             <tr>
               <th>Type</th>
-              <th>Interest (% per month){canSetRates ? '' : <span className="block font-normal normal-case">Administrator only</span>}</th>
+              <th>Interest rate (% per month){canSetRates ? '' : <span className="block font-normal normal-case">Administrator only</span>}</th>
               <th>Longest term (months)</th>
               <th className="text-right">Monthly installment on {formatPeso(sample)}, longest term</th>
             </tr>

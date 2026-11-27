@@ -4,7 +4,7 @@ import { api, type Loan, type Payment, type PaymentSubmission } from '../api'
 import { centavos, date, LOAN_TYPE_LABEL } from '../format'
 import { colors } from '../theme'
 import { Badge, Card, Empty, ErrorText, Header, Row, s, ShowMore, useShowMore } from '../ui'
-import { modeLabel, PAYMENT_METHOD_LABEL } from '../paymentModes'
+import { modeLabel, PAYMENT_METHOD_LABEL, frequencyLabel } from '../paymentModes'
 import { loanBadge } from './status'
 import SendPayment, { SubmissionRow } from './SendPayment'
 import PaymentModeCard from './PaymentModeCard'
@@ -51,7 +51,7 @@ export default function LoanDetailScreen({ id, onBack }: { id: string; onBack: (
               {loan.totalPayable > 0 ? <Progress paid={loan.amountPaid} total={loan.totalPayable} /> : null}
               <Row label="Principal" value={centavos(loan.principal)} />
               <Row label="Rate" value={`${loan.monthlyRate}% per month`} />
-              <Row label="Term" value={loan.paymentMode === 'bonus' && loan.schedule.length === 1 ? `One payment on ${date(loan.schedule[0].dueDate)}` : `${loan.termMonths} months, ${loan.paymentFrequency}`} />
+              <Row label="Term" value={loan.paymentMode === 'bonus' && loan.schedule.length === 1 ? `One payment on ${date(loan.schedule[0].dueDate)}` : `${loan.termMonths} months, ${frequencyLabel(loan.paymentFrequency)}`} />
               <Row label="Mode of payment" value={loan.paymentModeLabel ?? modeLabel(loan.paymentMode, loan.bonusType)} />
               {loan.convertedAt ? (
                 <Text style={{ color: colors.warn, marginTop: 6 }}>

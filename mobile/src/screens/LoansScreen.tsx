@@ -62,7 +62,7 @@ export default function LoansScreen({ loans, applications, loading, onRefresh, o
               <Badge {...applicationBadge(a)} />
             </View>
             <Row label={LOAN_TYPE_LABEL[a.loan.loanType]} value={pesos(a.loan.amount)} strong />
-            <Row label="Term" value={`${a.loan.termMonths} months at ${a.loan.monthlyRate}%/mo`} />
+            <Row label="Term" value={`${a.loan.termMonths} months at ${a.loan.monthlyRate}% per month`} />
             <Row label="Submitted" value={date(a.createdAt)} />
             <Steps app={a} />
             {a.coMakers?.length ? (
@@ -100,7 +100,7 @@ function Steps({ app }: { app: Application }) {
             <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: color }} />
             <Text style={{ color: signed || waiting ? colors.text : colors.muted, flex: 1 }}>{name}</Text>
             <Text style={{ color: colors.muted, fontSize: 12 }}>
-              {signed ? `${signed.decision === 'denied' ? 'Denied' : 'Signed'} ${date(signed.signedAt)}` : waiting ? 'Reviewing' : ''}
+              {signed ? `${signed.decision === 'denied' ? 'Not approved' : 'Signed'} ${date(signed.signedAt)}` : waiting ? 'Reviewing' : ''}
             </Text>
           </View>
         )
