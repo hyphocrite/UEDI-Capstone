@@ -64,7 +64,7 @@ const bookkeeperSchema = z.object({
   longTermDueDate: optionalDate,
   shortTermBalance: money.default(0),
   shortTermDueDate: optionalDate,
-  // What the member already pays UEDI per month on these loans.
+  // What the member already pays UDEI per month on these loans.
   monthlyPayment: money.default(0),
 });
 
@@ -102,7 +102,7 @@ function missingDocuments(loanType, types) {
 
 const peso = (n) => `₱${Number(n).toLocaleString("en-PH")}`;
 
-// The body mirrors UEDI's Mutual Assistance Application Form.
+// The body mirrors UDEI's Mutual Assistance Application Form.
 const createSchema = z
   .object({
     applicant: z.object({
@@ -195,7 +195,7 @@ async function runAssessment(app) {
 
 /**
  * The Bookkeeper section: from the ledger when the member has loans on record, otherwise what was
- * typed (UEDI's older loans aren't in the system yet).
+ * typed (UDEI's older loans aren't in the system yet).
  */
 async function bookkeeperFor(memberId, typed) {
   if (memberId) {
@@ -659,7 +659,7 @@ const requestSchema = z.object({
 router.post("/:id/co-maker-request", async (req, res, next) => {
   try {
     if (!CO_MAKER_ASKERS.includes(req.user.role)) {
-      return res.status(403).json({ error: "Only the Bookkeeper, CreCom Chairman or President can ask for a co-maker." });
+      return res.status(403).json({ error: "Only the Bookkeeper, Credit Committee Chairman or President can ask for a co-maker." });
     }
     const parsed = requestSchema.safeParse(req.body || {});
     if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0].message });

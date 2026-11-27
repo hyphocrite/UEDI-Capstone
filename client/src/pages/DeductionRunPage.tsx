@@ -92,7 +92,7 @@ export default function DeductionRunPage() {
   if (!run) {
     return (
       <>
-        <PageHeader icon={ReceiptText} title="Payroll deduction run" actions={<Link to="/deductions" className="btn-ghost"><ArrowLeft className="h-4 w-4" /> All runs</Link>} />
+        <PageHeader icon={ReceiptText} title="Payroll Deduction Run" actions={<Link to="/deductions" className="btn-ghost"><ArrowLeft className="h-4 w-4" /> All runs</Link>} />
         {error ? <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{error}</p> : <p className="text-sm text-brand-500">Loading…</p>}
       </>
     )
@@ -186,7 +186,7 @@ export default function DeductionRunPage() {
     <>
       <div className="print:hidden">
         <PageHeader icon={ReceiptText}
-          title={run.kind === 'bonus' ? `${BONUS_TYPES.find((b) => b.value === run.bonusType)?.label ?? 'Bonus'} run, ${formatCutoff(run.cutoff)}` : `Payroll deductions, ${formatCutoff(run.cutoff)}`}
+          title={run.kind === 'bonus' ? `${BONUS_TYPES.find((b) => b.value === run.bonusType)?.label ?? 'Bonus'} Run, ${formatCutoff(run.cutoff)}` : `Payroll Deductions, ${formatCutoff(run.cutoff)}`}
           subtitle={`${runStatusLabel[run.status]}${run.sentByName ? ` · sent by ${run.sentByName}` : ''}${run.postedByName ? ` · posted by ${run.postedByName}` : ''}`}
           actions={
             <>

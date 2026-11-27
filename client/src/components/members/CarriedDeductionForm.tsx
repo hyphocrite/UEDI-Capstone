@@ -6,6 +6,7 @@ import { useConfirm } from '../../context/ConfirmContext'
 import { formatCentavos, formatDay, todayKey, toCentavos } from '../../lib/loans'
 import type { Loan } from '../../lib/loans'
 import type { Member } from '../../lib/members'
+import { FREQUENCY_LABEL, frequencyLabel } from '../../lib/paymentModes'
 
 type Frequency = 'quincenal' | 'monthly'
 
@@ -53,7 +54,7 @@ export default function CarriedDeductionForm({ member, onClose, onSaved }: {
       title: 'Set up this payroll deduction?',
       message: (
         <>
-          <p>Payroll will deduct <b>{formatCentavos(perCutoff)}</b> {frequency === 'quincenal' ? 'every payday' : 'once a month'} from <b>{member.fullName}</b>, starting {formatDay(firstDueDate)}, until the {formatCentavos(opening.balance)} balance is paid ({cutoffs} deductions).</p>
+          <p>Payroll will deduct <b>{formatCentavos(perCutoff)}</b> {frequencyLabel(frequency)} from <b>{member.fullName}</b>, starting {formatDay(firstDueDate)}, until the {formatCentavos(opening.balance)} balance is paid ({cutoffs} deductions).</p>
           <p>The balance becomes mutual assistance LEDGER-{member.memberId}. This can only be set up once per member.</p>
         </>
       ),
@@ -88,8 +89,8 @@ export default function CarriedDeductionForm({ member, onClose, onSaved }: {
           <div>
             <label className="label" htmlFor="cd-frequency">Deducted</label>
             <select id="cd-frequency" className="input" value={frequency} onChange={(e) => changeFrequency(e.target.value as Frequency)}>
-              <option value="quincenal">Every payday</option>
-              <option value="monthly">Once a month</option>
+              <option value="quincenal">{FREQUENCY_LABEL.quincenal}</option>
+              <option value="monthly">{FREQUENCY_LABEL.monthly}</option>
             </select>
           </div>
           <div>

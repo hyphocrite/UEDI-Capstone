@@ -213,7 +213,7 @@ async function paymentsWorkbook(month) {
   ws.addRow([]);
   table(
     ws,
-    ["Date", "UDEI No.", "Borrower", "MA no.", "Mode of payment", "Reference", "OR No.", "Amount", "Received by (Treasurer)", "Confirmed by (Bookkeeper)"],
+    ["Date", "UDEI no.", "Borrower", "MA no.", "Mode of payment", "Reference", "OR no.", "Amount", "Received by (Treasurer)", "Confirmed by (Bookkeeper)"],
     subs.map((s) => [day(s.paidAt), s.memberId || "", s.borrowerName, s.loanNo, METHOD_LABELS[s.method] || s.method, s.reference || "", s.received?.orNumber || "", pesos(gross(payOf.get(String(s.payment)) || { amount: s.amount })), s.received?.byName || "", s.confirmed?.byName || ""]),
     [8],
     [12, 10, 26, 15, 24, 22, 12, 13, 24, 24],

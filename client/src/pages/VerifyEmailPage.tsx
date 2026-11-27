@@ -48,7 +48,7 @@ export default function VerifyEmailPage() {
 
   return (
     <AuthShell
-      title="Verify your email"
+      title="Verify Your Email"
       subtitle={
         state?.fromLogin
           ? 'Your account is not verified yet. Enter the code we emailed you, or send a new one.'
@@ -58,7 +58,7 @@ export default function VerifyEmailPage() {
         <>
           Already verified?{' '}
           <Link to="/login" className="font-semibold text-brand-800 hover:underline">
-            Log in
+            Sign in
           </Link>
         </>
       }

@@ -266,7 +266,7 @@ export default function LoanApplicationPage() {
   if (editId && (closedReason || !original)) {
     return (
       <div className="mx-auto max-w-xl">
-        <PageHeader icon={Pencil} title="Change your application" subtitle={original?.applicationNo ?? 'Loading…'} />
+        <PageHeader icon={Pencil} title="Change Your Application" subtitle={original?.applicationNo ?? 'Loading…'} />
         {closedReason ? (
           <div className="card space-y-3 p-5 text-sm">
             <p className="text-amber-800">{closedReason}</p>
@@ -287,7 +287,7 @@ export default function LoanApplicationPage() {
   if (!staffView && !ownMemberId) {
     return (
       <div className="mx-auto max-w-xl">
-        <PageHeader icon={FilePlus2} title="Apply for Mutual Assistance" subtitle="Mutual Assistance Application Form, United DNSC Employees, Inc." />
+        <PageHeader icon={FilePlus2} title="Apply for Mutual Assistance" subtitle="UDEI Mutual Assistance Application Form" />
         <p className="card p-5 text-sm text-amber-800">
           Your account isn't linked to a member record yet. Ask the UDEI office to link it, then you can apply here.
         </p>
@@ -311,13 +311,13 @@ export default function LoanApplicationPage() {
       <div className="print:hidden">
         {original ? (
           <PageHeader icon={Pencil}
-            title="Change your application"
+            title="Change Your Application"
             subtitle={`${original.applicationNo}, filed ${formatDateTime(original.createdAt)}. You can change it until the Bookkeeper signs.`}
           />
         ) : (
           <PageHeader icon={FilePlus2}
             title={staffView ? 'Mutual Assistance Application' : 'Apply for Mutual Assistance'}
-            subtitle="Mutual Assistance Application Form, United DNSC Employees, Inc. Supporting documents are read and checked against the form."
+            subtitle="UDEI Mutual Assistance Application Form"
           />
         )}
 
@@ -401,7 +401,7 @@ export default function LoanApplicationPage() {
               <div className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900 print:hidden">
                 <p>These documents don’t match what was typed on the form:</p>
                 <ul className="mt-1 list-disc pl-5">{documents.mismatched.map((d) => <li key={d.key} className="break-words">{d.file.name}</li>)}</ul>
-                <p className="mt-1">Loan officers will see this on Pending Applications.</p>
+                <p className="mt-1">The four signers review it on Pending Applications.</p>
               </div>
             )}
             <ApplicationPreview form={form} documents={previewDocuments()} staffView={staffView} linked={linked} applicationNo={original?.applicationNo} />
@@ -427,7 +427,7 @@ export default function LoanApplicationPage() {
                     ? 'Saving replaces the form; documents already attached stay, and new ones are added.'
                     : staffView
                       ? 'Submitting sends the form and document checks to Pending Applications.'
-                      : 'Submitting sends your application to UDEI. The Bookkeeper, CreCom Chairman, President and Treasurer then sign it.'}
+                      : 'Submitting sends your application to UDEI. The Bookkeeper, Credit Committee Chairman, President and Treasurer then sign it.'}
             </p>
             <div className="flex flex-wrap gap-2">
               {original && <Link to="/loans" className="btn-ghost">Cancel</Link>}

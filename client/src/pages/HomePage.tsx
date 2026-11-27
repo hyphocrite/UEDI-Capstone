@@ -37,7 +37,7 @@ const steps = [
   { icon: UserPlus, title: 'Create an account', text: 'Sign up on the website or the phone app. You get your own member ID right away.' },
   { icon: Link2, title: 'Get linked by the office', text: 'The office links your account to your UDEI member number, and your records come together.' },
   { icon: HandCoins, title: 'Apply for mutual assistance', text: 'Fill in the form, add your co-makers for larger mutual assistance and upload your documents.' },
-  { icon: CircleCheck, title: 'Four signatures, then release', text: 'The machine learning models give a suggestion; the four signers decide. You can follow each step.' },
+  { icon: CircleCheck, title: 'Four signatures, then release', text: 'The credit model gives a suggestion; the four signers decide. You can follow each step.' },
 ]
 
 const audiences = [
@@ -56,7 +56,7 @@ const faqs = [
   },
   {
     q: 'Does a computer decide my mutual assistance?',
-    a: 'No. Three machine learning models suggest approve, review or deny and explain why in plain words, but the Bookkeeper, Credit Committee Chairman, President and Treasurer make the decision.',
+    a: 'No. The credit model suggests approve, review or deny and explains why in plain words, but the Bookkeeper, Credit Committee Chairman, President and Treasurer make the decision.',
   },
   {
     q: 'I already have a UDEI member number. Why do I get a new ID?',
@@ -92,7 +92,7 @@ export default function HomePage() {
             ) : (
               <>
                 <Link to="/login" className="btn px-3 text-brand-100 hover:bg-white/10 hover:text-white">
-                  Log in
+                  Sign in
                 </Link>
                 <Link to="/register" className="btn-accent">
                   Create account
@@ -313,7 +313,7 @@ export default function HomePage() {
                 <li><Link to="/dashboard" className="transition hover:text-white">Dashboard</Link></li>
               ) : (
                 <>
-                  <li><Link to="/login" className="transition hover:text-white">Log in</Link></li>
+                  <li><Link to="/login" className="transition hover:text-white">Sign in</Link></li>
                   <li><Link to="/register" className="transition hover:text-white">Create account</Link></li>
                 </>
               )}

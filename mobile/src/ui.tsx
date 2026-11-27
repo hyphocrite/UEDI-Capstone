@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
-import { ActivityIndicator, Image, Pressable, StyleSheet, Text, TextInput, View, type TextInputProps, type ViewStyle } from 'react-native'
+import { AccessibilityInfo, ActivityIndicator, Animated, Easing, Pressable, StyleSheet, Text, TextInput, View, type TextInputProps, type ViewStyle } from 'react-native'
 import { colors, radius } from './theme'
 
 export function Header({ title, subtitle, right }: { title: string; subtitle?: string; right?: ReactNode }) {
@@ -205,6 +205,22 @@ export function ShowMore({ list }: { list: { visible: readonly unknown[]; total:
   )
 }
 
+/** Longer how-it-works text behind a row that opens it, closed by default (the web's HowItWorks). */
+export function HowItWorks({ children, label = 'How this works' }: { children: ReactNode; label?: string }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <View style={{ marginTop: 4 }}>
+      <Pressable accessibilityRole="button" accessibilityState={{ expanded: open }} onPress={() => setOpen((o) => !o)}
+        style={{ flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 32 }}>
+        <Ionicons name="information-circle-outline" size={15} color={colors.primary} />
+        <Text style={{ color: colors.primary, fontWeight: '600', fontSize: 12 }}>{label}</Text>
+        <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={14} color={colors.primary} />
+      </Pressable>
+      {open ? <View style={{ marginTop: 2 }}>{children}</View> : null}
+    </View>
+  )
+}
+
 export function Empty({ text }: { text: string }) {
   return <Text style={{ color: colors.muted, textAlign: 'center', marginVertical: 24 }}>{text}</Text>
 }
@@ -274,10 +290,99 @@ export const s = StyleSheet.create({
   showMore: { alignItems: 'center', justifyContent: 'center', minHeight: 44, paddingVertical: 10, marginBottom: 12 },
 })
 
+// Rendered from client/src/components/mascot/owl.ts (256 x 256), with closed-eye frames for blinking.
 const kuwi = {
   happy: require('../assets/kuwi-happy.png'),
   neutral: require('../assets/kuwi-neutral.png'),
   concerned: require('../assets/kuwi-concerned.png'),
+}
+const kuwiBlink: Partial<Record<keyof typeof kuwi, number>> = {
+  neutral: require('../assets/kuwi-neutral-blink.png'),
+  concerned: require('../assets/kuwi-concerned-blink.png'),
+}
+
+/**
+ * Kuwi the owl, alive: pops in, bobs (happy: hops), blinks (neutral, concerned) and jumps when
+ * tapped. With Reduce Motion on she stays still. Timers and loops stop on unmount.
+ */
+export function Kuwi({ mood = 'neutral', size = 60, label = true }: { mood?: keyof typeof kuwi; size?: number; label?: boolean }) {
+  const [still, setStill] = useState(true)
+  const [blink, setBlink] = useState(false)
+  const [scale] = useState(() => new Animated.Value(0.4))
+  const [lift] = useState(() => new Animated.Value(0))
+  const [jump] = useState(() => new Animated.Value(0))
+
+  useEffect(() => {
+    let alive = true
+    AccessibilityInfo.isReduceMotionEnabled().then((reduce) => alive && setStill(reduce)).catch(() => alive && setStill(false))
+    const sub = AccessibilityInfo.addEventListener('reduceMotionChanged', (reduce) => setStill(reduce))
+    return () => {
+      alive = false
+      sub.remove()
+    }
+  }, [])
+
+  useEffect(() => {
+    if (still) {
+      scale.setValue(1)
+      lift.setValue(0)
+      return
+    }
+    scale.setValue(0.4)
+    const pop = Animated.spring(scale, { toValue: 1, friction: 5, tension: 120, useNativeDriver: true })
+    const loop = Animated.loop(
+      mood === 'happy'
+        ? // A small hop every 2.4 s.
+          Animated.sequence([
+            Animated.delay(1700),
+            Animated.timing(lift, { toValue: -6, duration: 220, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+            Animated.timing(lift, { toValue: 0, duration: 480, easing: Easing.bounce, useNativeDriver: true }),
+          ])
+        : // A gentle bob over 3.2 s.
+          Animated.sequence([
+            Animated.timing(lift, { toValue: -3, duration: 1600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+            Animated.timing(lift, { toValue: 0, duration: 1600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+          ]),
+    )
+    pop.start()
+    loop.start()
+    // Blink every ~4.5 s for 140 ms (her happy eyes are already closed arcs).
+    let open: ReturnType<typeof setTimeout> | undefined
+    const blinker = kuwiBlink[mood]
+      ? setInterval(() => {
+          setBlink(true)
+          open = setTimeout(() => setBlink(false), 140)
+        }, 4500)
+      : undefined
+    return () => {
+      pop.stop()
+      loop.stop()
+      if (blinker) clearInterval(blinker)
+      if (open) clearTimeout(open)
+      setBlink(false)
+    }
+  }, [mood, still, scale, lift])
+
+  const tap = () => {
+    if (still) return
+    jump.setValue(0)
+    Animated.sequence([
+      Animated.timing(jump, { toValue: 1, duration: 160, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+      Animated.spring(jump, { toValue: 0, friction: 4, useNativeDriver: true }),
+    ]).start()
+  }
+
+  const jumpY = jump.interpolate({ inputRange: [0, 1], outputRange: [0, -10] })
+  const rotate = jump.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '-8deg'] })
+  return (
+    <Pressable onPress={tap} accessible={label} accessibilityRole={label ? 'image' : undefined} accessibilityLabel={label ? `Kuwi the owl, ${mood}` : undefined}
+      importantForAccessibility={label ? 'auto' : 'no-hide-descendants'}>
+      <Animated.Image
+        source={blink && kuwiBlink[mood] ? kuwiBlink[mood] : kuwi[mood]}
+        style={{ width: size, height: size, transform: [{ translateY: Animated.add(lift, jumpY) }, { scale }, { rotate }] }}
+      />
+    </Pressable>
+  )
 }
 
 /** Kuwi the owl explaining something in a speech bubble (the same owl as on the website). */
@@ -285,7 +390,8 @@ export function MascotSays({ mood = 'neutral', title, children }: { mood?: keyof
   return (
     <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginTop: 10 }}>
       <View style={{ alignItems: 'center' }}>
-        <Image source={kuwi[mood]} style={{ width: 52, height: 52 }} accessibilityLabel={`Kuwi the owl, ${mood}`} />
+        {/* The "KUWI" label under her names her, so the image itself isn't read out too. */}
+        <Kuwi mood={mood} size={60} label={false} />
         <Text style={{ fontSize: 9, fontWeight: '700', color: colors.muted, letterSpacing: 0.5 }}>KUWI</Text>
       </View>
       <View style={{ flex: 1, backgroundColor: colors.bg, borderColor: colors.border, borderWidth: 1, borderRadius: 14, padding: 10 }}>

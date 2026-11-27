@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { AlertTriangle, Database, Gauge, ShieldCheck, Target, BrainCircuit } from 'lucide-react'
+import HowItWorks from '../components/HowItWorks'
 import PageHeader from '../components/PageHeader'
 import StatCard from '../components/StatCard'
 import TableShell from '../components/TableShell'
 import { api } from '../lib/api'
 import { scoreLine } from '../lib/applications'
 import type { Benchmark, BenchmarkDataset, BenchmarkRow, ConfusionMatrix, ModelInfo } from '../lib/applications'
-import { formatDate } from '../lib/format'
+import { formatDate, formatCount } from '../lib/format'
 
 const pct = (x: number) => `${Math.round(x * 100)}%`
 const short: Record<string, string> = { random_forest: 'RF', xgboost: 'XGB', linear_regression: 'LR', ridge: 'Ridge', decision_tree: 'DT' }
@@ -50,14 +51,19 @@ export default function CreditModelPage() {
     <>
       <PageHeader icon={BrainCircuit}
         title="Credit Model"
-        subtitle="How the credit-score model behind Pending Applications was built and how it compares with the 8 regression algorithms."
+        subtitle="How the credit score model was built and tested."
       />
 
       {model?.sampleData && (
-        <p className="mb-4 flex items-start gap-2 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-          The model is trained on sample mutual assistance (loan) records shaped like UDEI's form, rates and terms. UDEI's records so far (45 borrowers) are too few to train on; retrain once there are about 200 loans.
-        </p>
+        <div className="mb-4 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <p className="flex items-start gap-2"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /> Trained on sample data, not UDEI's own records yet.</p>
+          <HowItWorks className="mt-1 pl-6">
+            <p>
+              The model is trained on sample mutual assistance records shaped like UDEI's form, rates and terms. UDEI's records so far
+              (45 borrowers) are too few to train on; retrain once there are about 200.
+            </p>
+          </HowItWorks>
+        </div>
       )}
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -73,7 +79,7 @@ export default function CreditModelPage() {
         <StatCard
           icon={Database}
           label="Trained on"
-          value={model ? `${model.rows.toLocaleString()} past mutual assistance (loans)` : '–'}
+          value={model ? `${formatCount(model.rows)} past mutual assistance (loans)` : '–'}
           hint={model ? `${model.targetMean != null ? `average repayment score ${model.targetMean.toFixed(1)}, ` : ''}${formatDate(model.trainedAt)}` : 'ML service not reachable'}
         />
       </div>
@@ -93,7 +99,7 @@ export default function CreditModelPage() {
             <h2 className="text-lg font-semibold text-brand-800">Benchmark of 8 regressors and the stacked ensemble</h2>
             <p className="text-sm text-brand-600">
               {dataset
-                ? `${dataset.rows.toLocaleString()} past mutual assistance (loans), average repayment score ${dataset.targetMean.toFixed(1)}. ${dataset.validation}. Ranked by R².`
+                ? `${formatCount(dataset.rows)} past mutual assistance, average repayment score ${dataset.targetMean.toFixed(1)}. ${dataset.validation}. Ranked by R².`
                 : 'R²: share of the variation in past repayment scores a model explains. MAE: average points off.'}
             </p>
           </div>
@@ -180,7 +186,7 @@ function ConfusionGrid({ cm }: { cm: ConfusionMatrix }) {
   const bad = fn + tp
   const cell = (n: number, of: number, label: string, tone: 'right' | 'wrong') => (
     <div className={`rounded-lg p-4 ${tone === 'right' ? 'bg-brand-800 bg-grad-brand text-white' : 'bg-brand-50 text-ink'}`}>
-      <p className="text-2xl font-bold tabular-nums">{n.toLocaleString()}</p>
+      <p className="text-2xl font-bold tabular-nums">{formatCount(n)}</p>
       <p className={`text-sm ${tone === 'right' ? 'text-brand-100' : 'text-brand-600'}`}>{label}, {pct(n / Math.max(of, 1))} of {of === good ? 'good' : 'poor'} repayers</p>
     </div>
   )

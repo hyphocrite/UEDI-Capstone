@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
+import { atLeast } from '../lib/roles'
 import { AlertTriangle, Eye, ShieldAlert, ShieldCheck, Siren } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import Pagination from '../components/Pagination'
@@ -48,6 +50,8 @@ export default function EarlyWarningPage() {
   const [model, setModel] = useState<ModelInfo | null>(null)
   const [error, setError] = useState('')
   const [show, setShow] = useState<'flagged' | 'all'>('flagged')
+  const { session } = useAuth()
+  const isAdmin = atLeast(session?.role, 'admin')
 
   useEffect(() => {
     api<{ loans: Warning[] }>('/api/early-warning')
@@ -69,10 +73,12 @@ export default function EarlyWarningPage() {
     <>
       <PageHeader icon={Siren}
         title="Early Warning"
-        subtitle="Active mutual assistance likely to miss a payment in the next 60 days, so the office can reach the borrower before it happens."
+        subtitle="Active mutual assistance likely to miss a payment in the next 60 days."
       />
 
-      {model && (
+      {/* The model's tested results are for the administrator (they also live on Credit Model). */}
+      {model && !isAdmin && <p className="mb-4 rounded-lg bg-brand-50 px-4 py-3 text-sm text-brand-700">Checked daily. It is a prompt to check on the borrower, not a decision.</p>}
+      {model && isAdmin && (
         <p className="mb-4 rounded-lg bg-brand-50 px-4 py-3 text-sm text-brand-700">
           XGBoost model{model.trainedOn === 'sample' ? <b className="text-amber-700"> trained on sample data, not UDEI's history yet</b> : ` trained on ${model.rows} ${model.trainedOn} snapshots`}:
           AUC {model.xgboost.aucRoc.toFixed(2)} (Logistic Regression baseline {model.logisticBaseline.aucRoc.toFixed(2)}). Of the mutual assistance it marks high risk,

@@ -1,4 +1,4 @@
-// The supporting documents UEDI asks for with a Mutual Assistance application.
+// The supporting documents UDEI asks for with a Mutual Assistance application.
 // Each one proves fields on the paper form:
 //   Name ............ valid ID, payslip, proof of address
 //   Residence address  proof of address (and IDs that print an address)
@@ -87,7 +87,7 @@ export const DOCUMENT_TYPES: DocumentType[] = [
   {
     id: 'other',
     label: 'Other document',
-    hint: 'Anything else the loan officer asked for.',
+    hint: 'Anything else the UDEI office asked for.',
     keywords: [],
     checks: ['name'],
   },
@@ -103,7 +103,7 @@ export const REQUIRED_DOCUMENTS: Record<LoanType, DocumentTypeId[]> = {
 
 export const documentType = (id: DocumentTypeId) => DOCUMENT_TYPES.find((t) => t.id === id)!
 
-// Phrases that only appear on one kind of document count extra, so UEDI's own form (which
+// Phrases that only appear on one kind of document count extra, so UDEI's own form (which
 // mentions salary and net pay) isn't mistaken for a payslip.
 const DECISIVE: Partial<Record<DocumentTypeId, RegExp>> = {
   application_form: /mutual\s+assistance|united\s+dnsc\s+employees/i,

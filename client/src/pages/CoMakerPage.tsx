@@ -108,7 +108,7 @@ export default function CoMakerPage() {
 
   return (
     <div className="mx-auto max-w-5xl">
-      <PageHeader icon={Handshake} title="Co-maker" subtitle="Mutual assistance you were asked to vouch for, and how the mutual assistance you vouched for is being paid." />
+      <PageHeader icon={Handshake} title="Co-maker" subtitle="Mutual assistance you were asked to vouch for, and how it's being paid." />
       {error && <p className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{error}</p>}
       {data && !data.linked && (
         <p className="card p-5 text-sm text-amber-800">Your account isn't linked to a member record yet, so no one can name you as co-maker. Ask the UDEI office to link it.</p>
@@ -168,7 +168,7 @@ export default function CoMakerPage() {
                     <div className="min-w-0">
                       <p className="font-semibold text-ink">{l.borrowerName} <span className="font-normal text-brand-500">· {l.loanNo}</span></p>
                       <p className={`text-sm font-semibold ${l.standing === 'behind' ? 'text-red-700' : l.standing === 'paid' ? 'text-emerald-700' : 'text-brand-700'}`}>
-                        {l.standing === 'paid' ? 'Fully paid' : l.standing === 'behind' ? (l.pastDue ? `Behind: ${formatCentavos(l.pastDueAmount)} past due` : 'Last payroll deduction was missed') : 'Paying on time'}
+                        {l.standing === 'paid' ? 'Fully paid' : l.standing === 'behind' ? (l.pastDue ? `Behind: ${formatCentavos(l.pastDueAmount)} past due` : 'Last payroll deduction was missed') : 'Up to date'}
                       </p>
                       <p className="text-xs text-brand-500">
                         Balance {formatCentavos(l.balance)}{l.nextDue && l.standing !== 'paid' ? ` · next ${formatCentavos(l.nextDue.amount)} on ${formatDay(l.nextDue.dueDate)}` : ''}

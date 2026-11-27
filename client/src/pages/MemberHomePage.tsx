@@ -8,7 +8,7 @@ import MyScoreCard from '../components/members/MyScoreCard'
 import { KuwiReasons, KuwiTips, MascotSays } from '../components/mascot/Mascot'
 import { useAuth } from '../context/AuthContext'
 import { api } from '../lib/api'
-import { loanTypeLabel } from '../lib/applications'
+import { loanTypeLabel, memberStatusText } from '../lib/applications'
 import type { LoanApplication } from '../lib/applications'
 import { formatPeso } from '../lib/format'
 import { formatCentavos, formatDay } from '../lib/loans'
@@ -102,13 +102,14 @@ function Card({ title, icon: Icon, link, children }: { title: string; icon: Luci
 const loadingLine = <p className="py-4 text-sm text-brand-500">Loading…</p>
 
 function LoansCard({ state }: { state: Load<{ loans: Loan[] }> }) {
+  // Nothing active: no card (the Latest application card offers to apply).
+  if (state.status === 'ok' && !state.data.loans.some((l) => l.status === 'active')) return null
   return (
     <Card title="Your mutual assistance" icon={HandCoins} link={{ to: '/loans', label: 'See mutual assistance' }}>
       {state.status === 'loading' && loadingLine}
       {state.status === 'error' && <EmptyState icon={HandCoins} title="Your mutual assistance could not be loaded." hint={state.message} className="py-4" />}
       {state.status === 'ok' && (() => {
         const active = state.data.loans.filter((l) => l.status === 'active')
-        if (!active.length) return <EmptyState icon={HandCoins} title="No active mutual assistance." hint="Mutual assistance shows here once released." className="py-4" />
         const balance = active.reduce((s, l) => s + l.balance, 0)
         const next = active.filter((l) => l.nextDue).sort((a, b) => a.nextDue!.dueDate.localeCompare(b.nextDue!.dueDate))[0]?.nextDue
         const pastDue = active.filter((l) => l.pastDue)
@@ -154,8 +155,8 @@ function ApplicationCard({ state }: { state: Load<{ applications: LoanApplicatio
                 Waiting for the {a.currentStep !== 'none' ? roleLabel[a.currentStep] : 'signers'} · {a.approvals.length} of 4 signed
               </p>
             )}
-            {a.status === 'approved' && <p className="mt-1 flex items-center gap-2 text-sm text-emerald-800"><CircleCheck className="h-4 w-4" /> Approved{a.loanNo ? `: MA no. ${a.loanNo}` : ''}</p>}
-            {a.status === 'denied' && <p className="mt-1 flex items-center gap-2 text-sm text-red-800"><XCircle className="h-4 w-4" /> Not approved. See why on My Mutual Assistance.</p>}
+            {a.status === 'approved' && <p className="mt-1 flex items-center gap-2 text-sm text-emerald-800"><CircleCheck className="h-4 w-4" /> {memberStatusText.approved}{a.loanNo ? `: MA no. ${a.loanNo}` : ''}</p>}
+            {a.status === 'denied' && <p className="mt-1 flex items-center gap-2 text-sm text-red-800"><XCircle className="h-4 w-4" /> {memberStatusText.denied}. See why on My Mutual Assistance.</p>}
             <Link to="/loans" className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-brand-700 hover:underline">See all applications <ArrowRight className="h-3.5 w-3.5" /></Link>
           </>
         )
@@ -165,6 +166,8 @@ function ApplicationCard({ state }: { state: Load<{ applications: LoanApplicatio
 }
 
 function CoMakerCard({ state }: { state: Load<CoMakerPortal> }) {
+  // No requests waiting and no alerts: no card.
+  if (state.status === 'ok' && !state.data.alerts.length && !state.data.requests.some((r) => r.status === 'pending' && r.myStatus === 'pending')) return null
   return (
     <Card title="Co-maker" icon={Handshake} link={{ to: '/co-maker', label: 'Open' }}>
       {state.status === 'loading' && loadingLine}

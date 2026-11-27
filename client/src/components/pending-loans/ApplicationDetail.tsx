@@ -1,20 +1,22 @@
 import { useState } from 'react'
-import { AlertTriangle, BarChart3, CheckCircle2, ChevronDown, Eye, HandCoins, MessageSquareText, RefreshCw, XCircle } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { AlertTriangle, BarChart3, CheckCircle2, Eye, HandCoins, MessageSquareText, RefreshCw, XCircle } from 'lucide-react'
 import ApprovalPanel from './ApprovalPanel'
 import CoMakerPanel from './CoMakerPanel'
 import IdCheckChip from './IdCheckChip'
 import BookkeeperBalances from './BookkeeperBalances'
 import ApprovalTracker from './ApprovalTracker'
-import ModelCard from './ModelCard'
 import ShapWaterfall from './ShapWaterfall'
 import DocumentViewer from './DocumentViewer'
 import { api } from '../../lib/api'
 import { KuwiReasons, KuwiTips, MascotSays } from '../mascot/Mascot'
+import { useAuth } from '../../context/AuthContext'
 import { useConfirm } from '../../context/ConfirmContext'
-import { modeLabel } from '../../lib/paymentModes'
+import { atLeast } from '../../lib/roles'
+import { modeLabel, frequencyLabel } from '../../lib/paymentModes'
 import { creditScore, employmentStatusLabel, loanTypeLabel, monthlyInstallment, scoreLine } from '../../lib/applications'
 import type { LoanApplication, Suggestion } from '../../lib/applications'
-import { formatDate, formatPeso } from '../../lib/format'
+import { formatDate, formatPeso, formatAmount } from '../../lib/format'
 import { documentType } from '../../lib/ocr/documentTypes'
 import type { DocumentTypeId } from '../../lib/ocr/documentTypes'
 
@@ -37,7 +39,6 @@ export default function ApplicationDetail({ app, onChange }: { app: LoanApplicat
   const [viewing, setViewing] = useState<number | null>(null)
   const [error, setError] = useState('')
   // The SHAP chart starts open on wide screens and folded on phones.
-  const [wideScreen] = useState(() => typeof window === 'undefined' || window.matchMedia('(min-width: 640px)').matches)
 
   const a = app.applicant
   const installment = monthlyInstallment(app.loan)
@@ -46,7 +47,9 @@ export default function ApplicationDetail({ app, onChange }: { app: LoanApplicat
   // Existing UDEI deductions come out of the same pay.
   const left = a.netTakeHomePay - (books.monthlyPayment ?? 0) - installment
   const e = app.assessment?.ensemble
-  const agree = app.assessment ? app.assessment.models.filter((m) => m.suggestion === e?.suggestion).length : 0
+  // The Credit Model page (every algorithm's tested results) is for administrators.
+  const { session } = useAuth()
+  const seesBenchmark = atLeast(session?.role, 'admin')
 
   const rescore = async () => {
     const ok = await confirm({
@@ -95,25 +98,20 @@ export default function ApplicationDetail({ app, onChange }: { app: LoanApplicat
             <p className="mt-2 text-lg text-white">
               Credit score <b className="text-2xl tabular-nums">{creditScore(e).toFixed(2)}</b> <span className="text-brand-200">/ 100</span>
             </p>
-            <p className="text-xs text-brand-200">
-              {e.creditScore != null ? 'predicted Repayment Performance Score (regression)' : `about ${Math.round((e.defaultProbability ?? 0) * 100)}% estimated chance of default (older model)`}
-            </p>
             <div className="text-left">
               <CreditScoreScale score={creditScore(e)} approveLine={scoreLine(app.assessment!.thresholds.approve)} denyLine={scoreLine(app.assessment!.thresholds.deny)} />
             </div>
-            <p className="mx-auto mt-3 max-w-2xl text-sm text-brand-100">
-              <b className="text-white">{agree} of {app.assessment!.models.length} models agree.</b> The final score combines {app.assessment!.models.map((m) => m.name).join(', ')}
-              (stacked ensemble{e.cvMetrics?.r2 != null ? `, tested R² ${e.cvMetrics.r2.toFixed(2)}, about ${e.cvMetrics.mae.toFixed(1)} points off on average` : ''}). It is a suggestion; the four signers decide.
-            </p>
+            <p className="mx-auto mt-3 max-w-2xl text-sm text-brand-100">A suggestion from the credit model. The four signers decide.</p>
             {app.explanation && (app.explanation.against.length > 0 || (app.explanation.inFavor?.length ?? 0) > 0) && (
               <div className="mt-4 border-t border-white/15 pt-4 text-left">
                 <MascotSays tone="dark" mood={e.suggestion === 'approve' ? 'happy' : e.suggestion === 'deny' ? 'concerned' : 'neutral'}
                   title="Here's what moved the score, in plain words:">
                   <div className="grid gap-3 sm:grid-cols-2">
-                    <KuwiReasons tone="dark" kind="against" items={app.explanation.against.map((r) => r.text)} />
-                    <KuwiReasons tone="dark" kind="favor" items={(app.explanation.inFavor ?? []).map((r) => r.text)} />
+                    {/* The first few only: they are sorted by how much they moved the score. */}
+                    <KuwiReasons tone="dark" kind="against" items={app.explanation.against.slice(0, 3).map((r) => r.text)} />
+                    <KuwiReasons tone="dark" kind="favor" items={(app.explanation.inFavor ?? []).slice(0, 3).map((r) => r.text)} />
                   </div>
-                  <KuwiTips tone="dark" tips={app.explanation.tips} title="Kuwi recommends (what would help)" />
+                  <KuwiTips tone="dark" tips={app.explanation.tips.slice(0, 2)} title="Kuwi recommends (what would help)" />
                 </MascotSays>
               </div>
             )}
@@ -124,13 +122,13 @@ export default function ApplicationDetail({ app, onChange }: { app: LoanApplicat
           </p>
         )}
 
-        {/* Under Kuwi's words, the chart they come from. Staff only (members never get the assessment). */}
+        {/* Under Kuwi's words, the chart they come from, always open. Staff only (members never get the
+            assessment). Each algorithm's own results are on the Credit Model page, not here. */}
         {app.assessment && (
-          <details className="group mt-4 rounded-xl border border-brand-100 bg-white p-4" open={wideScreen}>
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-semibold text-brand-800 [&::-webkit-details-marker]:hidden">
-              <span className="flex items-center gap-2"><BarChart3 className="h-4 w-4 text-accent-dark" /> Why the model scored it this way (SHAP waterfall)</span>
-              <ChevronDown className="h-4 w-4 shrink-0 text-brand-500 transition group-open:rotate-180" />
-            </summary>
+          <section className="mt-4 rounded-xl border border-brand-100 bg-white p-4" aria-labelledby="shap-title">
+            <h3 id="shap-title" className="flex items-center gap-2 font-semibold text-brand-800">
+              <BarChart3 className="h-4 w-4 text-accent-dark" /> What moved the score
+            </h3>
             <div className="mt-3">
               {app.assessment.shap ? (
                 <ShapWaterfall data={app.assessment.shap} />
@@ -140,14 +138,12 @@ export default function ApplicationDetail({ app, onChange }: { app: LoanApplicat
                 </p>
               )}
             </div>
-          </details>
-        )}
-
-        {/* The three models behind the suggestion, as supporting evidence. */}
-        {app.assessment && (
-          <div className="mt-4 grid gap-4 xl:grid-cols-3">
-            {app.assessment.models.map((m) => <ModelCard key={m.key} model={m} />)}
-          </div>
+            {seesBenchmark && (
+              <p className="mt-3 text-right text-xs">
+                <Link to="/credit-model" className="font-semibold text-accent-dark hover:underline">How the model was tested →</Link>
+              </p>
+            )}
+          </section>
         )}
 
         {/* What is being asked for and why, in one compact row. */}
@@ -158,12 +154,12 @@ export default function ApplicationDetail({ app, onChange }: { app: LoanApplicat
             </p>
             <p className="mt-0.5 text-2xl font-bold text-brand-800">{formatPeso(app.loan.amount)}</p>
             <p className="text-sm text-brand-700">
-              {loanTypeLabel[app.loan.loanType]} · {app.loan.termMonths} months · {app.loan.monthlyRate}%/month
+              {loanTypeLabel[app.loan.loanType]} · {app.loan.termMonths} months · {app.loan.monthlyRate}% per month
             </p>
             <p className="text-xs text-brand-500">
               {app.loan.paymentMode && app.loan.paymentMode !== 'payroll'
                 ? modeLabel(app.loan.paymentMode, app.loan.bonusType)
-                : app.loan.paymentFrequency === 'quincenal' ? 'Payroll deduction every payday' : 'Payroll deduction monthly'}
+                : `Salary deduction, ${frequencyLabel(app.loan.paymentFrequency)}`}
             </p>
           </div>
           <div className={`min-w-0 rounded-xl border-2 px-4 py-3 ${app.loan.purpose ? 'border-brand-200 bg-white' : 'border-dashed border-amber-300 bg-amber-50/60'}`}>
@@ -185,10 +181,10 @@ export default function ApplicationDetail({ app, onChange }: { app: LoanApplicat
         <dl className="grid grid-cols-1 gap-x-6 gap-y-3 text-sm min-[420px]:grid-cols-2 sm:grid-cols-3">
           <Item label="Monthly salary" value={formatPeso(a.monthlySalary)} />
           <Item label="Net take-home pay" value={formatPeso(a.netTakeHomePay)} warn={a.netTakeHomePay < a.monthlySalary * 0.4} />
-          <Item label={`Installment (${app.loan.paymentFrequency === 'quincenal' ? 'per month, half each quincena' : 'per month'})`} value={formatPeso(Math.round(installment))} />
+          <Item label={`Installment (${app.loan.paymentFrequency === 'quincenal' ? 'per month, half each payday' : 'per month'})`} value={formatAmount(installment)} />
           <Item label="Share of net pay" value={`${Math.round(share * 100)}%`} warn={share > 0.5} />
-          <Item label="Net pay left after this and existing mutual assistance" value={formatPeso(Math.round(left))} warn={left < 5000} />
-          <Item label="Interest rate" value={`${app.loan.monthlyRate}% a month`} />
+          <Item label="Net pay left after this and existing mutual assistance" value={formatAmount(left)} warn={left < 5000} />
+          <Item label="Interest rate" value={`${app.loan.monthlyRate}% per month`} />
           <Item label="Employment" value={`${employmentStatusLabel[a.employmentStatus]}, ${a.employer}`} warn={a.employmentStatus !== 'permanent'} />
           <Item label="Years as member" value={String(a.yearsAsMember)} />
           <Item label="Past mutual assistance (paid late)" value={`${a.priorLoans} (${a.priorLatePayments})`} warn={a.priorLatePayments > 0} />

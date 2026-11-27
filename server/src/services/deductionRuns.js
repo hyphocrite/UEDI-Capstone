@@ -123,7 +123,7 @@ async function post(run, user) {
   if (run.status !== "sent") throw new RunError(409, "Send the run before posting it.");
   const r = run.remittance ?? {};
   if (!r.officialReceiptNo || r.amountReceived === undefined || r.amountReceived === null || !r.receivedAt) {
-    throw new RunError(400, "Enter the remittance: O.R. number, amount received and date.");
+    throw new RunError(400, "Enter the remittance: OR no., amount received and date.");
   }
   if (run.cutoffDate > ledger.todayInManila()) throw new RunError(400, "A run can only be posted on or after its cutoff date.");
 

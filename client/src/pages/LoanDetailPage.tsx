@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import HowItWorks from '../components/HowItWorks'
 import { ArrowLeft, Banknote, FileText, HandCoins, Send } from 'lucide-react'
 import Modal from '../components/Modal'
 import PageHeader from '../components/PageHeader'
@@ -18,7 +19,7 @@ import { atLeast } from '../lib/roles'
 import type { PaymentSubmission } from '../lib/payments'
 import { loanTypeLabel } from '../lib/applications'
 import { displayStatus, formatCentavos, formatDay, missedDeductionText } from '../lib/loans'
-import { modeLabel } from '../lib/paymentModes'
+import { modeLabel, frequencyLabel } from '../lib/paymentModes'
 import type { Loan, OtherActiveLoan, Payment } from '../lib/loans'
 
 export default function LoanDetailPage() {
@@ -83,11 +84,37 @@ export default function LoanDetailPage() {
   // Newest first, the same order the API returns.
   const withPayment = (p: Payment) => setPayments((list) => [p, ...list.filter((x) => x._id !== p._id)].sort((a, b) => b.paidAt.localeCompare(a.paidAt) || b.createdAt.localeCompare(a.createdAt)))
 
+  // Staff: every figure. Members: under "More details" (Balance, Next due and Mode of payment are above).
+  const moreDetails = (
+    <dl className="grid grid-cols-1 gap-x-6 gap-y-3 text-sm min-[420px]:grid-cols-2 lg:grid-cols-4">
+      <Item label="Principal" value={formatCentavos(loan.principal)} />
+      <Item label="Rate" value={`${loan.monthlyRate}% per month on the remaining balance`} />
+      <Item label="Term" value={loan.paymentMode === 'bonus' && loan.schedule.length === 1 ? `One payment on ${formatDay(loan.schedule[0].dueDate)}` : `${loan.termMonths} months, ${frequencyLabel(loan.paymentFrequency)}`} />
+      {!borrower && <Item label="Mode of payment" value={loan.paymentModeLabel ?? modeLabel(loan.paymentMode, loan.bonusType)} />}
+      <Item label="Total payable" value={loan.status === 'for_release' ? 'Set on release' : formatCentavos(loan.totalPayable)} />
+      <Item label="Paid" value={formatCentavos(loan.amountPaid)} />
+      {!borrower && <Item label="Balance" value={loan.status === 'for_release' ? '—' : formatCentavos(loan.balance)} strong />}
+      {!borrower && <Item label="Next due" value={loan.nextDue ? `${formatCentavos(loan.nextDue.amount)} on ${formatDay(loan.nextDue.dueDate)}` : '—'} />}
+      {!borrower && ahead && <Item label="Paid ahead" value={`${ahead.count} installment${ahead.count === 1 ? '' : 's'} (${formatCentavos(ahead.amount)})`} />}
+      <Item
+        label="Released"
+        value={loan.release?.releasedAt
+          ? `${formatDay(loan.release.releasedAt)}, voucher ${loan.release.voucherNo}${loan.release.releasedByName ? `, by ${loan.release.releasedByName}` : ''}`
+          : 'Not yet'}
+      />
+      {loan.release?.netProceeds !== undefined && <Item label="Net proceeds" value={formatCentavos(loan.release.netProceeds)} />}
+      {loan.release?.offsets?.map((o) => (
+        <Item key={o.loanNo} label="Deducted from proceeds" value={`${formatCentavos(o.amount)} to close ${o.loanNo}`} />
+      ))}
+      {borrower && loan.applicationNo && <Item label="From application" value={loan.applicationNo} />}
+    </dl>
+  )
+
   return (
     <>
       <PageHeader icon={HandCoins}
         title={loan.loanNo}
-        subtitle={`${loan.borrowerName} · ${loanTypeLabel[loan.loanType]}${loan.applicationNo ? ` · from ${loan.applicationNo}` : ''}`}
+        subtitle={`${loan.borrowerName} · ${loanTypeLabel[loan.loanType]}${loan.applicationNo && !borrower ? ` · from ${loan.applicationNo}` : ''}`}
         actions={
           <>
             {loan.status !== 'for_release' && (
@@ -117,27 +144,16 @@ export default function LoanDetailPage() {
           <ConversionBadge loan={loan} />
           {loan.pastDue && <span className="text-sm font-semibold text-red-700">{formatCentavos(loan.pastDueAmount)} past due</span>}
         </div>
-        <dl className="grid grid-cols-1 gap-x-6 gap-y-3 text-sm min-[420px]:grid-cols-2 lg:grid-cols-4">
-          <Item label="Principal" value={formatCentavos(loan.principal)} />
-          <Item label="Rate" value={`${loan.monthlyRate}% a month (add-on)`} />
-          <Item label="Term" value={loan.paymentMode === 'bonus' && loan.schedule.length === 1 ? `One payment on ${formatDay(loan.schedule[0].dueDate)}` : `${loan.termMonths} months, ${loan.paymentFrequency === 'quincenal' ? 'quincenal' : 'monthly'}`} />
-          <Item label="Mode of payment" value={loan.paymentModeLabel ?? modeLabel(loan.paymentMode, loan.bonusType)} />
-          <Item label="Total payable" value={loan.status === 'for_release' ? 'Set on release' : formatCentavos(loan.totalPayable)} />
-          <Item label="Paid" value={formatCentavos(loan.amountPaid)} />
-          <Item label="Balance" value={loan.status === 'for_release' ? '—' : formatCentavos(loan.balance)} strong />
-          <Item label="Next due" value={loan.nextDue ? `${formatCentavos(loan.nextDue.amount)} on ${formatDay(loan.nextDue.dueDate)}` : '—'} />
-          {ahead && <Item label="Paid ahead" value={`${ahead.count} installment${ahead.count === 1 ? '' : 's'} (${formatCentavos(ahead.amount)})`} />}
-          <Item
-            label="Released"
-            value={loan.release?.releasedAt
-              ? `${formatDay(loan.release.releasedAt)}, voucher ${loan.release.voucherNo}${loan.release.releasedByName ? `, by ${loan.release.releasedByName}` : ''}`
-              : 'Not yet'}
-          />
-          {loan.release?.netProceeds !== undefined && <Item label="Net proceeds" value={formatCentavos(loan.release.netProceeds)} />}
-          {loan.release?.offsets?.map((o) => (
-            <Item key={o.loanNo} label="Deducted from proceeds" value={`${formatCentavos(o.amount)} to close ${o.loanNo}`} />
-          ))}
-        </dl>
+        {/* Members see what they need first; the rest is under "More details". Staff see everything. */}
+        {borrower && (
+          <dl className="grid grid-cols-1 gap-x-6 gap-y-3 text-sm min-[420px]:grid-cols-2 lg:grid-cols-4">
+            <Item label="Balance" value={loan.status === 'for_release' ? '—' : formatCentavos(loan.balance)} strong />
+            <Item label="Next due" value={loan.nextDue ? `${formatCentavos(loan.nextDue.amount)} on ${formatDay(loan.nextDue.dueDate)}` : '—'} />
+            <Item label="Mode of payment" value={loan.paymentModeLabel ?? modeLabel(loan.paymentMode, loan.bonusType)} />
+            {ahead && <Item label="Paid ahead" value={`${ahead.count} installment${ahead.count === 1 ? '' : 's'} (${formatCentavos(ahead.amount)})`} />}
+          </dl>
+        )}
+        {borrower ? <HowItWorks label="More details" className="mt-4">{moreDetails}</HowItWorks> : moreDetails}
         {borrower && loan.status === 'active' && loan.finishesAround && (
           <p className="mt-4 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
             Your mutual assistance will finish around <b>{formatDay(loan.finishesAround)}</b> at the current deduction.
@@ -196,22 +212,22 @@ export default function LoanDetailPage() {
 
         {loan.schedule.length > 0 && (
           <section className="card min-w-0">
-            <h2 className="border-b border-brand-100 px-4 py-3 font-semibold text-brand-800 sm:px-5">Repayment schedule</h2>
+            <h2 className="border-b border-brand-100 px-4 py-3 font-semibold text-brand-800 sm:px-5">Payment schedule</h2>
             <ScheduleTable schedule={loan.schedule} />
           </section>
         )}
 
-        {loan.status !== 'for_release' && (
+        {loan.status !== 'for_release' && (!borrower || payments.length > 0) && (
           <section className="card min-w-0">
-            <h2 className="border-b border-brand-100 px-4 py-3 font-semibold text-brand-800 sm:px-5">Payments</h2>
+            <h2 className="border-b border-brand-100 px-4 py-3 font-semibold text-brand-800 sm:px-5">Payments received</h2>
             <PaymentHistory loan={loan} payments={payments} canVoid={canRecord} onChange={(l, p) => { setLoan(l); withPayment(p); loadSubmissions() }} />
           </section>
         )}
 
-        {loan.status !== 'for_release' && submissions && (submissions.length > 0 || borrower) && (
+        {loan.status !== 'for_release' && submissions && submissions.length > 0 && (
           <section className="card min-w-0">
             <h2 className="border-b border-brand-100 px-4 py-3 font-semibold text-brand-800 sm:px-5">
-              {borrower ? 'Payments you sent' : 'Payments sent outside payroll'}
+              {borrower ? 'Payments you sent' : 'Payments sent for review'}
             </h2>
             <SubmissionList submissions={submissions} staff={!borrower} onChange={() => { loadSubmissions(); void reload() }} />
           </section>

@@ -77,7 +77,7 @@ export default function ForgotPasswordPage() {
 
   return (
     <AuthShell
-      title={step === 'email' ? 'Forgot your password?' : 'Set a new password'}
+      title={step === 'email' ? 'Forgot Your Password?' : 'Set a New Password'}
       subtitle={
         step === 'email'
           ? "Enter your account's email. We'll send a 6-digit code, the same way we verified your email."
@@ -87,7 +87,7 @@ export default function ForgotPasswordPage() {
         <>
           Remembered it?{' '}
           <Link to="/login" className="font-semibold text-brand-800 hover:underline">
-            Log in
+            Sign in
           </Link>
         </>
       }

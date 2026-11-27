@@ -8,7 +8,7 @@ import { useConfirm } from '../context/ConfirmContext'
 import { api } from '../lib/api'
 import { monthlyInstallment } from '../lib/applications'
 import type { LoanType } from '../lib/applications'
-import { formatDate, formatPeso } from '../lib/format'
+import { formatDate, formatPeso, formatAmount } from '../lib/format'
 import { fetchSettings, rememberSettings, useSettings } from '../lib/settings'
 import type { LoanSettings } from '../lib/settings'
 
@@ -71,7 +71,7 @@ export default function SettingsPage() {
     for (const t of LOAN_TYPES) {
       const was = current.products[t]
       const now = draft.products[t]
-      if (Number(now.monthlyRate) !== was.monthlyRate) list.push(`${was.label} rate: ${was.monthlyRate}% → ${now.monthlyRate}% a month`)
+      if (Number(now.monthlyRate) !== was.monthlyRate) list.push(`${was.label} rate: ${was.monthlyRate}% → ${now.monthlyRate}% per month`)
       if (Number(now.maxTermMonths) !== was.maxTermMonths) list.push(`${was.label} longest term: ${was.maxTermMonths} → ${now.maxTermMonths} months`)
     }
     if (Number(draft.minMonthlySalary) !== current.minMonthlySalary) {
@@ -128,8 +128,8 @@ export default function SettingsPage() {
       <PageHeader icon={Settings}
         title="Settings"
         subtitle={session?.role === 'admin'
-          ? 'Interest rates, terms and the minimum salary for mutual assistance, and who signs the applications.'
-          : 'Interest rates, terms and the minimum salary for mutual assistance.'}
+          ? 'Interest rates, terms, the minimum salary, and user roles.'
+          : 'Interest rates, terms and the minimum salary.'}
         actions={
           <>
             <button className="btn-ghost" onClick={() => { touch(); setDraft(toDraft(current)) }}><RotateCcw className="h-4 w-4" /> Undo changes</button>
@@ -151,7 +151,7 @@ export default function SettingsPage() {
           <thead className="table-head">
             <tr>
               <th>Type</th>
-              <th>Interest (% per month){canSetRates ? '' : <span className="block font-normal normal-case">Administrator only</span>}</th>
+              <th>Interest rate (% per month){canSetRates ? '' : <span className="block font-normal normal-case">Administrator only</span>}</th>
               <th>Longest term (months)</th>
               <th className="text-right">Monthly installment on {formatPeso(sample)}, longest term</th>
             </tr>
@@ -175,7 +175,7 @@ export default function SettingsPage() {
                     <input type="number" min={1} max={120} step={1} className="input w-28" value={p.maxTermMonths}
                       onChange={(e) => setProduct(t, 'maxTermMonths', e.target.value)} aria-label={`${p.label} longest term`} />
                   </td>
-                  <td className="cell-num font-semibold">{formatPeso(Math.round(inst))}</td>
+                  <td className="cell-num font-semibold">{formatAmount(inst)}</td>
                 </tr>
               )
             })}

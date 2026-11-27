@@ -7,7 +7,7 @@ import { api } from '../../lib/api'
 import { useConfirm } from '../../context/ConfirmContext'
 import { missingStatements, openCoMakerRequest } from '../../lib/applications'
 import type { LoanApplication } from '../../lib/applications'
-import { formatDate } from '../../lib/format'
+import { formatDate, formatPeso } from '../../lib/format'
 import { roleLabel } from '../../lib/roles'
 import type { ApprovalStep } from '../../lib/roles'
 
@@ -129,7 +129,7 @@ function SignForm({ app, step, onChange }: { app: LoanApplication; step: Approva
       message: (
         <>
           <p>
-            You are signing <b>{app.applicationNo}</b> for <b>{app.applicant.fullName}</b> (₱{app.loan.amount.toLocaleString('en-PH')}) as {roleLabel[step]}.
+            You are signing <b>{app.applicationNo}</b> for <b>{app.applicant.fullName}</b> ({formatPeso(app.loan.amount)}) as {roleLabel[step]}.
           </p>
           <p>
             {decision === 'denied'

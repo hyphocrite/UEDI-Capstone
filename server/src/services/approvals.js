@@ -1,4 +1,4 @@
-// UEDI's approval chain. Each step is signed by a user whose role has the same name as the step.
+// UDEI's approval chain. Each step is signed by a user whose role has the same name as the step.
 // The Treasurer signs last: their signature is the final approval, and they then release the money.
 const STEPS = ["bookkeeper", "crecom_chair", "president", "treasurer"];
 

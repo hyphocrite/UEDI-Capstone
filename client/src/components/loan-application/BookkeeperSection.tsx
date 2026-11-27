@@ -75,7 +75,7 @@ function LoanList({ group }: { group: MemberBalances['longTerm'] }) {
       {group.loans.map((l) => (
         <li key={l.loanNo} className="break-words">
           <span className="font-semibold text-ink">{l.loanNo}</span>: {formatCentavos(l.balance)} left,{' '}
-          {formatCentavos(l.installment)} {l.paymentFrequency === 'quincenal' ? 'per quincena' : 'per month'}
+          {formatCentavos(l.installment)} {l.paymentFrequency === 'quincenal' ? 'per payday' : 'per month'}
           {l.maturity && `, matures ${formatDay(l.maturity)}`}
         </li>
       ))}

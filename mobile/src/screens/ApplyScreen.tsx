@@ -5,8 +5,8 @@ import type { LoanSettings, PickedFile } from '../api'
 import { useAuth } from '../auth'
 import { confirmAction } from '../confirm'
 import { DOCUMENT_LABEL, DocumentSlots, missingTypes, sendAll } from '../documents'
-import { pesos } from '../format'
-import { BONUS_OPTIONS, FALLBACK_BONUS_CALENDAR, MODE_OPTIONS, monthsBetween, nextBonusDate } from '../paymentModes'
+import { amount as money, pesos } from '../format'
+import { BONUS_OPTIONS, FALLBACK_BONUS_CALENDAR, MODE_OPTIONS, monthsBetween, nextBonusDate, FREQUENCY_LABEL } from '../paymentModes'
 import type { BonusType, PaymentMode } from '../paymentModes'
 import { CONSENT } from '../privacy'
 import { PrivacyLink } from './PrivacyNotice'
@@ -117,7 +117,7 @@ export default function ApplyScreen({ onDone }: { onDone: () => void }) {
     const kind = f.loanType === 'long_term' ? 'Long term' : 'Short term (Emergency)'
     const ok = await confirmAction(
       'Submit this application?',
-      `${kind} mutual assistance of ${pesos(amount)} ${bonus ? `charged to the ${bonus.label} (${bonus.dueDate})` : `over ${num(f.termMonths)} months`}. It then goes to the Bookkeeper, CreCom Chairman, President and Treasurer to sign.`,
+      `${kind} mutual assistance of ${pesos(amount)} ${bonus ? `charged to the ${bonus.label} (${bonus.dueDate})` : `over ${num(f.termMonths)} months`}. It then goes to the Bookkeeper, Credit Committee Chairman, President and Treasurer to sign.`,
       'Yes, submit',
     )
     if (!ok) return
@@ -211,7 +211,7 @@ export default function ApplyScreen({ onDone }: { onDone: () => void }) {
             <Choice
               label="Amount"
               value={f.amount}
-              options={amounts.map((a) => ({ value: String(a), label: `₱${a.toLocaleString('en-PH')}` }))}
+              options={amounts.map((a) => ({ value: String(a), label: pesos(a) }))}
               onChange={set('amount')}
             />
             {f.paymentMode !== 'bonus' ? (
@@ -227,9 +227,10 @@ export default function ApplyScreen({ onDone }: { onDone: () => void }) {
               label="Deduction"
               value={f.paymentFrequency}
               onChange={set('paymentFrequency')}
+              wide
               options={[
-                { value: 'quincenal', label: 'Quincenal (15th & 30th)' },
-                { value: 'monthly', label: 'Monthly' },
+                { value: 'quincenal', label: FREQUENCY_LABEL.quincenal },
+                { value: 'monthly', label: FREQUENCY_LABEL.monthly },
               ]}
             />
               </>
@@ -253,13 +254,13 @@ export default function ApplyScreen({ onDone }: { onDone: () => void }) {
               <Row label="Interest rate" value={`${rate}% per month`} />
               {bonus ? (
                 <>
-                  <Row label="Interest to the bonus date" value={pesos(amount * r * bonus.months)} />
-                  <Row label="One payment from the bonus" value={pesos(amount * (1 + r * bonus.months))} strong />
+                  <Row label="Interest to the bonus date" value={money(amount * r * bonus.months)} />
+                  <Row label="One payment from the bonus" value={money(amount * (1 + r * bonus.months))} strong />
                 </>
               ) : (
                 <>
-                  <Row label="Interest for the term" value={pesos(interest)} />
-                  <Row label={`Estimated per ${f.paymentFrequency === 'quincenal' ? 'payday' : 'month'}`} value={pesos(perInstallment)} strong />
+                  <Row label="Interest for the term" value={money(interest)} />
+                  <Row label={`Estimated per ${f.paymentFrequency === 'quincenal' ? 'payday' : 'month'}`} value={money(perInstallment)} strong />
                 </>
               )}
               <Text style={{ color: colors.muted, fontSize: 12, marginTop: 4 }}>

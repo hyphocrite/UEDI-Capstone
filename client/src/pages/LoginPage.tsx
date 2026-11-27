@@ -40,8 +40,8 @@ export default function LoginPage() {
 
   return (
     <AuthShell
-      title="Log in"
-      subtitle="Sign in with your UDEI staff account."
+      title="Sign in"
+      subtitle="Sign in with your UDEI account."
       footer={
         <>
           No account yet?{' '}
@@ -75,7 +75,7 @@ export default function LoginPage() {
         {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{error}</p>}
         <button type="submit" className="btn-primary w-full py-2.5" disabled={busy}>
           <LogIn className="h-4 w-4" />
-          {busy ? 'Signing in…' : 'Log in'}
+          {busy ? 'Signing in…' : 'Sign in'}
         </button>
       </form>
     </AuthShell>

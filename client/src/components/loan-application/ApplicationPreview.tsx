@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { AUTO_RESTRUCTURE_TEXT, PAYROLL_DEDUCTION_TEXT, bonusOf, installmentOf, longDate, termMonthsOf } from './applicationForm'
-import { BONUS_TYPES, MODE_LABEL, modeLabel } from '../../lib/paymentModes'
+import { BONUS_TYPES, MODE_LABEL, modeLabel, FREQUENCY_LABEL } from '../../lib/paymentModes'
 import { useSettings } from '../../lib/settings'
 import type { Form } from './applicationForm'
 import CoMakerForm from './CoMakerForm'
@@ -9,7 +9,7 @@ import { Box, Field, Fill, Heading, InParens, Letterhead, Sheet, Signature } fro
 import { api } from '../../lib/api'
 import { employmentStatusLabel } from '../../lib/applications'
 import type { EmploymentStatus } from '../../lib/applications'
-import { formatPeso } from '../../lib/format'
+import { formatPeso, formatAmount } from '../../lib/format'
 import { pesoWords } from '../../lib/pesoWords'
 
 export type PreviewDocument = { label: string; fileName: string }
@@ -72,7 +72,7 @@ export default function ApplicationPreview({ form: f, documents, staffView, link
         />
 
         <div className="flex flex-wrap justify-between gap-x-6 gap-y-2">
-          <Field label="Application No." className="min-w-[14rem] flex-1 sm:max-w-[18rem]">{applicationNo}</Field>
+          <Field label="Application no." className="min-w-[14rem] flex-1 sm:max-w-[18rem]">{applicationNo}</Field>
           <Field label="Date" className="min-w-[14rem] flex-1 sm:max-w-[18rem]">{longDate(f.applicationDate)}</Field>
         </div>
 
@@ -137,17 +137,17 @@ export default function ApplicationPreview({ form: f, documents, staffView, link
           </div>
           {f.paymentMode === 'bonus' ? (
             <Field label="Payment">
-              {bonus ? `${formatPeso(Math.round(bonus.total))} in one payment on ${longDate(bonus.dueDate)} (${bonus.label})` : ''}
+              {bonus ? `${formatAmount(bonus.total)} in one payment on ${longDate(bonus.dueDate)} (${bonus.label})` : ''}
             </Field>
           ) : (
             <>
               <p className="flex flex-wrap gap-x-4 gap-y-1">
                 <span>{f.paymentMode === 'payroll' ? 'Payroll deduction:' : 'Installments:'}</span>
-                <Box checked={quincenal}>Quincenal (15th and 30th)</Box>
-                <Box checked={!quincenal}>Monthly</Box>
+                <Box checked={quincenal}>{FREQUENCY_LABEL.quincenal}</Box>
+                <Box checked={!quincenal}>{FREQUENCY_LABEL.monthly}</Box>
               </p>
               <Field label="Installment">
-                {inst ? `${formatPeso(Math.round(inst.monthly))} per month${quincenal ? `, ${formatPeso(Math.round(inst.quincenal))} per quincena` : ''}` : ''}
+                {inst ? `${formatAmount(inst.monthly)} per month${quincenal ? `, ${formatAmount(inst.quincenal)} per payday` : ''}` : ''}
               </Field>
             </>
           )}

@@ -81,7 +81,7 @@ export type LoanApplication = {
     loanType: LoanType
     amount: number
     termMonths: number
-    /** Percent per month, as on UEDI's form. */
+    /** Percent per month, as on UDEI's form. */
     monthlyRate: number
     paymentFrequency: 'quincenal' | 'monthly'
     /** How the member will pay; older applications leave it out (payroll). */
@@ -238,6 +238,12 @@ export type Benchmark = {
 export type LoanType = 'long_term' | 'emergency'
 export type EmploymentStatus = 'permanent' | 'temporary' | 'contractual' | 'job_order'
 
+/**
+ * An application's status in the member's own words. Staff screens show the signer's decision
+ * word ("Denied") instead; members see "Not approved".
+ */
+export const memberStatusText: Record<LoanApplication['status'], string> = { pending: 'Pending', approved: 'Approved', denied: 'Not approved' }
+
 export const loanTypeLabel: Record<LoanType, string> = { long_term: 'Long term', emergency: 'Short term (Emergency)' }
 
 export const employmentStatusLabel: Record<EmploymentStatus, string> = {
@@ -248,7 +254,7 @@ export const employmentStatusLabel: Record<EmploymentStatus, string> = {
 }
 
 /**
- * Monthly installment with interest on the remaining balance, as UEDI's ledger charges it
+ * Monthly installment with interest on the remaining balance, as UDEI's ledger charges it
  * (ml-service/uedi_ml/features.py does the same). Quincenal deductions are half.
  */
 export const monthlyInstallment = (l: Pick<LoanApplication['loan'], 'amount' | 'termMonths' | 'monthlyRate'>) => {

@@ -1,5 +1,6 @@
 // State, validation and request body for the Mutual Assistance Application Form.
 import { monthlyInstallment } from '../../lib/applications'
+import { formatPeso } from '../../lib/format'
 import type { EmploymentStatus, LoanApplication, LoanType } from '../../lib/applications'
 import type { MemberBalances } from '../../lib/loans'
 import type { Member, MemberHistory } from '../../lib/members'
@@ -52,7 +53,7 @@ export type Form = {
   longTermDueDate: string
   shortTermBalance: string
   shortTermDueDate: string
-  /** What the member already pays UEDI per month on open loans (pesos). */
+  /** What the member already pays UDEI per month on open loans (pesos). */
   monthlyPayment: string
 
   payrollDeduction: boolean
@@ -169,13 +170,13 @@ export function affordabilityNote(f: Form): string | null {
   const inst = installmentOf(f)
   const net = num(f.netTakeHomePay)
   if (!inst || net <= 0) return null
-  // Existing UEDI deductions count too: net pay minus what is already deducted minus the new installment.
+  // Existing UDEI deductions count too: net pay minus what is already deducted minus the new installment.
   const existing = num(f.monthlyPayment)
   const total = existing + inst.monthly
   const left = net - total
   const what = existing > 0 ? 'The new installment plus existing UDEI deductions' : 'The monthly installment'
   if (total > net / 2) return `${what} ${existing > 0 ? 'are' : 'is'} more than half of the net take-home pay.`
-  if (left < 5000) return `Less than ₱5,000 of the net take-home pay is left after ${existing > 0 ? 'existing deductions and ' : ''}the new installment.`
+  if (left < 5000) return `Less than ${formatPeso(5000)} of the net take-home pay is left after ${existing > 0 ? 'existing deductions and ' : ''}the new installment.`
   return null
 }
 
@@ -343,8 +344,8 @@ export function validateStep(step: FormStep, f: Form, settings: LoanSettings = F
     if (salary <= 0) return 'Enter the monthly salary.'
     if (net <= 0) return 'Enter the net take-home pay.'
     if (net > salary) return 'Net take-home pay cannot be more than the monthly salary.'
-    if (net < MIN_NET_TAKE_HOME_PAY) return `The net take-home pay must be at least ₱${MIN_NET_TAKE_HOME_PAY.toLocaleString('en-PH')}.`
-    if (salary < settings.minMonthlySalary) return `UDEI requires a monthly salary of at least ₱${settings.minMonthlySalary.toLocaleString('en-PH')}.`
+    if (net < MIN_NET_TAKE_HOME_PAY) return `The net take-home pay must be at least ${formatPeso(MIN_NET_TAKE_HOME_PAY)}.`
+    if (salary < settings.minMonthlySalary) return `UDEI requires a monthly salary of at least ${formatPeso(settings.minMonthlySalary)}.`
     if (num(f.priorLatePayments) > num(f.priorLoans)) return 'Late payments cannot be more than past mutual assistance.'
     return ''
   }
@@ -353,7 +354,7 @@ export function validateStep(step: FormStep, f: Form, settings: LoanSettings = F
     const rate = Number(f.monthlyRate)
     if (!f.applicationDate) return 'Enter the application date.'
     if (num(f.amount) <= 0) return 'Choose the amount.'
-    if (limit !== null && num(f.amount) > limit) return `Applicants who aren't linked to a UDEI member number can borrow at most ₱${limit.toLocaleString('en-PH')}.`
+    if (limit !== null && num(f.amount) > limit) return `Applicants who aren't linked to a UDEI member number can borrow at most ${formatPeso(limit)}.`
     if (f.purpose.trim().length < 3) return 'Give the reason for the mutual assistance.'
     const maxTerm = Math.min(MAX_TERM_MONTHS, settings.products[f.loanType].maxTermMonths)
     if (f.paymentMode === 'bonus') {
@@ -447,9 +448,9 @@ export function buildPayload(f: Form, documents: DocumentPayload[]) {
   }
 }
 
-/** A date written out for a printed form, "November 25, 2026" ('' when missing). */
+/** A date on a printed form, "Nov 25, 2026" as everywhere else ('' when missing). */
 export const longDate = (iso: string | Date | undefined | null) => {
   if (!iso) return ''
   const d = typeof iso === 'string' ? new Date(/^\d{4}-\d{2}-\d{2}$/.test(iso) ? `${iso}T00:00:00` : iso) : iso
-  return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' })
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' })
 }

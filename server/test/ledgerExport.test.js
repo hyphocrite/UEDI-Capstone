@@ -111,7 +111,7 @@ test("the individual ledger workbook: headers, one member block, Balance falls b
 test("the payments export has the month's cash payments and a Payroll sheet, with totals", { skip }, async () => {
   const oct = (await workbook("/payments/export.xlsx?month=2026-10")).wb;
   const ws = oct.getWorksheet("Payments");
-  assert.deepEqual(ws.getRow(3).values.slice(1, 11), ["Date", "UDEI No.", "Borrower", "MA no.", "Mode of payment", "Reference", "OR No.", "Amount", "Received by (Treasurer)", "Confirmed by (Bookkeeper)"]);
+  assert.deepEqual(ws.getRow(3).values.slice(1, 11), ["Date", "UDEI no.", "Borrower", "MA no.", "Mode of payment", "Reference", "OR no.", "Amount", "Received by (Treasurer)", "Confirmed by (Bookkeeper)"]);
   assert.deepEqual(ws.getRow(4).values.slice(1, 8), ["2026-10-05", "M-0700", "Lara C. Ledger", loan.loanNo, "Cash (over the counter)", "", "OR-7001"]);
   assert.deepEqual([ws.getRow(5).getCell(1).value, ws.getRow(5).getCell(8).value], ["TOTAL", 1000]);
   assert.deepEqual([ws.getCell("I4").value, ws.getCell("J4").value], ["Test treasurer", "Test bookkeeper"]);

@@ -175,7 +175,7 @@ function ExtractedFields({ analysis }: { analysis: DocumentAnalysis }) {
     ['Name found', f.name],
     ['Basic salary', pays ? money(f.basicSalary) : null],
     ['Gross pay', pays ? money(f.grossPay) : null],
-    ['Net pay', pays && f.netPay !== null ? `${formatPeso(f.netPay)}${f.semiMonthly ? ' per quincena' : ''}` : null],
+    ['Net pay', pays && f.netPay !== null ? `${formatPeso(f.netPay)}${f.semiMonthly ? ' per payday' : ''}` : null],
     ['Document date', type.checks.includes('recent') ? f.documentDate : null],
     ['Expiry date', type.checks.includes('notExpired') ? f.expiryDate : null],
   ]

@@ -180,7 +180,7 @@ export default function AppLayout() {
             {profile}
             <button onClick={onLogout} className="btn justify-start px-3 text-brand-100 hover:bg-white/10 hover:text-white">
               <LogOut className="h-4 w-4" />
-              Log out
+              Sign out
             </button>
           </div>
         </aside>
@@ -210,7 +210,7 @@ export default function AppLayout() {
             {profile}
             <button onClick={onLogout} className="btn px-3 text-brand-100 hover:bg-white/10 hover:text-white">
               <LogOut className="h-4 w-4" />
-              Log out
+              Sign out
             </button>
           </div>
           )}
@@ -248,7 +248,7 @@ export default function AppLayout() {
               </div>
               <button onClick={onLogout} className="btn px-3 text-brand-100 hover:bg-white/10">
                 <LogOut className="h-4 w-4" />
-                Log out
+                Sign out
               </button>
             </div>
           </div>

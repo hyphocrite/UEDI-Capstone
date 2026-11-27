@@ -4,6 +4,7 @@ import { employmentStatusLabel } from '../../lib/applications'
 import type { EmploymentStatus } from '../../lib/applications'
 import { formatPeso } from '../../lib/format'
 import { pesoWords } from '../../lib/pesoWords'
+import { frequencyLabel } from '../../lib/paymentModes'
 
 /** A co-maker as the lookup returns them. Staff also get the member record's details. */
 export type CoMakerInfo = {
@@ -46,7 +47,7 @@ export default function CoMakerForm({ coMakers, borrowerName, borrowerIsMember, 
         <Fill className="min-w-[9rem]">{longDate(applicationDate)}</Fill>, in the amount of{' '}
         <Fill className="min-w-[7rem]">{amount > 0 ? formatPeso(amount) : ''}</Fill>{' '}
         <InParens className="min-w-[14rem]">{amount > 0 ? pesoWords(amount) : ''}</InParens>, payable in{' '}
-        <Fill className="min-w-[3rem] text-center">{termMonths || ''}</Fill> months by {quincenal ? 'quincenal' : 'monthly'} payroll deduction.
+        <Fill className="min-w-[3rem] text-center">{termMonths || ''}</Fill> months by payroll deduction, {frequencyLabel(quincenal ? 'quincenal' : 'monthly')}.
       </p>
       {!borrowerIsMember && (
         <p className="text-xs italic">The applicant is not yet a UDEI member, so a UDEI member must sign as co-maker.</p>
@@ -85,7 +86,7 @@ export default function CoMakerForm({ coMakers, borrowerName, borrowerIsMember, 
       <section className="break-inside-avoid">
         <div className="grid grid-cols-1 gap-x-10 sm:grid-cols-2 print:grid-cols-2">
           <Signature title="Signature of applicant over printed name" name={borrowerName} />
-          <Signature title="Noted by: Loan Officer" />
+          <Signature title="Noted by: Bookkeeper" />
         </div>
       </section>
     </Sheet>
