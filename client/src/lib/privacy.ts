@@ -35,7 +35,7 @@ export const NOTICE: { title: string; items: string[] }[] = [
   {
     title: 'Who sees it',
     items: [
-      'UDEI officers, each only as far as their role needs: Loan Officer, Bookkeeper, Treasurer, Credit Committee Chairman, President and the Administrator.',
+      'UDEI officers, each only as far as their role needs: Office Staff, Bookkeeper, Treasurer, Credit Committee Chairman, President and the Administrator.',
       "DNSC's Accounting and HR, only what is needed to bill and remit payroll deductions.",
       'Your co-makers see the status of the mutual assistance they vouched for, not your other records.',
     ],

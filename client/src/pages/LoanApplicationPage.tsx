@@ -401,7 +401,7 @@ export default function LoanApplicationPage() {
               <div className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900 print:hidden">
                 <p>These documents don’t match what was typed on the form:</p>
                 <ul className="mt-1 list-disc pl-5">{documents.mismatched.map((d) => <li key={d.key} className="break-words">{d.file.name}</li>)}</ul>
-                <p className="mt-1">Loan officers will see this on Pending Applications.</p>
+                <p className="mt-1">The four signers review it on Pending Applications.</p>
               </div>
             )}
             <ApplicationPreview form={form} documents={previewDocuments()} staffView={staffView} linked={linked} applicationNo={original?.applicationNo} />

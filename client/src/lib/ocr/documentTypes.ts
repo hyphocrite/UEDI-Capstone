@@ -87,7 +87,7 @@ export const DOCUMENT_TYPES: DocumentType[] = [
   {
     id: 'other',
     label: 'Other document',
-    hint: 'Anything else the loan officer asked for.',
+    hint: 'Anything else the UDEI office asked for.',
     keywords: [],
     checks: ['name'],
   },

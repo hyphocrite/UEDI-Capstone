@@ -60,7 +60,7 @@ export default function UsersSection() {
           <UserCog className="h-5 w-5 text-accent" /> Users
         </h2>
         <p className="mt-1 text-sm text-brand-600">
-          Loan officers take in applications. The Bookkeeper, Credit Committee Chairman, President and Treasurer sign them, in
+          Office Staff take in applications; they don't sign. The Bookkeeper, Credit Committee Chairman, President and Treasurer sign them, in
           that order; the Treasurer's signature is the final approval, and they then release the money. Administrators manage users and don't sign.
         </p>
       </div>

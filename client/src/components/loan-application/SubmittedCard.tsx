@@ -45,7 +45,7 @@ export default function SubmittedCard({ application: app, onNew, staffView }: Pr
             Not ready: {app.assessmentError ?? 'the ML service did not answer'}. An officer can run the models again from Pending Applications.
           </p>
         )}
-        <p className="mt-2 text-xs text-brand-500">A suggestion from the credit model. The four signers decide on Pending Applications.</p>
+        <p className="mt-2 text-xs text-brand-500">A suggestion from the credit model. The four signers review it on Pending Applications.</p>
       </div>
 
       <div className="mt-6 flex flex-wrap justify-center gap-2">

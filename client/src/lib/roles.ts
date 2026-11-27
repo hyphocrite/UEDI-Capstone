@@ -5,7 +5,8 @@ export type Role = (typeof ROLES)[number]
 
 export const roleLabel: Record<Role, string> = {
   admin: 'Administrator',
-  loan_officer: 'Loan Officer',
+  // Stored as loan_officer. The office account that takes in applications; it doesn't sign or decide.
+  loan_officer: 'Office Staff',
   bookkeeper: 'Bookkeeper',
   treasurer: 'Treasurer',
   crecom_chair: 'Credit Committee Chairman',

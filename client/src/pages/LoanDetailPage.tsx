@@ -119,7 +119,7 @@ export default function LoanDetailPage() {
         </div>
         <dl className="grid grid-cols-1 gap-x-6 gap-y-3 text-sm min-[420px]:grid-cols-2 lg:grid-cols-4">
           <Item label="Principal" value={formatCentavos(loan.principal)} />
-          <Item label="Rate" value={`${loan.monthlyRate}% a month (add-on)`} />
+          <Item label="Rate" value={`${loan.monthlyRate}% per month on the remaining balance`} />
           <Item label="Term" value={loan.paymentMode === 'bonus' && loan.schedule.length === 1 ? `One payment on ${formatDay(loan.schedule[0].dueDate)}` : `${loan.termMonths} months, ${loan.paymentFrequency === 'quincenal' ? 'quincenal' : 'monthly'}`} />
           <Item label="Mode of payment" value={loan.paymentModeLabel ?? modeLabel(loan.paymentMode, loan.bonusType)} />
           <Item label="Total payable" value={loan.status === 'for_release' ? 'Set on release' : formatCentavos(loan.totalPayable)} />

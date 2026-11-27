@@ -85,7 +85,7 @@ export default function CoMakerForm({ coMakers, borrowerName, borrowerIsMember, 
       <section className="break-inside-avoid">
         <div className="grid grid-cols-1 gap-x-10 sm:grid-cols-2 print:grid-cols-2">
           <Signature title="Signature of applicant over printed name" name={borrowerName} />
-          <Signature title="Noted by: Loan Officer" />
+          <Signature title="Noted by: Bookkeeper" />
         </div>
       </section>
     </Sheet>
