@@ -303,7 +303,8 @@ const kuwiBlink: Partial<Record<keyof typeof kuwi, number>> = {
 
 /**
  * Kuwi the owl, alive: pops in, bobs (happy: hops), blinks (neutral, concerned) and jumps when
- * tapped. With Reduce Motion on she stays still. Timers and loops stop on unmount.
+ * tapped. With Reduce Motion on she only bobs slowly and blinks (no pop, hop or jump), so she still
+ * looks alive on phones that have it on. Timers and loops stop on unmount.
  */
 export function Kuwi({ mood = 'neutral', size = 60, label = true }: { mood?: keyof typeof kuwi; size?: number; label?: boolean }) {
   const [still, setStill] = useState(true)
@@ -323,15 +324,12 @@ export function Kuwi({ mood = 'neutral', size = 60, label = true }: { mood?: key
   }, [])
 
   useEffect(() => {
-    if (still) {
-      scale.setValue(1)
-      lift.setValue(0)
-      return
-    }
-    scale.setValue(0.4)
+    // still = Reduce Motion: no pop-in and no hop, just the slow bob and the blink.
+    scale.setValue(still ? 1 : 0.4)
+    const bob = still ? 2200 : 1600
     const pop = Animated.spring(scale, { toValue: 1, friction: 5, tension: 120, useNativeDriver: true })
     const loop = Animated.loop(
-      mood === 'happy'
+      mood === 'happy' && !still
         ? // A small hop every 2.4 s.
           Animated.sequence([
             Animated.delay(1700),
@@ -340,11 +338,11 @@ export function Kuwi({ mood = 'neutral', size = 60, label = true }: { mood?: key
           ])
         : // A gentle bob over 3.2 s.
           Animated.sequence([
-            Animated.timing(lift, { toValue: -3, duration: 1600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-            Animated.timing(lift, { toValue: 0, duration: 1600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+            Animated.timing(lift, { toValue: -3, duration: bob, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+            Animated.timing(lift, { toValue: 0, duration: bob, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
           ]),
     )
-    pop.start()
+    if (!still) pop.start()
     loop.start()
     // Blink every ~4.5 s for 140 ms (her happy eyes are already closed arcs).
     let open: ReturnType<typeof setTimeout> | undefined
