@@ -63,7 +63,7 @@ export default function MemberHomePage() {
           <MyScoreCard state={score} />
           {score.status === 'ok' && score.data.linked && (score.data.score.tips.length > 0 || score.data.score.strengths.length > 0) && (
             <section className="card min-w-0 p-5" aria-label="Kuwi's tips">
-              <MascotSays mood={moodForBand(score.data.score.band)} title="Here's how you can raise your score">
+              <MascotSays collapsible storageKey="member-home" mood={moodForBand(score.data.score.band)} title="Here's how you can raise your score">
                 {score.data.score.strengths.length > 0 && (
                   <div className="mt-2"><KuwiReasons kind="favor" title="Doing well" items={score.data.score.strengths} /></div>
                 )}
@@ -86,10 +86,10 @@ export default function MemberHomePage() {
 function Card({ title, icon: Icon, link, children }: { title: string; icon: LucideIcon; link?: { to: string; label: string }; children: ReactNode }) {
   return (
     <section className="card min-w-0 p-5">
-      <div className="mb-3 flex items-center justify-between gap-3">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
         <h2 className="flex items-center gap-2 font-semibold text-brand-800"><Icon className="h-4 w-4 text-accent-dark" /> {title}</h2>
         {link && (
-          <Link to={link.to} className="flex items-center gap-1 text-xs font-semibold text-brand-700 hover:text-brand-900 hover:underline">
+          <Link to={link.to} className="flex shrink-0 items-center gap-1 text-xs font-semibold whitespace-nowrap text-brand-700 hover:text-brand-900 hover:underline">
             {link.label} <ArrowRight className="h-3 w-3" />
           </Link>
         )}
@@ -148,7 +148,7 @@ function ApplicationCard({ state }: { state: Load<{ applications: LoanApplicatio
         }
         return (
           <>
-            <p className="font-semibold text-ink">{formatPeso(a.loan.amount)} <span className="font-normal text-brand-600">{loanTypeLabel[a.loan.loanType]} · {a.applicationNo}</span></p>
+            <p className="font-semibold text-ink">{formatPeso(a.loan.amount)} <span className="font-normal text-brand-600">{loanTypeLabel[a.loan.loanType]} · <span className="whitespace-nowrap">{a.applicationNo}</span></span></p>
             {a.status === 'pending' && (
               <p className="mt-1 flex items-center gap-2 text-sm text-brand-700">
                 <Hourglass className="h-4 w-4 shrink-0 text-amber-600" />

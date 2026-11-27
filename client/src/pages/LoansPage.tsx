@@ -134,6 +134,42 @@ export default function LoansPage() {
           </div>
         </div>
 
+        {/* Phones: one card per mutual assistance instead of a wide table that scrolls sideways. */}
+        <div className="sm:hidden">
+          <ul className="divide-y divide-brand-50" aria-label="Mutual assistance">
+            {paged.pageRows.map((l) => (
+              <li key={l._id}>
+                <Link to={`/loans/${l._id}`} className="row-hover block px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-semibold whitespace-nowrap text-ink">{l.loanNo}</p>
+                      <p className="text-xs text-brand-500">{l.source === 'ledger' ? 'Carried over from the ledger' : loanTypeLabel[l.loanType]}</p>
+                      {l.paymentModeLabel && <p className="text-xs text-brand-500">{l.paymentModeLabel}</p>}
+                    </div>
+                    <StatusBadge status={displayStatus(l)} />
+                  </div>
+                  {staffView && <p className="mt-1 text-sm text-ink">{l.borrowerName}</p>}
+                  {missedDeductionText(l) && <p className="text-xs text-red-700">{missedDeductionText(l)}</p>}
+                  <div className="mt-2 flex items-end justify-between gap-3">
+                    <div>
+                      <p className="text-xs text-brand-500">Balance</p>
+                      <p className="font-semibold tabular-nums">{l.status === 'for_release' ? '—' : formatCentavos(l.balance)}</p>
+                    </div>
+                    <p className="text-right text-xs text-brand-500">{formatCentavos(l.principal)}<br />{l.monthlyRate}% per month · {l.termMonths} months</p>
+                  </div>
+                  <div className="mt-2"><ProgressBar value={percent(l.amountPaid, l.totalPayable)} label={`${l.loanNo} paid`} /></div>
+                </Link>
+              </li>
+            ))}
+            {filtered.length === 0 && (
+              <li className="px-4 py-10 text-center text-sm text-brand-500">
+                {loans === null ? 'Loading mutual assistance…' : all.length === 0 ? 'No mutual assistance yet.' : 'No mutual assistance matches this filter.'}
+              </li>
+            )}
+          </ul>
+          <Pagination page={paged.page} pageSize={paged.perPage} total={paged.total} onPage={paged.setPage} />
+        </div>
+        <div className="hidden sm:block">
         <TableShell caption="Mutual assistance" anchor={paged.anchor}
           footer={<Pagination page={paged.page} pageSize={paged.perPage} total={paged.total} onPage={paged.setPage} />}>
             <thead className="table-head">
@@ -179,6 +215,7 @@ export default function LoansPage() {
               )}
             </tbody>
         </TableShell>
+        </div>
       </div>
 
       {carried.length > 0 && (

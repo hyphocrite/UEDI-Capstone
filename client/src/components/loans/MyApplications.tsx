@@ -101,7 +101,7 @@ export default function MyApplications() {
                   {denial?.note && <p className="mt-1">The {roleLabel[denial.step]} wrote: “{denial.note}”</p>}
                   {a.explanation && (a.explanation.against.length > 0 || a.explanation.tips.length > 0) && (
                     <div className="mt-3">
-                      <MascotSays mood="concerned" title="I looked at your application. Here's what counted against it:">
+                      <MascotSays collapsible storageKey="my-applications" mood="concerned" title="Why it wasn't approved, and what would help">
                         {a.explanation.against.length > 0 && (
                           <KuwiReasons kind="against" items={a.explanation.against.map((r) => r.text)} />
                         )}
