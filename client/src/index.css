@@ -373,10 +373,23 @@ input::-ms-clear {
   65% { transform: translateY(0) rotate(2deg); }
 }
 
+/* Reduce motion (on by default on many Windows PCs: Settings > Accessibility > Visual effects >
+   Animation effects): no pop, hop, jump, wave, sway or sparkle, but she still breathes (a slow bob)
+   and blinks, so she doesn't look frozen. */
 @media (prefers-reduced-motion: reduce) {
-  .kuwi *,
   .kuwi-pop,
-  .kuwi-pop > svg {
+  .kuwi-pop > svg,
+  .kuwi .kuwi-wave,
+  .kuwi .kuwi-sparkle,
+  .kuwi .kuwi-sweat,
+  .kuwi .kuwi-tuft,
+  .kuwi--neutral .kuwi-pupils {
     animation: none !important;
+  }
+  .kuwi .kuwi-body {
+    animation: kuwi-bob 4.4s ease-in-out infinite !important;
+  }
+  .kuwi .kuwi-shadow {
+    animation: kuwi-shadow 4.4s ease-in-out infinite !important;
   }
 }
