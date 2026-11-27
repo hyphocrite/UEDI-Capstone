@@ -6,7 +6,7 @@ import PaymentModeChoice from './PaymentModeChoice'
 import type { Form, PaymentFrequency, PeriodUnit } from './applicationForm'
 import { loanTypeLabel } from '../../lib/applications'
 import type { LoanType } from '../../lib/applications'
-import { formatPeso } from '../../lib/format'
+import { formatPeso, formatAmount } from '../../lib/format'
 import { formatCentavos, formatDay, toCentavos } from '../../lib/loans'
 import { FREQUENCY_LABEL } from '../../lib/paymentModes'
 
@@ -97,7 +97,7 @@ export default function AgreementSection({ form, update, onLoanTypeChange, linke
 
         {bonus ? (
           <p className="rounded-lg bg-brand-50 px-3 py-2 text-sm text-brand-800">
-            One payment of <strong className="text-ink">{bonus.total ? formatPeso(Math.round(bonus.total)) : '—'}</strong> charged to the{' '}
+            One payment of <strong className="text-ink">{bonus.total ? formatAmount(bonus.total) : '—'}</strong> charged to the{' '}
             <strong className="text-ink">{bonus.label}</strong> expected on <strong className="text-ink">{formatDay(bonus.dueDate)}</strong>: the amount plus{' '}
             {form.monthlyRate}% per month for {bonus.months} month{bonus.months === 1 ? '' : 's'}. Payroll doesn't deduct every cutoff.
           </p>
@@ -142,12 +142,12 @@ export default function AgreementSection({ form, update, onLoanTypeChange, linke
         <dl className={`grid gap-2 rounded-lg bg-brand-50 p-3 text-center ${form.paymentFrequency === 'quincenal' ? 'grid-cols-2' : 'grid-cols-1'} ${form.paymentMode === 'bonus' ? 'hidden' : ''}`}>
           <div className="min-w-0">
             <dt className="text-xs text-brand-600">Installment per month</dt>
-            <dd className="font-bold text-brand-800">{inst ? formatPeso(Math.round(inst.monthly)) : '—'}</dd>
+            <dd className="font-bold text-brand-800">{inst ? formatAmount(inst.monthly) : '—'}</dd>
           </div>
           {form.paymentFrequency === 'quincenal' && (
             <div className="min-w-0">
               <dt className="text-xs text-brand-600">Per payday (half)</dt>
-              <dd className="font-bold text-brand-800">{inst ? formatPeso(Math.round(inst.quincenal)) : '—'}</dd>
+              <dd className="font-bold text-brand-800">{inst ? formatAmount(inst.quincenal) : '—'}</dd>
             </div>
           )}
         </dl>

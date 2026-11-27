@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Download, FileText, HandCoins, PiggyBank, TrendingUp, Wallet, BarChart3 } from 'lucide-react'
+import { formatDateTime } from '../lib/format'
 import PageHeader from '../components/PageHeader'
 import LedgerExportButton from '../components/LedgerExportButton'
 import StatCard from '../components/StatCard'
@@ -84,7 +85,7 @@ export default function ReportsPage() {
     <>
       <div className="hidden print:block">
         <p className="text-lg font-bold">United DNSC Employees, Inc.</p>
-        <p className="text-sm">{periods.find((p) => p.id === period)!.label} report · {caption} · {report ? `generated ${new Date(report.generatedAt).toLocaleString('en-PH')}` : ''}</p>
+        <p className="text-sm">{periods.find((p) => p.id === period)!.label} report · {caption} · {report ? `generated ${formatDateTime(report.generatedAt)}` : ''}</p>
       </div>
       <PageHeader icon={BarChart3}
         title="Reports"

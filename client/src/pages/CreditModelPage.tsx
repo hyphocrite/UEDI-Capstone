@@ -6,7 +6,7 @@ import TableShell from '../components/TableShell'
 import { api } from '../lib/api'
 import { scoreLine } from '../lib/applications'
 import type { Benchmark, BenchmarkDataset, BenchmarkRow, ConfusionMatrix, ModelInfo } from '../lib/applications'
-import { formatDate } from '../lib/format'
+import { formatDate, formatCount } from '../lib/format'
 
 const pct = (x: number) => `${Math.round(x * 100)}%`
 const short: Record<string, string> = { random_forest: 'RF', xgboost: 'XGB', linear_regression: 'LR', ridge: 'Ridge', decision_tree: 'DT' }
@@ -73,7 +73,7 @@ export default function CreditModelPage() {
         <StatCard
           icon={Database}
           label="Trained on"
-          value={model ? `${model.rows.toLocaleString()} past mutual assistance (loans)` : '–'}
+          value={model ? `${formatCount(model.rows)} past mutual assistance (loans)` : '–'}
           hint={model ? `${model.targetMean != null ? `average repayment score ${model.targetMean.toFixed(1)}, ` : ''}${formatDate(model.trainedAt)}` : 'ML service not reachable'}
         />
       </div>
@@ -93,7 +93,7 @@ export default function CreditModelPage() {
             <h2 className="text-lg font-semibold text-brand-800">Benchmark of 8 regressors and the stacked ensemble</h2>
             <p className="text-sm text-brand-600">
               {dataset
-                ? `${dataset.rows.toLocaleString()} past mutual assistance, average repayment score ${dataset.targetMean.toFixed(1)}. ${dataset.validation}. Ranked by R².`
+                ? `${formatCount(dataset.rows)} past mutual assistance, average repayment score ${dataset.targetMean.toFixed(1)}. ${dataset.validation}. Ranked by R².`
                 : 'R²: share of the variation in past repayment scores a model explains. MAE: average points off.'}
             </p>
           </div>
@@ -180,7 +180,7 @@ function ConfusionGrid({ cm }: { cm: ConfusionMatrix }) {
   const bad = fn + tp
   const cell = (n: number, of: number, label: string, tone: 'right' | 'wrong') => (
     <div className={`rounded-lg p-4 ${tone === 'right' ? 'bg-brand-800 bg-grad-brand text-white' : 'bg-brand-50 text-ink'}`}>
-      <p className="text-2xl font-bold tabular-nums">{n.toLocaleString()}</p>
+      <p className="text-2xl font-bold tabular-nums">{formatCount(n)}</p>
       <p className={`text-sm ${tone === 'right' ? 'text-brand-100' : 'text-brand-600'}`}>{label}, {pct(n / Math.max(of, 1))} of {of === good ? 'good' : 'poor'} repayers</p>
     </div>
   )

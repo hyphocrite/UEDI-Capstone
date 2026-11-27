@@ -12,7 +12,7 @@ import { useAuth } from '../context/AuthContext'
 import { api } from '../lib/api'
 import { awaitingUser, creditScore, loanTypeLabel, openCoMakerRequest } from '../lib/applications'
 import type { LoanApplication, ModelInfo } from '../lib/applications'
-import { formatDate, formatPeso } from '../lib/format'
+import { formatDate, formatPeso, formatCount } from '../lib/format'
 import { isSigner, stepShortLabel } from '../lib/roles'
 import { pageOf, usePaged } from '../lib/usePaged'
 
@@ -240,7 +240,7 @@ function ModelBanner({ model }: { model: ModelInfo | null }) {
   return (
     <p className="mb-4 flex flex-wrap items-center gap-2 rounded-lg bg-brand-50 px-4 py-3 text-sm text-brand-800">
       <Cpu className="h-4 w-4 shrink-0 text-accent" />
-      Models trained {formatDate(model.trainedAt)} on {model.rows.toLocaleString()} past mutual assistance records, checked with {model.validation}.
+      Models trained {formatDate(model.trainedAt)} on {formatCount(model.rows)} past mutual assistance records, checked with {model.validation}.
     </p>
   )
 }

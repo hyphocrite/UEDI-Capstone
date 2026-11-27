@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { formatDateTime } from '../lib/format'
 import { ChevronDown, ChevronRight, Search, History } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import Pagination from '../components/Pagination'
@@ -31,8 +32,8 @@ type Entry = {
 
 type Result = { entries: Entry[]; total: number; page: number; limit: number; actions: string[] }
 
-const when = (iso: string) =>
-  new Date(iso).toLocaleString('en-PH', { timeZone: 'Asia/Manila', year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', second: '2-digit' })
+// A log keeps the seconds.
+const when = (iso: string) => formatDateTime(iso, { seconds: true })
 
 /** Older entries were stored as "Payment mode changed"; they are shown in today's words (the stored text, used to filter, is unchanged). */
 const actionText = (a: string) => a.replace(/^Payment mode changed/, 'Mode of payment changed')

@@ -106,4 +106,4 @@ export type ImportResult = {
 
 /** Cutoff date as "Oct 31, 2026" (calendar day, formatted in UTC so it never shifts). */
 export const formatCutoff = (key: string) =>
-  new Date(`${key.slice(0, 10)}T00:00:00Z`).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })
+  new Date(`${key.slice(0, 10)}T00:00:00Z`).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' })

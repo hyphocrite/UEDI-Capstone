@@ -9,7 +9,7 @@ import { Box, Field, Fill, Heading, InParens, Letterhead, Sheet, Signature } fro
 import { api } from '../../lib/api'
 import { employmentStatusLabel } from '../../lib/applications'
 import type { EmploymentStatus } from '../../lib/applications'
-import { formatPeso } from '../../lib/format'
+import { formatPeso, formatAmount } from '../../lib/format'
 import { pesoWords } from '../../lib/pesoWords'
 
 export type PreviewDocument = { label: string; fileName: string }
@@ -137,7 +137,7 @@ export default function ApplicationPreview({ form: f, documents, staffView, link
           </div>
           {f.paymentMode === 'bonus' ? (
             <Field label="Payment">
-              {bonus ? `${formatPeso(Math.round(bonus.total))} in one payment on ${longDate(bonus.dueDate)} (${bonus.label})` : ''}
+              {bonus ? `${formatAmount(bonus.total)} in one payment on ${longDate(bonus.dueDate)} (${bonus.label})` : ''}
             </Field>
           ) : (
             <>
@@ -147,7 +147,7 @@ export default function ApplicationPreview({ form: f, documents, staffView, link
                 <Box checked={!quincenal}>{FREQUENCY_LABEL.monthly}</Box>
               </p>
               <Field label="Installment">
-                {inst ? `${formatPeso(Math.round(inst.monthly))} per month${quincenal ? `, ${formatPeso(Math.round(inst.quincenal))} per payday` : ''}` : ''}
+                {inst ? `${formatAmount(inst.monthly)} per month${quincenal ? `, ${formatAmount(inst.quincenal)} per payday` : ''}` : ''}
               </Field>
             </>
           )}

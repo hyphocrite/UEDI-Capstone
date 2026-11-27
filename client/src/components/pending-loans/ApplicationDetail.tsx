@@ -16,7 +16,7 @@ import { atLeast } from '../../lib/roles'
 import { modeLabel, frequencyLabel } from '../../lib/paymentModes'
 import { creditScore, employmentStatusLabel, loanTypeLabel, monthlyInstallment, scoreLine } from '../../lib/applications'
 import type { LoanApplication, Suggestion } from '../../lib/applications'
-import { formatDate, formatPeso } from '../../lib/format'
+import { formatDate, formatPeso, formatAmount } from '../../lib/format'
 import { documentType } from '../../lib/ocr/documentTypes'
 import type { DocumentTypeId } from '../../lib/ocr/documentTypes'
 
@@ -181,9 +181,9 @@ export default function ApplicationDetail({ app, onChange }: { app: LoanApplicat
         <dl className="grid grid-cols-1 gap-x-6 gap-y-3 text-sm min-[420px]:grid-cols-2 sm:grid-cols-3">
           <Item label="Monthly salary" value={formatPeso(a.monthlySalary)} />
           <Item label="Net take-home pay" value={formatPeso(a.netTakeHomePay)} warn={a.netTakeHomePay < a.monthlySalary * 0.4} />
-          <Item label={`Installment (${app.loan.paymentFrequency === 'quincenal' ? 'per month, half each payday' : 'per month'})`} value={formatPeso(Math.round(installment))} />
+          <Item label={`Installment (${app.loan.paymentFrequency === 'quincenal' ? 'per month, half each payday' : 'per month'})`} value={formatAmount(installment)} />
           <Item label="Share of net pay" value={`${Math.round(share * 100)}%`} warn={share > 0.5} />
-          <Item label="Net pay left after this and existing mutual assistance" value={formatPeso(Math.round(left))} warn={left < 5000} />
+          <Item label="Net pay left after this and existing mutual assistance" value={formatAmount(left)} warn={left < 5000} />
           <Item label="Interest rate" value={`${app.loan.monthlyRate}% per month`} />
           <Item label="Employment" value={`${employmentStatusLabel[a.employmentStatus]}, ${a.employer}`} warn={a.employmentStatus !== 'permanent'} />
           <Item label="Years as member" value={String(a.yearsAsMember)} />

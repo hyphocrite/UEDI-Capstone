@@ -8,7 +8,7 @@ import { useConfirm } from '../context/ConfirmContext'
 import { api } from '../lib/api'
 import { monthlyInstallment } from '../lib/applications'
 import type { LoanType } from '../lib/applications'
-import { formatDate, formatPeso } from '../lib/format'
+import { formatDate, formatPeso, formatAmount } from '../lib/format'
 import { fetchSettings, rememberSettings, useSettings } from '../lib/settings'
 import type { LoanSettings } from '../lib/settings'
 
@@ -175,7 +175,7 @@ export default function SettingsPage() {
                     <input type="number" min={1} max={120} step={1} className="input w-28" value={p.maxTermMonths}
                       onChange={(e) => setProduct(t, 'maxTermMonths', e.target.value)} aria-label={`${p.label} longest term`} />
                   </td>
-                  <td className="cell-num font-semibold">{formatPeso(Math.round(inst))}</td>
+                  <td className="cell-num font-semibold">{formatAmount(inst)}</td>
                 </tr>
               )
             })}
