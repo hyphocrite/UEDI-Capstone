@@ -294,7 +294,7 @@ function EnrollModal({ onClose, onSaved }: { onClose: () => void; onSaved: (p: R
     const who = members.find((m) => m.memberId === form.memberId)
     const ok = await confirm({
       title: 'Enroll this member?',
-      message: <p>Open a retirement plan for <b>{who ? who.fullName : `member ${form.memberId}`}</b> from {form.startDate}: {formatCentavos(toCentavos(form.monthlyContribution || 0))} a month, of which {formatCentavos(toCentavos(form.planShare || 0))} goes to the plan.</p>,
+      message: <p>Open a retirement plan for <b>{who ? who.fullName : `member ${form.memberId}`}</b> from {form.startDate}: {formatCentavos(toCentavos(form.monthlyContribution || 0))} per month, of which {formatCentavos(toCentavos(form.planShare || 0))} goes to the plan.</p>,
       confirmLabel: 'Yes, enroll',
     })
     if (!ok) return

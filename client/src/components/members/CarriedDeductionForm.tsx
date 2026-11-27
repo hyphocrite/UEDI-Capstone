@@ -6,7 +6,7 @@ import { useConfirm } from '../../context/ConfirmContext'
 import { formatCentavos, formatDay, todayKey, toCentavos } from '../../lib/loans'
 import type { Loan } from '../../lib/loans'
 import type { Member } from '../../lib/members'
-import { FREQUENCY_LABEL } from '../../lib/paymentModes'
+import { FREQUENCY_LABEL, frequencyLabel } from '../../lib/paymentModes'
 
 type Frequency = 'quincenal' | 'monthly'
 
@@ -54,7 +54,7 @@ export default function CarriedDeductionForm({ member, onClose, onSaved }: {
       title: 'Set up this payroll deduction?',
       message: (
         <>
-          <p>Payroll will deduct <b>{formatCentavos(perCutoff)}</b> {frequency === 'quincenal' ? 'every payday' : 'once a month'} from <b>{member.fullName}</b>, starting {formatDay(firstDueDate)}, until the {formatCentavos(opening.balance)} balance is paid ({cutoffs} deductions).</p>
+          <p>Payroll will deduct <b>{formatCentavos(perCutoff)}</b> {frequencyLabel(frequency)} from <b>{member.fullName}</b>, starting {formatDay(firstDueDate)}, until the {formatCentavos(opening.balance)} balance is paid ({cutoffs} deductions).</p>
           <p>The balance becomes mutual assistance LEDGER-{member.memberId}. This can only be set up once per member.</p>
         </>
       ),

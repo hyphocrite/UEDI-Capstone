@@ -128,8 +128,8 @@ export default function SettingsPage() {
       <PageHeader icon={Settings}
         title="Settings"
         subtitle={session?.role === 'admin'
-          ? 'Interest rates, terms and the minimum salary for mutual assistance, and who signs the applications.'
-          : 'Interest rates, terms and the minimum salary for mutual assistance.'}
+          ? 'Interest rates, terms, the minimum salary, and user roles.'
+          : 'Interest rates, terms and the minimum salary.'}
         actions={
           <>
             <button className="btn-ghost" onClick={() => { touch(); setDraft(toDraft(current)) }}><RotateCcw className="h-4 w-4" /> Undo changes</button>

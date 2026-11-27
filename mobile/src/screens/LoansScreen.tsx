@@ -54,7 +54,7 @@ export default function LoansScreen({ loans, applications, loading, onRefresh, o
         <ShowMore list={loanList} />
 
         <Text style={[s.sectionTitle, { marginTop: 12 }]}>Applications</Text>
-        {openApps.length === 0 ? <Empty text="No applications in review." /> : null}
+        {openApps.length === 0 ? <Empty text="No pending applications." /> : null}
         {appList.visible.map((a) => (
           <Card key={a.id}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
